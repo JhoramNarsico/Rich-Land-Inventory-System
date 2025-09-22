@@ -1,0 +1,29 @@
+<!-- inventory/templates/inventory/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-g">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rich Land Auto Supply</title>
+    <!-- Simple styling -->
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 960px; margin: 20px auto; padding: 0 20px; }
+        nav { background: #f4f4f4; padding: 1rem; margin-bottom: 1rem; }
+        nav a { text-decoration: none; color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .btn { display: inline-block; background: #333; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;}
+        .btn-edit { background: #5bc0de; }
+        .btn-delete { background: #d9534f; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="{% url 'product-list' %}"><h1>Rich Land Auto Supply - Inventory</h1></a>
+    </nav>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

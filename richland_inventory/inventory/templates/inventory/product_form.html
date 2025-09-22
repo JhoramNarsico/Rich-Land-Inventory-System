@@ -1,0 +1,11 @@
+<!-- inventory/templates/inventory/product_form.html -->
+{% extends "inventory/base.html" %}
+
+{% block content %}
+  <h2>{% if object %}Update Product{% else %}Create New Product{% endif %}</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Save" class="btn">
+  </form>
+{% endblock %}
