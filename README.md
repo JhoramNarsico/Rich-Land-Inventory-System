@@ -72,12 +72,16 @@ Admin Panel: http://127.0.0.1:8000/admin/
 # Understanding the project structure is key to making changes.
 Project Structure Overview
 
-core/: This is the main project configuration directory.
-settings.py: Contains all project settings (database, installed apps, etc.).
-urls.py: The main URL routing file. It directs traffic to the inventory app.
-inventory/: This is the application where all our inventory logic lives.
-models.py: Defines the database structure. The Product table is defined here.
-views.py: Contains the application logic. It handles what happens when a user visits a page.
-urls.py: Defines the URLs specific to the inventory app (e.g., /product/create/).
-templates/inventory/: Contains the HTML files that the user sees.
-manage.py: A command-line utility for interacting with your Django project.
+*   core/: This is the main project configuration directory.
+*   settings.py: Contains all project settings (database, installed apps, etc.).
+*   urls.py: The main URL routing file. It directs traffic to the inventory app.
+*   inventory/: This is the application where all our inventory logic lives.
+*   models.py: Defines the database structure. The Product table is defined here.
+*   views.py: Contains the application logic. It handles what happens when a user visits a page.
+*   urls.py: Defines the URLs specific to the inventory app (e.g., /product/create/).
+*   templates/inventory/: Contains the HTML files that the user sees.
+*   manage.py: A command-line utility for interacting with your Django project.
+
+
+
+
