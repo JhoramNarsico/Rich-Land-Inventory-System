@@ -37,7 +37,7 @@ python -m venv venv
 .\venv\Scripts\activate
 
 #IF there is an error activating the virtual environment, input this
-Set-ExecutionPolicy RemoteSigned
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
 3. Install Required Packages
    
