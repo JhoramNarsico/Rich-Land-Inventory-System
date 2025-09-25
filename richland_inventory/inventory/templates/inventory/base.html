@@ -1,8 +1,10 @@
-<!-- inventory/templates/inventory/base.html -->
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-g">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rich Land Auto Supply</title>
     <!-- Simple styling -->
@@ -20,7 +22,22 @@
 </head>
 <body>
     <nav>
+            <nav>
         <a href="{% url 'product-list' %}"><h1>Rich Land Auto Supply - Inventory</h1></a>
+
+        <!-- ADD THIS BLOCK OF CODE -->
+        {% if user.is_authenticated %}
+            <div style="float: right; padding: 15px;">
+                Hello, {{ user.username }}!
+                <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" style="background: none; border: none; color: #d9534f; cursor: pointer;">Logout</button>
+                </form>
+            </div>
+        {% endif %}
+        <!-- END OF BLOCK -->
+
+    </nav>
     </nav>
     <main>
         {% block content %}{% endblock %}
