@@ -97,7 +97,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'richland_inventory_db',
         'USER': 'root',
-        'PASSWORD': 'cYkablyat-11', 
+        'PASSWORD': 'your own password', 
         'HOST': 'localhost',  # Or the IP address of your database server
         'PORT': '3306',       # Default MySQL port
     }
@@ -148,3 +148,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = '/' # Redirect to the home page after login
 LOGIN_URL = '/accounts/login/' # The URL of your new login page
 LOGOUT_REDIRECT_URL = '/' # Redirect to the home page after logout
+
