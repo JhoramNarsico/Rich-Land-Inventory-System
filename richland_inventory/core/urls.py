@@ -1,13 +1,20 @@
-# core/urls.py
+# in core/urls.py
 
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import RedirectView
+
+# --- ADD THESE TWO IMPORTS ---
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('inventory/', include('inventory.urls')),
-    path('api/', include('inventory.api_urls')),  # Add this line for the API
     path('accounts/', include('django.contrib.auth.urls')),
-    path('', RedirectView.as_view(url='/inventory/', permanent=True)),
+    path('api/', include('inventory.api_urls')), # Handles API urls
+    path('', include('inventory.urls')), # Handles user-facing urls
 ]
+
+# --- ADD THIS IF STATEMENT AT THE VERY BOTTOM ---
+# This is the line that tells the development server to serve static files
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

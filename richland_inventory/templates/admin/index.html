@@ -1,0 +1,39 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{#
+This block is where the main content of the admin dashboard is.
+We are adding our own custom section at the very top.
+#}
+{% block content %}
+    <div id="content-main">
+        <!-- START OF OUR CUSTOM CODE -->
+        <div class="app-list">
+            <div class="app-inventory module">
+                <table>
+                    <caption>
+                        <a href="#" class="section" title="Developer Links">Developer Links</a>
+                    </caption>
+                    <tbody>
+                        <tr>
+                            <th scope="row">
+                               <a href="{% url 'product-api-list' %}">View API Endpoint</a>
+                            </th>
+                            <td>View the browsable API for all products.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <a href="{% url 'product-list' %}">View User Product List</a>
+                            </th>
+                            <td>View the user-facing product list page.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <!-- END OF OUR CUSTOM CODE -->
+
+        {# This magic tag renders all the original dashboard content (Users, Groups, etc.) #}
+        {{ block.super }}
+    </div>
+{% endblock %}

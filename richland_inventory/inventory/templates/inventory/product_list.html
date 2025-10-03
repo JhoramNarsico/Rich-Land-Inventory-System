@@ -1,37 +1,40 @@
-<!-- inventory/templates/inventory/product_list.html -->
 {% extends "inventory/base.html" %}
 
 {% block content %}
-  <h2>Product List</h2>
-  <a href="{% url 'product-create' %}" class="btn">Add New Product</a>
+    <div class="card-header">
+        <h2>Product List</h2>
+        <a href="{% url 'product-create' %}" class="btn">Add New Product</a>
+    </div>
 
-  {% if product_list %}
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>SKU</th>
-        <th>Quantity</th>
-        <th>Price</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for product in product_list %}
-      <tr>
-        <td><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></td>
-        <td>{{ product.sku }}</td>
-        <td>{{ product.quantity }}</td>
-        <td>${{ product.price }}</td>
-        <td>
-            <a href="{% url 'product-update' product.pk %}" class="btn btn-edit">Edit</a>
-            <a href="{% url 'product-delete' product.pk %}" class="btn btn-delete">Delete</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-    <p>There are no products in the inventory yet.</p>
-  {% endif %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in product_list %}
+            <tr>
+                <td>
+                    <a href="{% url 'product-detail' product.pk %}">{{ product.name }}</a>
+                </td>
+                <td>{{ product.sku }}</td>
+                <td>{{ product.quantity }}</td>
+                <td>${{ product.price }}</td>
+                <td>
+                    <a href="{% url 'product-update' product.pk %}" class="btn">Edit</a>
+                    <a href="{% url 'product-delete' product.pk %}" class="btn btn-delete">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No products found in the inventory.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}

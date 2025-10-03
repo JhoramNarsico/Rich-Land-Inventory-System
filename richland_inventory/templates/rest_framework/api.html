@@ -1,0 +1,17 @@
+{% extends "rest_framework/base.html" %}
+
+{#
+This block controls the dropdown menu in the top-right corner.
+We will add our new link here.
+#}
+{% block userlinks %}
+    {# This magic tag renders the original links (like the Logout button) #}
+    {{ block.super }}
+
+    {# This is our new link, which only shows up for admin users #}
+    {% if user.is_staff %}
+        <li class="dropdown-item">
+            <a href="{% url 'admin:index' %}">Go to Admin Page</a>
+        </li>
+    {% endif %}
+{% endblock %}

@@ -19,6 +19,8 @@ class ProductDetailView(LoginRequiredMixin, DetailView):
     model = Product
     template_name = 'inventory/product_detail.html'
 
+# in inventory/views.py
+
 class ProductCreateView(LoginRequiredMixin, CreateView):
     model = Product
     fields = ['name', 'sku', 'price', 'quantity']

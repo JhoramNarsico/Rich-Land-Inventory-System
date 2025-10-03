@@ -1,0 +1,128 @@
+:root {
+            --primary-color: #4F46E5; /* A modern indigo */
+            --primary-hover: #4338CA;
+            --danger-color: #EF4444;  /* A softer red */
+            --danger-hover: #DC2626;
+            --background-color: #F9FAFB; /* A very light grey */
+            --card-background: #FFFFFF;
+            --text-color: #1F2937;
+            --subtle-text: #6B7280;
+            --border-color: #E5E7EB;
+        }
+
+        /* 3. Global Styles & Typography */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 20px auto;
+        }
+
+        h1, h2 {
+            font-weight: 700;
+        }
+
+        /* 4. Navigation Bar Styling */
+        nav {
+            max-width: 1100px;
+            margin: 0 auto 20px auto;
+            background-color: var(--card-background);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav h1 {
+            font-size: 1.25rem;
+            margin: 0;
+        }
+        nav a {
+            text-decoration: none;
+            color: var(--text-color);
+        }
+        .nav-right { display: flex; align-items: center; }
+        .nav-right div { margin-left: 20px; color: var(--subtle-text); }
+        .nav-right a { color: var(--primary-color); font-weight: 500; }
+
+        /* 5. Modern Button Styling */
+        .btn {
+            display: inline-block;
+            background: var(--primary-color);
+            color: #fff;
+            padding: 10px 20px;
+            text-decoration: none;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* We no longer need .btn-edit, all buttons will be the same primary color */
+        .btn-delete {
+            background-color: var(--danger-color);
+        }
+        .btn-delete:hover {
+            background-color: var(--danger-hover);
+        }
+
+        /* 6. The "Card" and Table Design */
+        .card {
+            background-color: var(--card-background);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .card-header h2 {
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--subtle-text);
+        }
+        th {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--subtle-text);
+            font-weight: 600;
+        }
+        td { color: var(--text-color); }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover {
+            background-color: var(--background-color);
+        }
+
+        /* Make buttons in tables smaller */
+        td .btn {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            margin-top: 0;
+        }
