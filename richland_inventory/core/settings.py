@@ -77,8 +77,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'richland_inventory_db',
+        'USER': 'root',
+        'PASSWORD': 'your own password', 
+        'HOST': 'localhost',  # Or the IP address of your database server
+        'PORT': '3306',       # Default MySQL port
     }
 }
 
