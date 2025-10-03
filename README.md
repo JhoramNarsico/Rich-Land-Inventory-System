@@ -81,13 +81,14 @@ DATABASES = {
 
 ```
 6. Apply Database Migrations
+   
  ```bash
 python manage.py makemigrations
 
 python manage.py migrate
-
-(NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
 ```
+(NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
+
 5. Create an Administrator Account
 
  ```bash
