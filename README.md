@@ -1,13 +1,15 @@
 # Rich Land Auto Supply - Inventory System
 
-This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python.
+This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python. It has also REST API which we use the Django REST Framework (DRF), a powerful and flexible toolkit for building Web APIs.
 
 ## Prerequisites
 
 Before you start, make sure you have the following software installed on your computer:
 
-*   **Python (version 3.8 or newer):** [Download Python](https://www.python.org/downloads/)
-*   **Git:** [Download Git](https://git-scm.com/downloads/)
+*   **Python** 
+*   **Git:** 
+*   **pip**
+*   **MySQL Server**
 
 ## Setup Instructions
 
@@ -42,14 +44,53 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 3. Install Required Packages
    
 ```bash
-pip install Django
+python -m  pip install Django 
 
 ```
-4. Set Up the Database
+```bash
+python -m pip install mysqlclient
+```
+```bash
+python -m pip install djangorestframework
+```
+4. Set Up the MySQL Database
+
+```bash
+# Create a new database. We recommend using utf8mb4 for full Unicode support.
+CREATE DATABASE richland_inventory_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+#Create a new user and grant it privileges on the new database. Replace 'your_password' with a secure password.
+CREATE USER 'your_db_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON richland_inventory_db.* TO 'your_db_user'@'localhost';
+FLUSH PRIVILEGES;
+
+```
+5. Configure Django Settings
+```bash
+#Locate the settings.py file in your project (e.g., core/settings.py).
+# core/settings.py
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'richland_inventory_db',
+        'USER': 'your_db_user',          # The user you created
+        'PASSWORD': 'your_password',      # The password you set
+        'HOST': 'localhost',              # Or your DB host IP
+        'PORT': '3306',                   # Default MySQL port
+    }
+}
+
+```
+6. Apply Database Migrations
+   
  ```bash
-python manage.py migrate
+python manage.py makemigrations
 
+python manage.py migrate
 ```
+(NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
+
 5. Create an Administrator Account
 
  ```bash
@@ -63,9 +104,22 @@ python manage.py runserver
 
 ```
 Access the Application:
+
 Open your web browser and go to the following addresses:
-Main Application: http://127.0.0.1:8000/
-Admin Panel: http://127.0.0.1:8000/admin/
+
+* Main Application: http://127.0.0.1:8000
+
+* Admin Panel: http://127.0.0.1:8000/admin/
+
+
+Access these API endpoints in your browser or using a tool like Postman.
+
+*   List all products (GET): http://127.0.0.1:8000/api/products/
+*   Retrieve a specific product (GET): http://127.0.0.1:8000/api/products/1/
+*   Create a new product (POST): http://127.0.0.1:8000/api/products/
+*   Update a product (PUT/PATCH): http://127.0.0.1:8000/api/products/1/
+*   Delete a product (DELETE): http://127.0.0.1:8000/api/products/1/
+
 
 
 # How to Edit and Customize the Program
