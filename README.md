@@ -1,6 +1,6 @@
 # Rich Land Auto Supply - Inventory System
 
-This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python.
+This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python. It has also REST API which we use the Django REST Framework (DRF), a powerful and flexible toolkit for building Web APIs.
 
 ## Prerequisites
 
@@ -102,9 +102,22 @@ python manage.py runserver
 
 ```
 Access the Application:
+
 Open your web browser and go to the following addresses:
-Main Application: http://127.0.0.1:8000/
+
+Main Application: http://127.0.0.1:8000
+
 Admin Panel: http://127.0.0.1:8000/admin/
+
+
+Access these API endpoints in your browser or using a tool like Postman.
+
+*   List all products (GET): http://127.0.0.1:8000/api/products/
+*   Retrieve a specific product (GET): http://127.0.0.1:8000/api/products/1/
+*   Create a new product (POST): http://127.0.0.1:8000/api/products/
+*   Update a product (PUT/PATCH): http://127.0.0.1:8000/api/products/1/
+*   Delete a product (DELETE): http://127.0.0.1:8000/api/products/1/
+
 
 
 # How to Edit and Customize the Program
