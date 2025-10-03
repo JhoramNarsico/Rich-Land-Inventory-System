@@ -49,7 +49,9 @@ pip install Django
 ```
 ```bash
 pip install mysqlclient
-
+```
+```bash
+pip install djangorestframework
 ```
 4. Set Up the MySQL Database
 
