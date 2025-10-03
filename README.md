@@ -44,14 +44,14 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 3. Install Required Packages
    
 ```bash
-pip install Django
+python -m  pip install Django 
 
 ```
 ```bash
-pip install mysqlclient
+python -m pip install mysqlclient
 ```
 ```bash
-pip install djangorestframework
+python -m pip install djangorestframework
 ```
 4. Set Up the MySQL Database
 
