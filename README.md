@@ -6,8 +6,10 @@ This document provides instructions on how to set up and run the Rich Land Auto 
 
 Before you start, make sure you have the following software installed on your computer:
 
-*   **Python (version 3.8 or newer):** [Download Python](https://www.python.org/downloads/)
-*   **Git:** [Download Git](https://git-scm.com/downloads/)
+*   **Python** 
+*   **Git:** 
+*   **pip**
+*   **MySQL Server**
 
 ## Setup Instructions
 
@@ -45,10 +47,46 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 pip install Django
 
 ```
-4. Set Up the Database
+```bash
+pip install mysqlclient
+
+```
+4. Set Up the MySQL Database
+
+```bash
+# Create a new database. We recommend using utf8mb4 for full Unicode support.
+CREATE DATABASE richland_inventory_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+#Create a new user and grant it privileges on the new database. Replace 'your_password' with a secure password.
+CREATE USER 'your_db_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON richland_inventory_db.* TO 'your_db_user'@'localhost';
+FLUSH PRIVILEGES;
+
+```
+5. Configure Django Settings
+```bash
+#Locate the settings.py file in your project (e.g., core/settings.py).
+# core/settings.py
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'richland_inventory_db',
+        'USER': 'your_db_user',          # The user you created
+        'PASSWORD': 'your_password',      # The password you set
+        'HOST': 'localhost',              # Or your DB host IP
+        'PORT': '3306',                   # Default MySQL port
+    }
+}
+
+```
+6. Apply Database Migrations
  ```bash
+python manage.py makemigrations
+
 python manage.py migrate
 
+(NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
 ```
 5. Create an Administrator Account
 
