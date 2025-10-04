@@ -73,23 +73,6 @@ GRANT ALL PRIVILEGES ON richland_inventory_db.* TO 'your_db_user'@'localhost';
 FLUSH PRIVILEGES;
 
 ```
-5. Configure Django Settings
-```bash
-#Locate the settings.py file in your project (e.g., core/settings.py).
-# core/settings.py
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'richland_inventory_db',
-        'USER': 'your_db_user',          # The user you created
-        'PASSWORD': 'your_password',      # The password you set
-        'HOST': 'localhost',              # Or your DB host IP
-        'PORT': '3306',                   # Default MySQL port
-    }
-}
-
-```
 6. Creating a .env file.
 In the same directory as your manage.py file (the root of your project), create a new file named .env.
 ```bash
@@ -152,19 +135,6 @@ Access these API endpoints in your browser or using a tool like Postman.
 
 
 
-# How to Edit and Customize the Program
-# Understanding the project structure is key to making changes.
-Project Structure Overview
-
-*   core/: This is the main project configuration directory.
-*   settings.py: Contains all project settings (database, installed apps, etc.).
-*   urls.py: The main URL routing file. It directs traffic to the inventory app.
-*   inventory/: This is the application where all our inventory logic lives.
-*   models.py: Defines the database structure. The Product table is defined here.
-*   views.py: Contains the application logic. It handles what happens when a user visits a page.
-*   urls.py: Defines the URLs specific to the inventory app (e.g., /product/create/).
-*   templates/inventory/: Contains the HTML files that the user sees.
-*   manage.py: A command-line utility for interacting with your Django project.
 
 
 
