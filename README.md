@@ -53,6 +53,10 @@ python -m pip install mysqlclient
 ```bash
 python -m pip install djangorestframework
 ```
+
+```bash
+pip install python-decouple
+```
 4. Set Up the MySQL Database
 
 ```bash
