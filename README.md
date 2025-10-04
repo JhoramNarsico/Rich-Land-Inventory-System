@@ -34,10 +34,14 @@ Using a virtual environment is highly recommended to isolate project dependencie
 
 # Step 1: Create the virtual environment
 python -m venv venv
+```
 
+```bash
 # Step 2: Activate the virtual environment using PowerShell
 .\venv\Scripts\activate
 
+```
+```bash
 #IF there is an error activating the virtual environment, input this
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
@@ -86,6 +90,28 @@ DATABASES = {
 }
 
 ```
+6. Creating a .env file.
+In the same directory as your manage.py file (the root of your project), create a new file named .env.
+```bash
+# .env
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY='django-insecure-eoqpafol0v1q51=nbciaya+4$2r6)(b3do$jdncm)pz81q7zl#'
+
+# Set to False in production!
+DEBUG=True
+
+# In production, set this to your domain names e.g., 'www.yourdomain.com,yourdomain.com'
+ALLOWED_HOSTS='127.0.0.1,localhost'
+
+# -- Database Configuration --
+DB_NAME='richland_inventory_db'
+DB_USER='root'
+DB_PASSWORD='your own password'
+DB_HOST='localhost'
+DB_PORT='3306'
+
+```
+
 6. Apply Database Migrations
    
  ```bash
