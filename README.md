@@ -52,7 +52,7 @@ python -m  pip install Django
 
 ```
 ```bash
-python -m pip install mysqlclient
+python -m pip install PyMySQL
 ```
 ```bash
 python -m pip install djangorestframework
