@@ -11,10 +11,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('api/', include('inventory.api_urls')), # Handles API urls
-    path('', include('inventory.urls')), # Handles user-facing urls
+    path('inventory/', include('inventory.urls')), # Handles user-facing urls
 ]
 
 # --- ADD THIS IF STATEMENT AT THE VERY BOTTOM ---
 # This is the line that tells the development server to serve static files
 if settings.DEBUG:
+
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
