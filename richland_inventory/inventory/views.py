@@ -1,5 +1,5 @@
 # inventory/views.py
-
+from django.shortcuts import render 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView
@@ -9,6 +9,12 @@ from .models import Product
 # Add these imports for the API
 from rest_framework import viewsets
 from .serializers import ProductSerializer
+
+def home(request):
+    """
+    View for the homepage.
+    """
+    return render(request, 'home.html')
 
 class ProductListView(LoginRequiredMixin, ListView):
     model = Product
