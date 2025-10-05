@@ -7,7 +7,13 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+# --- 1. IMPORT THE "views" FROM YOUR INVENTORY APP ---
+from inventory import views
+
 urlpatterns = [
+    # --- 2. ADD THIS LINE TO CREATE THE HOMEPAGE URL ---
+    path('', views.home, name='home'),
+
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('api/', include('inventory.api_urls')), # Handles API urls
@@ -17,5 +23,4 @@ urlpatterns = [
 # --- ADD THIS IF STATEMENT AT THE VERY BOTTOM ---
 # This is the line that tells the development server to serve static files
 if settings.DEBUG:
-
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
