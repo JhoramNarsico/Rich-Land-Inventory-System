@@ -178,15 +178,15 @@ Rich-Land-Inventory-System/
 │           ├── transaction_list.html       -> The master log of all stock transactions.
 │           └── transaction_report_pdf.html -> A special, print-friendly template for the PDF report.
 │
-├── static/ (Your Source Static Files)
+├── static/ (Bootstrap Assets)  YOU DO NOT edit files here.
 │   ├── css/             -> Your custom CSS files for styling the application.
 │   ├── images/          -> Your image assets, such as the company logo.
 │   └── js/              -> Your custom JavaScript files for front-end interactivity.
 │
-├── staticfiles/ (Collected Static Files for Deployment)
+├── staticfiles/ (Collected Static Files for Deployment)  YOU DO NOT edit files here.
 │   └── Description: The target folder for the `collectstatic` command. It gathers all static
 │       files from your project and its dependencies (like the admin panel's CSS) into one
-│       place for a live web server to use. YOU DO NOT edit files here.
+│       place for a live web server to use.
 │
 └── templates/ (Project-Level Templates)
     ├── admin/
