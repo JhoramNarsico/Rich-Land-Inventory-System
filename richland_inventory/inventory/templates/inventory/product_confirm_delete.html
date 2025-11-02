@@ -1,12 +1,18 @@
-<!-- inventory/templates/inventory/product_confirm_delete.html -->
-{% extends "inventory/base.html" %}
+{% extends "base.html" %}
+
+{% block title %}Confirm Delete{% endblock %}
 
 {% block content %}
-  <h2>Delete Product</h2>
-  <p>Are you sure you want to delete the product: <strong>{{ object.name }}</strong>?</p>
-  <form method="post">
-    {% csrf_token %}
-    <input type="submit" value="Confirm Delete" class="btn btn-delete">
-    <a href="{{ object.get_absolute_url }}" class="btn">Cancel</a>
-  </form>
+    <div class="alert alert-danger">
+        <h4 class="alert-heading">Confirm Deletion</h4>
+        <p>Are you sure you want to permanently delete the product: <strong>{{ object.name }}</strong>?</p>
+        <hr>
+        <p class="mb-0">This action cannot be undone.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, Confirm Delete</button>
+        <a href="{% url 'inventory:product_detail' slug=object.slug %}" class="btn btn-secondary">Cancel</a>
+    </form>
 {% endblock %}

@@ -1,14 +1,82 @@
-<!-- inventory/templates/inventory/product_detail.html -->
-{% extends "inventory/base.html" %}
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} Details{% endblock %}
 
 {% block content %}
-  <h2>Product Details: {{ product.name }}</h2>
-  <p><strong>SKU:</strong> {{ product.sku }}</p>
-  <p><strong>Price:</strong> ${{ product.price }}</p>
-  <p><strong>Quantity on Hand:</strong> {{ product.quantity }}</p>
-  <p><strong>Date Added:</strong> {{ product.date_created|date:"F d, Y" }}</p>
-  <hr>
-  <a href="{% url 'product-update' product.pk %}" class="btn btn-edit">Edit</a>
-  <a href="{% url 'product-delete' product.pk %}" class="btn btn-delete">Delete</a>
-  <a href="{% url 'product-list' %}" class="btn">Back to List</a>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>Product Details: {{ product.name }}</h2>
+        </div>
+        <div class="card-body">
+            <p><strong>SKU:</strong> {{ product.sku }}</p>
+            <p><strong>Price:</strong> ${{ product.price }}</p>
+            <p><strong>Quantity on Hand:</strong> <span class="fw-bold fs-5">{{ product.quantity }}</span></p>
+            <p><strong>Date Added:</strong> {{ product.date_created|date:"F d, Y" }}</p>
+            <p><strong>Last Updated:</strong> {{ product.date_updated|date:"F d, Y" }}</p>
+        </div>
+        <div class="card-footer">
+            {% if perms.inventory.change_product %}
+                <a href="{% url 'inventory:product_update' slug=product.slug %}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+            {% endif %}
+            {% if perms.inventory.delete_product %}
+                <a href="{% url 'inventory:product_delete' slug=product.slug %}" class="btn btn-danger">
+                    <i class="fas fa-trash-alt"></i> Delete
+                </a>
+            {% endif %}
+            {% if perms.inventory.can_adjust_stock %}
+                <a href="{% url 'inventory:product_adjust_stock' slug=product.slug %}" class="btn btn-info">
+                    <i class="fas fa-exchange-alt"></i> Adjust Stock
+                </a>
+            {% endif %}
+            <a href="{% url 'inventory:product_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <!-- Transaction History Section -->
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="fas fa-history"></i> Transaction History (Last 10)</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>User</th>
+                            <th>Timestamp</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- THIS LOOP IS THE FIX -->
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>
+                                {% if transaction.transaction_type == 'IN' %}
+                                    <span class="badge bg-success">Stock In</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Stock Out</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ transaction.quantity }}</td>
+                            <td>{{ transaction.user.username|default:"N/A" }}</td>
+                            <td>{{ transaction.timestamp|date:"F d, Y, P" }}</td>
+                            <td>{{ transaction.notes|default:"" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No transactions recorded for this product.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 {% endblock %}
