@@ -2,6 +2,27 @@
 
 This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python. It has also REST API which we use the Django REST Framework (DRF), a powerful and flexible toolkit for building Web APIs.
 
+# Backend
+* Python: Core programming language.
+* Django: Main web framework.
+* Django REST Framework: For building APIs.
+* xhtml2pdf: For PDF report generation.
+
+# Database
+* MySQL: Relational database system.
+* PyMySQL: Database connector for Python.
+
+# Frontend
+* HTML: Page structure and content.
+* Bootstrap: CSS framework for UI and styling.
+* JavaScript: For user interactivity.
+* Font Awesome: Icon set.
+
+# Development & Tooling
+* pip & venv: Package and environment management.
+* python-decouple: For managing secret settings.
+* cryptography: Core encryption library.
+
 ## Prerequisites
 
 Before you start, make sure you have the following software installed on your computer:
@@ -125,10 +146,6 @@ richland_inventory/
 │   └── Description: The command-line utility for interacting with your Django project.
 │       You use it to run the development server, create migrations, and more.
 │
-├── README.md
-│   └── Description: The main documentation file for your project. It typically contains
-│       setup instructions and an overview of the application.
-│
 ├── inventory/ (Your core Django App)
 │   ├── __init__.py      -> Marks this directory as a Python package.
 │   ├── admin.py         -> Registers your models with the Django admin site, allowing you to manage data.
@@ -152,13 +169,13 @@ richland_inventory/
 ├── staticfiles/ (Collected Static Files for Deployment)
 │   └── Description: This folder is the target for the `collectstatic` command. It gathers all static
 │       files from your entire project into a single place for your web server (like Nginx) to
-│       serve efficiently in a live environment. You should not edit files here directly.
+│       serve efficiently in a live environment. YOU SHOULD NOT edit files here directly.
 │
-├── templates/ (Project-Level Templates)
-│   ├── admin/           -> A place to put custom templates that override the default Django admin pages.
-│   ├── registration/    -> Holds templates for user authentication (login.html, etc.).
-│   ├── base.html        -> The main site layout. All other templates extend this file to maintain a consistent look.
-│   └── home.html        -> The template for your project's homepage.
+└── templates/ (Project-Level Templates)
+    ├── admin/           -> A place to put custom templates that override the default Django admin pages.
+    ├── registration/    -> Holds templates for user authentication (login.html, etc.).
+    ├── base.html        -> The main site layout. All other templates extend this file to maintain a consistent look.
+    └── home.html        -> The template for your project's homepage.
 ```
 
 
