@@ -39,101 +39,78 @@
         </div>
     </div>
 
-    <!-- NEW: Tabbed Interface for Stock Movement -->
-    <div class="card mt-4">
-        <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs" id="stockTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="graph-tab" data-bs-toggle="tab" data-bs-target="#graph-view" type="button" role="tab" aria-controls="graph-view" aria-selected="true"><i class="fas fa-chart-line"></i> Graph View</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data-view" type="button" role="tab" aria-controls="data-view" aria-selected="false"><i class="fas fa-table"></i> Data View</button>
-                </li>
-            </ul>
+    <!-- Top Movers Widgets (unchanged) -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h4><i class="fas fa-arrow-up text-success"></i> Top Stocked In (Last 30 Days)</h4>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for item in top_stocked_in %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'inventory:product_detail' slug=item.product__slug %}">{{ item.product__name }}</a>
+                            <span class="badge bg-success rounded-pill">{{ item.total_in }} units</span>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item text-muted">No stock-in data from the last 30 days.</li>
+                    {% endfor %}
+                </ul>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="tab-content" id="stockTabsContent">
-                <!-- Graph Tab Pane -->
-                <div class="tab-pane fade show active" id="graph-view" role="tabpanel" aria-labelledby="graph-tab">
-                    <h5 class="card-title">Stock Movement (Last 30 Days)</h5>
-                    <div style="height: 300px;">
-                        <canvas id="stockMovementChart"></canvas>
-                    </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h4><i class="fas fa-arrow-down text-danger"></i> Top Stocked Out (Last 30 Days)</h4>
                 </div>
-                <!-- Data Table Tab Pane -->
-                <div class="tab-pane fade" id="data-view" role="tabpanel" aria-labelledby="data-tab">
-                    <h5 class="card-title">Recent Stock Transactions</h5>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Product</th>
-                                    <th>Quantity</th>
-                                    <th>User</th>
-                                    <th>Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for transaction in recent_transactions %}
-                                <tr>
-                                    <td>
-                                        {% if transaction.transaction_type == 'IN' %}
-                                            <span class="badge bg-success">Stock In</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">Stock Out</span>
-                                        {% endif %}
-                                    </td>
-                                    <td><a href="{{ transaction.product.get_absolute_url }}">{{ transaction.product.name }}</a></td>
-                                    <td>{{ transaction.quantity }}</td>
-                                    <td>{{ transaction.user.username|default:"N/A" }}</td>
-                                    <td>{{ transaction.timestamp|date:"F d, Y, P" }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5" class="text-center">No transactions recorded yet.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <ul class="list-group list-group-flush">
+                    {% for item in top_stocked_out %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{% url 'inventory:product_detail' slug=item.product__slug %}">{{ item.product__name }}</a>
+                            <span class="badge bg-danger rounded-pill">{{ item.total_out }} units</span>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item text-muted">No stock-out data from the last 30 days.</li>
+                    {% endfor %}
+                </ul>
             </div>
         </div>
     </div>
 
-    <!-- Recently Added Products Table (unchanged) -->
-    <div class="card mt-4">
-        <!-- ... (This entire card remains the same) ... -->
+    <!-- Recently Added Products Table (THIS SECTION IS NOW FIXED) -->
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="fas fa-history"></i> Recently Added Products</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>SKU</th>
+                            <th>Quantity</th>
+                            <th>Date Added</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in recent_products %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'inventory:product_detail' slug=product.slug %}">{{ product.name }}</a>
+                            </td>
+                            <td>{{ product.sku }}</td>
+                            <td>{{ product.quantity }}</td>
+                            <td>{{ product.date_created|date:"F d, Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No products have been added recently.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const ctx = document.getElementById('stockMovementChart').getContext('2d');
-        const stockMovementChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: {{ graph_labels|safe }},
-                datasets: [{
-                    label: 'Stock In',
-                    data: {{ stock_in_values|safe }},
-                    backgroundColor: 'rgba(75, 192, 192, 0.5)'
-                }, {
-                    label: 'Stock Out',
-                    data: {{ stock_out_values|safe }},
-                    backgroundColor: 'rgba(255, 99, 132, 0.5)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true }
-                }
-            }
-        });
-    });
-</script>
 {% endblock %}
