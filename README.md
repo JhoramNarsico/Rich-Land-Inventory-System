@@ -114,13 +114,52 @@ Open your web browser and go to the following addresses:
 * Admin Panel: http://127.0.0.1:8000/admin/
 
 
-Access these API endpoints in your browser or using a tool like Postman.
-
-*   List all products (GET): http://127.0.0.1:8000/api/products/
-*   Retrieve a specific product (GET): http://127.0.0.1:8000/api/products/1/
-*   Create a new product (POST): http://127.0.0.1:8000/api/products/
-*   Update a product (PUT/PATCH): http://127.0.0.1:8000/api/products/1/
-*   Delete a product (DELETE): http://127.0.0.1:8000/api/products/1/
+```bash
+richland_inventory/
+│
+├── .env
+│   └── Description: Stores environment variables and secrets, like your database password
+│       and Django's SECRET_KEY. This file should NOT be committed to version control.
+│
+├── manage.py
+│   └── Description: The command-line utility for interacting with your Django project.
+│       You use it to run the development server, create migrations, and more.
+│
+├── README.md
+│   └── Description: The main documentation file for your project. It typically contains
+│       setup instructions and an overview of the application.
+│
+├── inventory/ (Your core Django App)
+│   ├── __init__.py      -> Marks this directory as a Python package.
+│   ├── admin.py         -> Registers your models with the Django admin site, allowing you to manage data.
+│   ├── api_urls.py      -> Defines the URL routes for your app's API endpoints.
+│   ├── apps.py          -> Configuration for the 'inventory' app itself.
+│   ├── forms.py         -> Contains the form classes (e.g., ProductForm, filters) used in your front-end.
+│   ├── models.py        -> The single source of truth for your database schema. Defines tables and fields.
+│   ├── serializers.py   -> Defines how your model data is converted to formats like JSON for your API.
+│   ├── tests.py         -> For writing automated tests to ensure your app works correctly.
+│   ├── urls.py          -> Defines the URL routes for your app's user-facing pages (e.g., /products/, /reports/).
+│   ├── utils.py         -> A place for custom helper functions, like the 'render_to_pdf' utility.
+│   ├── views.py         -> Contains the core logic. Handles requests, processes data, and renders templates.
+│   └── templates/
+│       └── inventory/   -> App-specific HTML templates are kept here, namespaced to avoid conflicts.
+│
+├── static/ (Source Static Files)
+│   ├── css/             -> Your custom CSS files for styling the application.
+│   ├── images/          -> Your image assets, such as the company logo.
+│   └── js/              -> Your custom JavaScript files for front-end interactivity.
+│
+├── staticfiles/ (Collected Static Files for Deployment)
+│   └── Description: This folder is the target for the `collectstatic` command. It gathers all static
+│       files from your entire project into a single place for your web server (like Nginx) to
+│       serve efficiently in a live environment. You should not edit files here directly.
+│
+├── templates/ (Project-Level Templates)
+│   ├── admin/           -> A place to put custom templates that override the default Django admin pages.
+│   ├── registration/    -> Holds templates for user authentication (login.html, etc.).
+│   ├── base.html        -> The main site layout. All other templates extend this file to maintain a consistent look.
+│   └── home.html        -> The template for your project's homepage.
+```
 
 
 
