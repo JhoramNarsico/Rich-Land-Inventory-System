@@ -4,75 +4,75 @@
 
 {% block content %}
     <div class="card mb-4">
-        <div class="card-header">
-            <h2>Product Details: {{ product.name }}</h2>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="mb-0">Product Details: {{ product.name }}</h2>
+            <a href="{% url 'inventory:product_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to List
+            </a>
         </div>
         <div class="card-body">
-            <p><strong>SKU:</strong> {{ product.sku }}</p>
-            <p><strong>Price:</strong> ${{ product.price }}</p>
-            <p><strong>Quantity on Hand:</strong> <span class="fw-bold fs-5">{{ product.quantity }}</span></p>
-            <p><strong>Date Added:</strong> {{ product.date_created|date:"F d, Y" }}</p>
-            <p><strong>Last Updated:</strong> {{ product.date_updated|date:"F d, Y" }}</p>
+            <div class="row">
+                <div class="col-md-8">
+                    <p><strong>SKU:</strong> {{ product.sku }}</p>
+                    <p><strong>Category:</strong> {{ product.category.name|default:"N/A" }}</p>
+                    <p><strong>Price:</strong> ${{ product.price }}</p>
+                    <p><strong>Date Added:</strong> {{ product.date_created|date:"F d, Y" }}</p>
+                    <p><strong>Last Updated:</strong> {{ product.date_updated|date:"F d, Y" }}</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <h5 class="text-muted">Quantity on Hand</h5>
+                    <p class="display-4 fw-bold">{{ product.quantity }}</p>
+                </div>
+            </div>
         </div>
-        <div class="card-footer">
+        <div class="card-footer text-end">
             {% if perms.inventory.change_product %}
-                <a href="{% url 'inventory:product_update' slug=product.slug %}" class="btn btn-warning">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
+                <a href="{% url 'inventory:product_update' slug=product.slug %}" class="btn btn-warning"><i class="fas fa-edit me-2"></i>Edit Details</a>
             {% endif %}
             {% if perms.inventory.delete_product %}
-                <a href="{% url 'inventory:product_delete' slug=product.slug %}" class="btn btn-danger">
-                    <i class="fas fa-trash-alt"></i> Delete
-                </a>
+                <a href="{% url 'inventory:product_delete' slug=product.slug %}" class="btn btn-danger"><i class="fas fa-trash-alt me-2"></i>Delete Product</a>
             {% endif %}
-            {% if perms.inventory.can_adjust_stock %}
-                <a href="{% url 'inventory:product_adjust_stock' slug=product.slug %}" class="btn btn-info">
-                    <i class="fas fa-exchange-alt"></i> Adjust Stock
-                </a>
-            {% endif %}
-            <a href="{% url 'inventory:product_list' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to List
-            </a>
         </div>
     </div>
 
+    <!-- NEW Adjust Stock Form -->
+    {% if perms.inventory.can_adjust_stock %}
+    <div class="card mb-4">
+        <div class="card-header"><h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Adjust Stock Quantity</h4></div>
+        <div class="card-body">
+            <form method="post" action="">
+                {% csrf_token %}
+                <div class="row align-items-end">
+                    <div class="col-md-3 mb-3">{{ transaction_form.transaction_type.label_tag }} {{ transaction_form.transaction_type }}</div>
+                    <div class="col-md-3 mb-3">{{ transaction_form.quantity.label_tag }} {{ transaction_form.quantity }}</div>
+                    <div class="col-md-4 mb-3">{{ transaction_form.notes.label_tag }} {{ transaction_form.notes }}</div>
+                    <div class="col-md-2 mb-3 d-grid">
+                        <button type="submit" class="btn btn-primary">Record Adjustment</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Transaction History Section -->
     <div class="card">
-        <div class="card-header">
-            <h4><i class="fas fa-history"></i> Transaction History (Last 10)</h4>
-        </div>
+        <div class="card-header"><h4><i class="fas fa-history me-2"></i>Recent Transactions</h4></div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-sm table-striped">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Quantity</th>
-                            <th>User</th>
-                            <th>Timestamp</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Type</th><th>Quantity</th><th>User</th><th>Timestamp</th><th>Notes</th></tr></thead>
                     <tbody>
-                        <!-- THIS LOOP IS THE FIX -->
                         {% for transaction in transactions %}
                         <tr>
-                            <td>
-                                {% if transaction.transaction_type == 'IN' %}
-                                    <span class="badge bg-success">Stock In</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Stock Out</span>
-                                {% endif %}
-                            </td>
+                            <td>{% if transaction.transaction_type == 'IN' %}<span class="badge bg-success">Stock In</span>{% else %}<span class="badge bg-danger">Stock Out</span>{% endif %}</td>
                             <td>{{ transaction.quantity }}</td>
                             <td>{{ transaction.user.username|default:"N/A" }}</td>
                             <td>{{ transaction.timestamp|date:"F d, Y, P" }}</td>
                             <td>{{ transaction.notes|default:"" }}</td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center">No transactions recorded for this product.</td>
-                        </tr>
+                        <tr><td colspan="5" class="text-center">No transactions recorded for this product.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

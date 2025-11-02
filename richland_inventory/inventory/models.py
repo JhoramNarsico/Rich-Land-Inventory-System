@@ -4,13 +4,33 @@ from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
 from django.conf import settings
+from django.contrib.auth.models import User
+
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True, blank=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Category'
+        verbose_name_plural = 'Categories'
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
 class Product(models.Model):
     name = models.CharField(max_length=200, unique=True, help_text='Enter the product name')
     slug = models.SlugField(max_length=200, unique=True, blank=True, help_text='Unique URL-friendly name, leave blank to auto-generate')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     sku = models.CharField(max_length=100, unique=True, help_text='Enter the Stock Keeping Unit (SKU)')
     price = models.DecimalField(max_digits=10, decimal_places=2, help_text='Enter the price')
     quantity = models.PositiveIntegerField(default=0, help_text='Enter the available quantity')
+    reorder_level = models.PositiveIntegerField(default=5, help_text="Automatically alert when stock quantity falls to this level.")
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
 
@@ -18,20 +38,15 @@ class Product(models.Model):
         ordering = ['-date_created']
 
     def get_absolute_url(self):
-        """Returns the URL to access a detail record for this product."""
         return reverse('inventory:product_detail', kwargs={'slug': self.slug})
 
     def save(self, *args, **kwargs):
-        """Override the save method to auto-generate the slug if it is not set."""
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
     def __str__(self):
-        """String for representing the Model object."""
         return self.name
-
-# --- NEW MODEL ADDED BELOW ---
 
 class StockTransaction(models.Model):
     class TransactionType(models.TextChoices):
@@ -47,10 +62,40 @@ class StockTransaction(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
-        # Add permissions for this new model
-        permissions = [
-            ("can_adjust_stock", "Can adjust stock quantities"),
-        ]
+        permissions = [("can_adjust_stock", "Can adjust stock quantities")]
 
     def __str__(self):
         return f'{self.transaction_type} - {self.product.name} ({self.quantity}) on {self.timestamp.strftime("%Y-%m-%d")}'
+
+# --- NEW MODELS FOR SUPPLIERS AND PURCHASE ORDERS ---
+
+class Supplier(models.Model):
+    name = models.CharField(max_length=150, unique=True)
+    contact_person = models.CharField(max_length=100, blank=True)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=20, blank=True)
+    
+    def __str__(self):
+        return self.name
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = (
+        ('PENDING', 'Pending'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELED', 'Canceled'),
+    )
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchase_orders')
+    order_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+
+    def __str__(self):
+        return f"PO #{self.id} from {self.supplier.name}"
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price per item at time of purchase")
+
+    def __str__(self):
+        return f"{self.quantity} of {self.product.name}"

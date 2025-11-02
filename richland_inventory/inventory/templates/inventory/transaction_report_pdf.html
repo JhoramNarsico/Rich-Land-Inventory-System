@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction History Report</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            @frame header_frame { -pdf-frame-content: header_content; left: 50pt; top: 50pt; width: 512pt; height: 50pt; }
+            @frame content_frame { left: 50pt; top: 120pt; width: 512pt; height: 632pt; }
+            @frame footer_frame { -pdf-frame-content: footer_content; left: 50pt; top: 772pt; width: 512pt; height: 20pt; }
+        }
+        body { font-family: "Helvetica", sans-serif; font-size: 10px; }
+        .header h1 { text-align: center; font-size: 22px; color: #333; }
+        .info { margin-bottom: 20px; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-size: 11px; font-weight: bold; }
+        .footer { text-align: right; font-size: 9px; color: #777; }
+    </style>
+</head>
+<body>
+    <div id="header_content"><div class="header"><h1>Transaction History Report</h1></div></div>
+    <div id="footer_content"><div class="footer">Page <pdf:pagenumber> of <pdf:pagecount></div></div>
+    <div class="info">
+        <p><strong>Date Generated:</strong> {% now "F d, Y, P" %}</p>
+        {% if start_date and end_date %}
+            <p><strong>Reporting Period:</strong> {{ start_date|date:"F d, Y" }} to {{ end_date|date:"F d, Y" }}</p>
+        {% elif start_date %}
+            <p><strong>Reporting Period:</strong> From {{ start_date|date:"F d, Y" }} onwards</p>
+        {% elif end_date %}
+            <p><strong>Reporting Period:</strong> Up to {{ end_date|date:"F d, Y" }}</p>
+        {% else %}
+            <p><strong>Reporting Period:</strong> All Time</p>
+        {% endif %}
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">Product</th> <th style="width: 15%;">SKU</th>
+                <th style="width: 8%;">Type</th> <th style="width: 8%;">Quantity</th>
+                <th style="width: 10%;">User</th> <th style="width: 12%;">Timestamp</th>
+                <th style="width: 22%;">Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+            <tr>
+                <td>{{ transaction.product.name }}</td> <td>{{ transaction.product.sku }}</td>
+                <td>{{ transaction.get_transaction_type_display }}</td> <td>{{ transaction.quantity }}</td>
+                <td>{{ transaction.user.username|default:"N/A" }}</td> <td>{{ transaction.timestamp|date:"Y-m-d H:i" }}</td>
+                <td>{{ transaction.notes|default:"" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="text-align: center;">No transactions found for the selected period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
