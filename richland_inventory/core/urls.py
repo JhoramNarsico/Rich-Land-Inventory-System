@@ -2,25 +2,28 @@
 
 from django.contrib import admin
 from django.urls import path, include
-
-# --- ADD THESE TWO IMPORTS ---
 from django.conf import settings
 from django.conf.urls.static import static
 
-# --- 1. IMPORT THE "views" FROM YOUR INVENTORY APP ---
-from inventory import views
+# Import views from the local 'core' app, not the 'inventory' app
+from . import views
 
 urlpatterns = [
-    # --- 2. ADD THIS LINE TO CREATE THE HOMEPAGE URL ---
+    # It now correctly points to the 'home' view within this 'core' app
     path('', views.home, name='home'),
 
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
-    path('api/', include('inventory.api_urls')), # Handles API urls
-    path('inventory/', include('inventory.urls')), # Handles user-facing urls
+    
+    # --- THIS IS THE CORRECTED LINE ---
+    # This tuple format tells Django that the included URLs
+    # belong to the 'inventory-api' namespace.
+    path('api/', include(('inventory.api_urls', 'inventory-api'))),
+    
+    # This correctly includes all the URLs from the inventory app
+    path('inventory/', include('inventory.urls')),
 ]
 
-# --- ADD THIS IF STATEMENT AT THE VERY BOTTOM ---
-# This is the line that tells the development server to serve static files
+# This part is perfect, do not change it
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

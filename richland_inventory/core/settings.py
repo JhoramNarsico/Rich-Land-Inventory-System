@@ -114,8 +114,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # Directories where Django will search for additional static files.
+# --- THIS IS THE CORRECTED LINE ---
+# It now points to the 'static' folder in your project's root directory.
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'inventory/static'),
+    os.path.join(BASE_DIR, 'static'),
 ]
 
 # The absolute path to the directory where collectstatic will collect static files for deployment.
