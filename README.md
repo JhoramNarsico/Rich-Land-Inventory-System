@@ -48,7 +48,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 3. Install Required Packages
    
 ```bash
-python -m pip install Django PyMySQL djangorestframework python-decouple cryptography
+python -m pip install Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf
 ```
 4. Set Up the MySQL Database
 
