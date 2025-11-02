@@ -136,46 +136,72 @@ Open your web browser and go to the following addresses:
 
 
 ```bash
-richland_inventory/
+Rich-Land-Inventory-System/
 │
 ├── .env
-│   └── Description: Stores environment variables and secrets, like your database password
-│       and Django's SECRET_KEY. This file should NOT be committed to version control.
+│   └── Description: Stores secret settings like your database password and Django's SECRET_KEY.
 │
 ├── manage.py
-│   └── Description: The command-line utility for interacting with your Django project.
-│       You use it to run the development server, create migrations, and more.
+│   └── Description: The command-line utility for interacting with your Django project (e.g., runserver, migrate).
 │
-├── inventory/ (Your core Django App)
+├── core/ (Project Configuration App)
 │   ├── __init__.py      -> Marks this directory as a Python package.
-│   ├── admin.py         -> Registers your models with the Django admin site, allowing you to manage data.
-│   ├── api_urls.py      -> Defines the URL routes for your app's API endpoints.
-│   ├── apps.py          -> Configuration for the 'inventory' app itself.
-│   ├── forms.py         -> Contains the form classes (e.g., ProductForm, filters) used in your front-end.
-│   ├── models.py        -> The single source of truth for your database schema. Defines tables and fields.
-│   ├── serializers.py   -> Defines how your model data is converted to formats like JSON for your API.
-│   ├── tests.py         -> For writing automated tests to ensure your app works correctly.
-│   ├── urls.py          -> Defines the URL routes for your app's user-facing pages (e.g., /products/, /reports/).
-│   ├── utils.py         -> A place for custom helper functions, like the 'render_to_pdf' utility.
-│   ├── views.py         -> Contains the core logic. Handles requests, processes data, and renders templates.
-│   └── templates/
-│       └── inventory/   -> App-specific HTML templates are kept here, namespaced to avoid conflicts.
+│   ├── asgi.py          -> Entry-point for asynchronous web servers.
+│   ├── settings.py      -> The main settings file for the entire project (database, installed apps, etc.).
+│   ├── urls.py          -> The root URL configuration. It includes the URLs from your other apps.
+│   ├── views.py         -> Can be used for project-level views, like a homepage.
+│   └── wsgi.py          -> The standard entry-point for synchronous web servers.
 │
-├── static/ (Source Static Files)
+├── inventory/ (Your Core Business Logic App)
+│   ├── __init__.py      -> Marks this directory as a Python package.
+│   ├── admin.py         -> Registers your models with the Django admin site.
+│   ├── api_urls.py      -> Defines the URL routes for your app's API endpoints.
+│   ├── apps.py          -> Configuration specific to the 'inventory' app.
+│   ├── forms.py         -> Contains your form classes (ProductForm, filters, etc.).
+│   ├── models.py        -> Defines your database tables (Product, Category, Transaction).
+│   ├── serializers.py   -> Converts your model data to formats like JSON for the API.
+│   ├── tests.py         -> A place for writing automated tests.
+│   ├── urls.py          -> Defines the URL routes for this app's user-facing pages.
+│   ├── utils.py         -> Contains custom helper functions, like your 'render_to_pdf' utility.
+│   ├── views.py         -> The main application logic for handling user requests and responses.
+│   │
+│   ├── migrations/
+│   │   └── 0001_initial.py -> Auto-generated instructions to create your database tables.
+│   │
+│   └── templates/
+│       └── inventory/      -> App-specific HTML templates, namespaced to avoid conflicts.
+│           ├── product_confirm_delete.html -> Page to confirm the deletion of a product.
+│           ├── product_detail.html         -> The detailed view and management page for a single product.
+│           ├── product_form.html           -> The form for creating or updating a product's core details.
+│           ├── product_list.html           -> The main page displaying all products with filters.
+│           ├── reporting.html              -> The page for generating CSV and PDF reports.
+│           ├── transaction_list.html       -> The master log of all stock transactions.
+│           └── transaction_report_pdf.html -> A special, print-friendly template for the PDF report.
+│
+├── static/ (Your Source Static Files)
 │   ├── css/             -> Your custom CSS files for styling the application.
 │   ├── images/          -> Your image assets, such as the company logo.
 │   └── js/              -> Your custom JavaScript files for front-end interactivity.
 │
 ├── staticfiles/ (Collected Static Files for Deployment)
-│   └── Description: This folder is the target for the `collectstatic` command. It gathers all static
-│       files from your entire project into a single place for your web server (like Nginx) to
-│       serve efficiently in a live environment. YOU SHOULD NOT edit files here directly.
+│   └── Description: The target folder for the `collectstatic` command. It gathers all static
+│       files from your project and its dependencies (like the admin panel's CSS) into one
+│       place for a live web server to use. YOU DO NOT edit files here.
 │
 └── templates/ (Project-Level Templates)
-    ├── admin/           -> A place to put custom templates that override the default Django admin pages.
-    ├── registration/    -> Holds templates for user authentication (login.html, etc.).
-    ├── base.html        -> The main site layout. All other templates extend this file to maintain a consistent look.
-    └── home.html        -> The template for your project's homepage.
+    ├── admin/
+    │   ├── index.html   -> A custom template to override the Django admin homepage.
+    │   └── login.html   -> A custom template to override the Django admin login page.
+    │
+    ├── registration/
+    │   └── login.html   -> The login page for your application's regular users.
+    │
+    ├── rest_framework/
+    │   └── api.html     -> A custom template for Django REST Framework's browsable API.
+    │
+    ├── base.html        -> The main site layout. All other templates extend this file.
+    ├── base_auth.html   -> A base template specifically for authentication-related pages.
+    └── home.html        -> The template for your project's main homepage.
 ```
 
 
