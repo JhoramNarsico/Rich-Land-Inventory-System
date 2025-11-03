@@ -10,13 +10,22 @@
                         <a href="#" class="section" title="Developer Links">Developer Links</a>
                     </caption>
                     <tbody>
+                        <!-- THIS ENTIRE ROW HAS BEEN REPLACED -->
                         <tr>
                             <th scope="row">
-                               <!-- THIS LINK IS NOW ENABLED AND CORRECT -->
-                               <a href="{% url 'inventory-api:product-list' %}">View API Endpoint</a>
+                               <a href="{% url 'redoc' %}">View API Documentation (ReDoc)</a>
                             </th>
-                            <td>View the browsable API for all products.</td>
+                            <td>View the clean ReDoc UI for the API.</td>
                         </tr>
+                        <!-- END OF REPLACEMENT -->
+                        
+                        <tr>
+                            <th scope="row">
+                               <a href="{% url 'swagger-ui' %}">View API Documentation (Swagger)</a>
+                            </th>
+                            <td>View the interactive Swagger UI for the API.</td>
+                        </tr>
+                        
                         <tr>
                             <th scope="row">
                                 <a href="{% url 'inventory:product_list' %}">View User Product List</a>

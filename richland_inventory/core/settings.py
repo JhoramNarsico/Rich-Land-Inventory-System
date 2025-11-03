@@ -18,15 +18,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- SECURITY CONFIGURATION ---
 # SECURITY WARNING: keep the secret key used in production secret!
-# The secret key is now loaded from the .env file.
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# The DEBUG setting is loaded from the .env file. It defaults to False if not set.
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-# ALLOWED_HOSTS are loaded from the .env file as a comma-separated list.
-# For example: ALLOWED_HOSTS='yourdomain.com,www.yourdomain.com'
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
 
@@ -38,14 +34,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.humanize',
+    'django.contrib.humanize',      # For template filters like 'intcomma'
 
     # Your Apps
     'inventory',
 
     # Third-Party Apps
     'rest_framework',
-    'simple_history',  # <-- ADD THIS LINE
+    'rest_framework.authtoken',     # For API token authentication
+    'simple_history',               # For auditing model changes
+    'drf_spectacular',              # For generating API documentation
 ]
 
 MIDDLEWARE = [
@@ -56,8 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # --- ADD THIS LINE ---
-    'simple_history.middleware.HistoryRequestMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware', # For tracking user in history
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -81,8 +78,6 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 # --- DATABASE CONFIGURATION ---
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-# Database credentials are now loaded securely from the .env file.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -96,7 +91,6 @@ DATABASES = {
 
 
 # --- PASSWORD VALIDATION ---
-# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -106,7 +100,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # --- INTERNATIONALIZATION ---
-# https://docs.djangoproject.com/en/5.0/topics/i18n/
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
@@ -114,22 +107,12 @@ USE_TZ = True
 
 
 # --- STATIC FILES CONFIGURATION ---
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
 STATIC_URL = 'static/'
-
-# Directories where Django will search for additional static files.
-# --- THIS IS THE CORRECTED LINE ---
-# It now points to the 'static' folder in your project's root directory.
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-
-# The absolute path to the directory where collectstatic will collect static files for deployment.
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
 # --- DEFAULT PRIMARY KEY FIELD TYPE ---
-# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
@@ -137,3 +120,30 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = '/inventory/'
 LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+
+# --- CACHING CONFIGURATION (Tier 1 Optimization) ---
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+
+# --- DJANGO REST FRAMEWORK CONFIGURATION ---
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
+
+
+# --- DRF-SPECTACULAR CONFIGURATION (API Docs) ---
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Rich Land Inventory API',
+    'DESCRIPTION': 'A comprehensive API for managing products, stock, and transactions for the Rich Land Inventory System.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
