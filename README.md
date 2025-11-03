@@ -78,7 +78,7 @@ GRANT ALL PRIVILEGES ON richland_inventory_db.* TO 'your_db_user'@'localhost';
 FLUSH PRIVILEGES;
 
 ```
-### 6. Creating a .env file.
+### 5. Creating a .env file.
 In the same directory as your manage.py file (the root of your project), create a new file named .env.
 ```bash
 # .env
@@ -109,21 +109,20 @@ python manage.py migrate
 ```
 (NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
 
-### 5. Create an Administrator Account
+### 7. Create an Administrator Account
 
  ```bash
 python manage.py createsuperuser
 
 ```
-How to Run the Application
+### 8. How to Run the Application
 
  ```bash
 python manage.py runserver
 
 ```
 
-
-6. How to Use the Interactive Swagger UI (With Authentication)
+### 9. How to Use the Interactive Swagger UI (With Authentication)
    
 Generate a Token
 
@@ -140,7 +139,7 @@ For example, if your token is 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b, you must
 Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
 ```
 
-Click the "Try it out" button on the right and click the blue "Execute" button that appears.
+(Click the "Try it out" button on the right and click the blue "Execute" button that appears.)
 
 Access the Application:
 
