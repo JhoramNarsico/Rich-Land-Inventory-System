@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+<!-- THIS LINE IS NEW -->
+{% load humanize %}
 
 {% block title %}Dashboard{% endblock %}
 
@@ -23,7 +25,9 @@
             <div class="card text-white bg-success h-100">
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-dollar-sign"></i> Total Stock Value</h5>
-                    <p class="card-text fs-2 fw-bold">${{ total_stock_value }}</p>
+                    <!-- THIS IS THE MODIFIED LINE -->
+                    <p class="card-text fs-2 fw-bold">₱{{ total_stock_value|floatformat:2|intcomma }}</p>
+                    <!-- END OF MODIFICATION -->
                     <small>Combined value of all items</small>
                 </div>
             </div>

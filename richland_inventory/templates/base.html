@@ -11,18 +11,17 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-            <!-- THIS IS THE MODIFIED LINE -->
             <a class="navbar-brand" href="{% url 'home' %}">
                 <img src="{% static 'images/logo.png' %}" alt="Rich Land Logo" height="30">
             </a>
-            <!-- END OF MODIFICATION -->
-
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_list' %}">Products</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'inventory:transaction_list' %}">Transactions</a></li>
+                    <!-- ADD THIS NEW NAV LINK -->
+                    <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_history_list' %}">Edit History</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'inventory:reporting' %}">Reports</a></li>
                 </ul>
                 <ul class="navbar-nav">

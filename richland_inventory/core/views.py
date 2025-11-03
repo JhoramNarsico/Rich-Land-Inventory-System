@@ -19,7 +19,11 @@ def home(request):
     total_stock_value_agg = Product.objects.aggregate(
         total_value=Sum(F('price') * F('quantity'))
     )
+    # --- THIS IS THE MODIFIED LINE ---
+    # We now pass the raw number to the template for formatting.
     total_stock_value = total_stock_value_agg['total_value'] or 0
+    # --- END OF MODIFICATION ---
+    
     low_stock_products_count = Product.objects.filter(quantity__lte=5).count()
     recent_products = Product.objects.order_by('-date_created')[:5]
 
@@ -44,7 +48,7 @@ def home(request):
 
     context = {
         'total_products': total_products,
-        'total_stock_value': f'{total_stock_value:,.2f}',
+        'total_stock_value': total_stock_value, # Pass the raw value
         'low_stock_products_count': low_stock_products_count,
         'recent_products': recent_products,
         

@@ -4,9 +4,11 @@ from django.contrib.auth.models import User
 from django.forms import DateInput
 from .models import Product, StockTransaction, Category
 
-class ProductForm(forms.ModelForm):
+# This form is now specifically for CREATING new products.
+class ProductCreateForm(forms.ModelForm):
     class Meta:
         model = Product
+        # Includes quantity for setting initial stock.
         fields = ['name', 'sku', 'category', 'price', 'quantity']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -14,6 +16,19 @@ class ProductForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': 'form-select'}),
             'price': forms.NumberInput(attrs={'class': 'form-control'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+# This form is now specifically for UPDATING existing products.
+class ProductUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        # EXCLUDES quantity. Stock should be adjusted via transactions.
+        fields = ['name', 'sku', 'category', 'price']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'sku': forms.TextInput(attrs={'class': 'form-control'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
 class StockTransactionForm(forms.ModelForm):
@@ -52,7 +67,6 @@ class TransactionFilterForm(forms.Form):
     start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
     end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
 
-# --- NEW FORM FOR THE REPORTING PAGE ---
 class TransactionReportForm(forms.Form):
     start_date = forms.DateField(
         required=False, 
@@ -62,3 +76,9 @@ class TransactionReportForm(forms.Form):
         required=False, 
         widget=DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
+
+class ProductHistoryFilterForm(forms.Form):
+    product = forms.ModelChoiceField(queryset=Product.objects.all(), required=False, label="Product", widget=forms.Select(attrs={'class': 'form-select'}))
+    user = forms.ModelChoiceField(queryset=User.objects.all(), required=False, label="User", widget=forms.Select(attrs={'class': 'form-select'}))
+    start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
+    end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
