@@ -2,6 +2,27 @@
 
 This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python. It has also REST API which we use the Django REST Framework (DRF), a powerful and flexible toolkit for building Web APIs.
 
+# Backend
+* Python: Core programming language.
+* Django: Main web framework.
+* Django REST Framework: For building APIs.
+* xhtml2pdf: For PDF report generation.
+
+# Database
+* MySQL: Relational database system.
+* PyMySQL: Database connector for Python.
+
+# Frontend
+* HTML: Page structure and content.
+* Bootstrap: CSS framework for UI and styling.
+* JavaScript: For user interactivity.
+* Font Awesome: Icon set.
+
+# Development & Tooling
+* pip & venv: Package and environment management.
+* python-decouple: For managing secret settings.
+* cryptography: Core encryption library.
+
 ## Prerequisites
 
 Before you start, make sure you have the following software installed on your computer:
@@ -48,7 +69,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 3. Install Required Packages
    
 ```bash
-python -m pip install Django PyMySQL djangorestframework python-decouple cryptography
+python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history
 ```
 4. Set Up the MySQL Database
 
@@ -114,13 +135,74 @@ Open your web browser and go to the following addresses:
 * Admin Panel: http://127.0.0.1:8000/admin/
 
 
-Access these API endpoints in your browser or using a tool like Postman.
-
-*   List all products (GET): http://127.0.0.1:8000/api/products/
-*   Retrieve a specific product (GET): http://127.0.0.1:8000/api/products/1/
-*   Create a new product (POST): http://127.0.0.1:8000/api/products/
-*   Update a product (PUT/PATCH): http://127.0.0.1:8000/api/products/1/
-*   Delete a product (DELETE): http://127.0.0.1:8000/api/products/1/
+```bash
+Rich-Land-Inventory-System/
+│
+├── .env
+│   └── Description: Stores secret settings like your database password and Django's SECRET_KEY.
+│
+├── manage.py
+│   └── Description: The command-line utility for interacting with your Django project (e.g., runserver, migrate).
+│
+├── core/ (Project Configuration App)
+│   ├── __init__.py      -> Marks this directory as a Python package.
+│   ├── asgi.py          -> Entry-point for asynchronous web servers.
+│   ├── settings.py      -> The main settings file for the entire project (database, installed apps, etc.).
+│   ├── urls.py          -> The root URL configuration. It includes the URLs from your other apps.
+│   ├── views.py         -> Can be used for project-level views, like a homepage.
+│   └── wsgi.py          -> The standard entry-point for synchronous web servers.
+│
+├── inventory/ (Your Core Business Logic App)
+│   ├── __init__.py      -> Marks this directory as a Python package.
+│   ├── admin.py         -> Registers your models with the Django admin site.
+│   ├── api_urls.py      -> Defines the URL routes for your app's API endpoints.
+│   ├── apps.py          -> Configuration specific to the 'inventory' app.
+│   ├── forms.py         -> Contains your form classes (ProductForm, filters, etc.).
+│   ├── models.py        -> Defines your database tables (Product, Category, Transaction).
+│   ├── serializers.py   -> Converts your model data to formats like JSON for the API.
+│   ├── tests.py         -> A place for writing automated tests.
+│   ├── urls.py          -> Defines the URL routes for this app's user-facing pages.
+│   ├── utils.py         -> Contains custom helper functions, like your 'render_to_pdf' utility.
+│   ├── views.py         -> The main application logic for handling user requests and responses.
+│   │
+│   ├── migrations/
+│   │   └── 0001_initial.py -> Auto-generated instructions to create your database tables.
+│   │
+│   └── templates/
+│       └── inventory/      -> App-specific HTML templates, namespaced to avoid conflicts.
+│           ├── product_confirm_delete.html -> Page to confirm the deletion of a product.
+│           ├── product_detail.html         -> The detailed view and management page for a single product.
+│           ├── product_form.html           -> The form for creating or updating a product's core details.
+│           ├── product_list.html           -> The main page displaying all products with filters.
+│           ├── reporting.html              -> The page for generating CSV and PDF reports.
+│           ├── transaction_list.html       -> The master log of all stock transactions.
+│           └── transaction_report_pdf.html -> A special, print-friendly template for the PDF report.
+│
+├── static/ (Bootstrap Assets)  YOU DO NOT edit files here.
+│   ├── css/             -> Your custom CSS files for styling the application.
+│   ├── images/          -> Your image assets, such as the company logo.
+│   └── js/              -> Your custom JavaScript files for front-end interactivity.
+│
+├── staticfiles/ (Collected Static Files for Deployment)  YOU DO NOT edit files here.
+│   └── Description: The target folder for the `collectstatic` command. It gathers all static
+│       files from your project and its dependencies (like the admin panel's CSS) into one
+│       place for a live web server to use.
+│
+└── templates/ (Project-Level Templates)
+    ├── admin/
+    │   ├── index.html   -> A custom template to override the Django admin homepage.
+    │   └── login.html   -> A custom template to override the Django admin login page.
+    │
+    ├── registration/
+    │   └── login.html   -> The login page for your application's regular users.
+    │
+    ├── rest_framework/
+    │   └── api.html     -> A custom template for Django REST Framework's browsable API.
+    │
+    ├── base.html        -> The main site layout. All other templates extend this file.
+    ├── base_auth.html   -> A base template specifically for authentication-related pages.
+    └── home.html        -> The template for your project's main homepage.
+```
 
 
 
