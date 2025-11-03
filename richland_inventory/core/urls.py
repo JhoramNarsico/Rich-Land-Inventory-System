@@ -1,29 +1,32 @@
-# in core/urls.py
+# core/urls.py
 
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+# --- Tier 2: Add drf-spectacular imports ---
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-# Import views from the local 'core' app, not the 'inventory' app
 from . import views
 
 urlpatterns = [
-    # It now correctly points to the 'home' view within this 'core' app
     path('', views.home, name='home'),
-
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     
-    # --- THIS IS THE CORRECTED LINE ---
-    # This tuple format tells Django that the included URLs
-    # belong to the 'inventory-api' namespace.
+    # Your existing API URLs
     path('api/', include(('inventory.api_urls', 'inventory-api'))),
     
-    # This correctly includes all the URLs from the inventory app
+    # --- Tier 2: Add these URLs for the API documentation ---
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # Swagger UI:
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    # Redoc UI:
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    
+    # Your main inventory app URLs
     path('inventory/', include('inventory.urls')),
 ]
 
-# This part is perfect, do not change it
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

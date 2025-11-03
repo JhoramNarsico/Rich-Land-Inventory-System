@@ -48,11 +48,15 @@
                         {% for record in history_list %}
                         <tr>
                             <td>
-                                {% if record.instance %}
-                                    <a href="{{ record.instance.get_absolute_url }}">{{ record.instance.name }} (SKU: {{ record.instance.sku }})</a>
-                                {% else %}
-                                    {{ record.name }} (Deleted)
-                                {% endif %}
+                                <!-- THIS IS THE CORRECTED BLOCK -->
+                                {% with product_instance=record.prefetched_instance|default:record.instance %}
+                                    {% if product_instance %}
+                                        <a href="{{ product_instance.get_absolute_url }}">{{ product_instance.name }} (SKU: {{ product_instance.sku }})</a>
+                                    {% else %}
+                                        {{ record.name }} (Deleted)
+                                    {% endif %}
+                                {% endwith %}
+                                <!-- END OF CORRECTION -->
                             </td>
                             <td class="text-center">
                                 {% if record.history_type == '+' %}<span class="badge bg-success">Created</span>
