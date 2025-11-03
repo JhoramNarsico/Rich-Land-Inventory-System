@@ -141,9 +141,8 @@ Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
 
 (Click the "Try it out" button on the right and click the blue "Execute" button that appears.)
 
-Access the Application:
 
-Open your web browser and go to the following addresses:
+### 10. Open your web browser and go to the following addresses:
 
 * Main Application: http://127.0.0.1:8000
 
