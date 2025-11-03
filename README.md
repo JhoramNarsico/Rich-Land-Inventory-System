@@ -126,6 +126,26 @@ How to Run the Application
 python manage.py runserver
 
 ```
+
+How to Run the Application
+
+
+
+6. How to Use the Interactive Swagger UI (With Authentication)
+   
+Generate a Token
+```bash
+# Replace 'jhoram' with your superuser's username
+python manage.py drf_create_token jhoram
+```
+
+Authorize and Enter the Token
+```bash
+For example, if your token is 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b, you must type:
+Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
+```
+Click the "Try it out" button on the right and click the blue "Execute" button that appears.
+
 Access the Application:
 
 Open your web browser and go to the following addresses:
