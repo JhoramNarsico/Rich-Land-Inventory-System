@@ -1,24 +1,26 @@
 # inventory/views.py
 
-# --- Python/Django Core Imports ---
 import csv
 from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
-from django.db.models import Q
+from django.db.models import Q, Subquery, OuterRef
 from django.urls import reverse_lazy
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from rest_framework import viewsets
 
-# --- App-Specific Imports ---
-from .forms import ProductForm, StockTransactionForm, ProductFilterForm, TransactionFilterForm, TransactionReportForm
+from .forms import (
+    ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm, 
+    TransactionFilterForm, TransactionReportForm, ProductHistoryFilterForm
+)
 from .models import Product, StockTransaction, Category
 from .serializers import ProductSerializer
 from .utils import render_to_pdf
 
+# --- THIS VIEW HAS BEEN SIMPLIFIED ---
 class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Product
     context_object_name = 'product_list'
@@ -27,9 +29,8 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_queryset(self):
-        # --- OPTIMIZED QUERY WITH select_related ---
+        # The complex subquery annotations have been removed for a cleaner, faster query.
         queryset = Product.objects.select_related('category').all()
-        # --- END OF MODIFICATION ---
         
         form = ProductFilterForm(self.request.GET)
         if form.is_valid():
@@ -50,6 +51,7 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             if sort_by: 
                 queryset = queryset.order_by(sort_by)
             else: 
+                # Revert to the original default sorting.
                 queryset = queryset.order_by('-date_created')
         return queryset
 
@@ -59,7 +61,7 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         context['query_params'] = self.request.GET.urlencode()
         return context
 
-# --- REVISED ProductDetailView ---
+# ... (The rest of the file remains unchanged) ...
 class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Product
     template_name = 'inventory/product_detail.html'
@@ -92,13 +94,12 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
             transaction.save()
             messages.success(request, "Stock was adjusted successfully.")
         else:
-            # Re-render the page with the form errors
             messages.error(request, "There was an error with your submission.")
         return redirect(self.object.get_absolute_url())
 
 class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
     model = Product
-    form_class = ProductForm
+    form_class = ProductCreateForm
     template_name = 'inventory/product_form.html'
     success_url = reverse_lazy('inventory:product_list')
     success_message = "Product was created successfully!"
@@ -119,34 +120,13 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
 
 class ProductUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Product
-    form_class = ProductForm
+    form_class = ProductUpdateForm
     template_name = 'inventory/product_form.html'
-    success_url = reverse_lazy('inventory:product_list')
     success_message = "Product was updated successfully!"
     permission_required = 'inventory.change_product'
     
-    def form_valid(self, form):
-        old_quantity = self.get_object().quantity
-        new_quantity = form.cleaned_data.get('quantity', 0)
-        response = super().form_valid(form)
-        quantity_difference = new_quantity - old_quantity
-        if quantity_difference > 0:
-            StockTransaction.objects.create(
-                product=self.object, 
-                transaction_type='IN', 
-                quantity=quantity_difference, 
-                user=self.request.user, 
-                notes='Manual quantity update from product edit form.'
-            )
-        elif quantity_difference < 0:
-            StockTransaction.objects.create(
-                product=self.object, 
-                transaction_type='OUT', 
-                quantity=abs(quantity_difference), 
-                user=self.request.user, 
-                notes='Manual quantity update from product edit form.'
-            )
-        return response
+    def get_success_url(self):
+        return self.object.get_absolute_url()
 
 class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = Product
@@ -189,6 +169,83 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         context = super().get_context_data(**kwargs)
         context['filter_form'] = TransactionFilterForm(self.request.GET)
         context['query_params'] = self.request.GET.urlencode()
+        return context
+
+def get_change_summary(record, old_record):
+    delta = record.diff_against(old_record)
+    changes = []
+    for change in delta.changes:
+        changes.append(
+            f"Changed <strong>{change.field.replace('_', ' ').title()}</strong> from "
+            f"'{change.old}' to '{change.new}'"
+        )
+    return ". ".join(changes)
+
+class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = Product.history.model
+    template_name = 'inventory/product_history_list.html'
+    context_object_name = 'history_list'
+    paginate_by = 20
+    permission_required = 'inventory.view_product'
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('history_user')
+        form = ProductHistoryFilterForm(self.request.GET)
+        if form.is_valid():
+            if form.cleaned_data.get('product'):
+                queryset = queryset.filter(id=form.cleaned_data['product'].id)
+            if form.cleaned_data.get('user'):
+                queryset = queryset.filter(history_user=form.cleaned_data['user'])
+            if form.cleaned_data.get('start_date'):
+                queryset = queryset.filter(history_date__date__gte=form.cleaned_data['start_date'])
+            if form.cleaned_data.get('end_date'):
+                queryset = queryset.filter(history_date__date__lte=form.cleaned_data['end_date'])
+        return queryset.order_by('-history_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        history_list = list(context['history_list'])
+        for i, record in enumerate(history_list):
+            if record.history_type == '~' and i + 1 < len(history_list):
+                old_record = history_list[i + 1]
+                if record.id == old_record.id:
+                    record.change_summary = get_change_summary(record, old_record)
+            elif record.history_type == '+':
+                record.change_summary = "Product created."
+            elif record.history_type == '-':
+                record.change_summary = "Product deleted."
+        context['history_list'] = history_list
+        context['filter_form'] = ProductHistoryFilterForm(self.request.GET)
+        context['query_params'] = self.request.GET.urlencode()
+        return context
+
+class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = Product.history.model
+    template_name = 'inventory/product_history_detail.html'
+    context_object_name = 'history_list'
+    paginate_by = 20
+    permission_required = 'inventory.view_product'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.product = get_object_or_404(Product, slug=self.kwargs['slug'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return self.product.history.select_related('history_user').all().order_by('-history_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        history_list = list(context['history_list'])
+        for i, record in enumerate(history_list):
+            if record.history_type == '~' and i + 1 < len(history_list):
+                old_record = history_list[i + 1]
+                record.change_summary = get_change_summary(record, old_record)
+            elif record.history_type == '+':
+                record.change_summary = "Product created."
+            elif record.history_type == '-':
+                record.change_summary = "Product deleted."
+        context['history_list'] = history_list
+        context['product'] = self.product
         return context
 
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):

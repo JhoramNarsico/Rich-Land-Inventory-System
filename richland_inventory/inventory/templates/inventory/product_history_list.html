@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Product Edit History Log{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Product Edit History Log</h1>
+
+    <div class="accordion mb-4" id="filterAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilter" aria-expanded="false" aria-controls="collapseFilter">
+                    <i class="fas fa-filter me-2"></i> Filter History
+                </button>
+            </h2>
+            <div id="collapseFilter" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#filterAccordion">
+                <div class="accordion-body">
+                    <form method="get" action="">
+                        <div class="row g-3">
+                            <div class="col-md-4">{{ filter_form.product.label_tag }} {{ filter_form.product }}</div>
+                            <div class="col-md-4">{{ filter_form.user.label_tag }} {{ filter_form.user }}</div>
+                            <div class="col-md-2">{{ filter_form.start_date.label_tag }} {{ filter_form.start_date }}</div>
+                            <div class="col-md-2">{{ filter_form.end_date.label_tag }} {{ filter_form.end_date }}</div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Apply</button>
+                            <a href="{% url 'inventory:product_history_list' %}" class="btn btn-secondary">Reset</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th class="text-center">Type</th>
+                            <th>User</th>
+                            <th>Timestamp</th>
+                            <th>Changes Made</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in history_list %}
+                        <tr>
+                            <td>
+                                {% if record.instance %}
+                                    <a href="{{ record.instance.get_absolute_url }}">{{ record.instance.name }} (SKU: {{ record.instance.sku }})</a>
+                                {% else %}
+                                    {{ record.name }} (Deleted)
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if record.history_type == '+' %}<span class="badge bg-success">Created</span>
+                                {% elif record.history_type == '~' %}<span class="badge bg-warning text-dark">Updated</span>
+                                {% else %}<span class="badge bg-danger">Deleted</span>{% endif %}
+                            </td>
+                            <td>{{ record.history_user.username|default:"N/A" }}</td>
+                            <td>{{ record.history_date|date:"F d, Y, P" }}</td>
+                            <td>{{ record.change_summary|safe|default:"" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center py-4">No product history found matching your criteria.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if is_paginated %}
+    <nav class="mt-4"><ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}">Previous</a></li>{% else %}<li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>{% endif %}
+        {% for i in paginator.page_range %}{% if page_obj.number == i %}<li class="page-item active"><a class="page-link" href="#">{{ i }}</a></li>{% else %}<li class="page-item"><a class="page-link" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>{% endif %}{% endfor %}
+        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a></li>{% else %}<li class="page-item disabled"><a class="page-link" href="#">Next</a></li>{% endif %}
+    </ul></nav>
+    {% endif %}
+{% endblock %}

@@ -52,7 +52,7 @@
                                 <th>Category</th>
                                 <th class="text-center">Stock Status</th>
                                 <th>Price</th>
-                                <th class="text-end">Actions</th>
+                                <!-- "Last Edited By", "Last Edited On", and "Actions" headers are removed -->
                             </tr>
                         </thead>
                         <tbody>
@@ -70,13 +70,12 @@
                                         <span class="badge rounded-pill bg-danger" style="font-size: 0.9rem;">Out of Stock</span>
                                     {% endif %}
                                 </td>
-                                <td>${{ product.price }}</td>
-                                <td class="text-end">
-                                    <a href="{{ product.get_absolute_url }}" class="btn btn-sm btn-info"><i class="fas fa-eye me-2"></i>View & Manage</a>
-                                </td>
+                                <td>₱{{ product.price|floatformat:2 }}</td>
+                                <!-- "Last Edited By", "Last Edited On", and "Actions" cells are removed -->
                             </tr>
                             {% empty %}
-                            <tr><td colspan="6" class="text-center py-4">No products found matching your criteria.</td></tr>
+                            <!-- Colspan is updated to 5 -->
+                            <tr><td colspan="5" class="text-center py-4">No products found matching your criteria.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -95,7 +94,7 @@
                         <h5 class="card-title"><a href="{{ product.get_absolute_url }}" class="text-decoration-none stretched-link">{{ product.name }}</a></h5>
                         <h6 class="card-subtitle mb-2 text-muted">SKU: {{ product.sku }}</h6>
                         <p class="card-text text-muted small">{{ product.category.name|default:"" }}</p>
-                        <p class="card-text fs-4 fw-bold mt-2">${{ product.price }}</p>
+                        <p class="card-text fs-4 fw-bold mt-2">₱{{ product.price|floatformat:2 }}</p>
                         <div class="mt-auto">
                             {% if product.quantity > 10 %}
                                 <span class="badge rounded-pill bg-success" style="font-size: 0.9rem;">In Stock ({{ product.quantity }})</span>

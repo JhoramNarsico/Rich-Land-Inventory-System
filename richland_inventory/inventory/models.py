@@ -5,6 +5,8 @@ from django.urls import reverse
 from django.utils.text import slugify
 from django.conf import settings
 from django.contrib.auth.models import User
+# --- ADD THIS IMPORT ---
+from simple_history.models import HistoricalRecords
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -28,11 +30,14 @@ class Product(models.Model):
     slug = models.SlugField(max_length=200, unique=True, blank=True, help_text='Unique URL-friendly name, leave blank to auto-generate')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     sku = models.CharField(max_length=100, unique=True, help_text='Enter the Stock Keeping Unit (SKU)')
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text='Enter the price')
+    price = models.DecimalField(max_digits=10, decimal_places=2, help_text='Enter the price in PHP')
     quantity = models.PositiveIntegerField(default=0, help_text='Enter the available quantity')
     reorder_level = models.PositiveIntegerField(default=5, help_text="Automatically alert when stock quantity falls to this level.")
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
+
+    # --- ADD THIS LINE TO ENABLE HISTORY TRACKING ---
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ['-date_created']
@@ -95,7 +100,7 @@ class PurchaseOrderItem(models.Model):
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price per item at time of purchase")
+    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price per item in PHP at time of purchase")
 
     def __str__(self):
         return f"{self.quantity} of {self.product.name}"

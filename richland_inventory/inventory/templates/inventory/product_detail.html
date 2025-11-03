@@ -15,7 +15,9 @@
                 <div class="col-md-8">
                     <p><strong>SKU:</strong> {{ product.sku }}</p>
                     <p><strong>Category:</strong> {{ product.category.name|default:"N/A" }}</p>
-                    <p><strong>Price:</strong> ${{ product.price }}</p>
+                    <!-- THIS IS THE MODIFIED LINE -->
+                    <p><strong>Price:</strong> ₱{{ product.price|floatformat:2 }}</p>
+                    <!-- END OF MODIFICATION -->
                     <p><strong>Date Added:</strong> {{ product.date_created|date:"F d, Y" }}</p>
                     <p><strong>Last Updated:</strong> {{ product.date_updated|date:"F d, Y" }}</p>
                 </div>
