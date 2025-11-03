@@ -133,6 +133,9 @@ Open your web browser and go to the following addresses:
 * Main Application: http://127.0.0.1:8000
 
 * Admin Panel: http://127.0.0.1:8000/admin/
+  
+* API Documentation: http://127.0.0.1:8000/api/docs/
+
 
 
 ```bash
