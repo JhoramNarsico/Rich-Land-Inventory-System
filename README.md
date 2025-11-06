@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="richland_inventory\static\images\readme_header" alt="Rich Land Auto Supply Logo" width="350" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+  <img src="richland_inventory\static\images\readme_header.png" alt="Rich Land Auto Supply Logo" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
 </div>
 
 <br>
