@@ -11,7 +11,7 @@
 | Jhoram Narsico           | [github.com/jhoramnarsico](https://github.com/jhoramnarsico) |
 | Joseph Ernest Alberto    | [github.com/josephernestalberto](https://github.com/josephernestalberto) |
 | Jillian Athea Boc        | [github.com/Jillian-Athea](https://github.com/Jillian-Athea) |
-| Ram Jay Po               | [github.com/rampo](https://github.com/Funky) |
+| Ram Jay Po               | [github.com/rampo](https://github.com/FunkyAtoms) |
 
 
 
