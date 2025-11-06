@@ -56,6 +56,12 @@ class ProductFilterForm(forms.Form):
         ("price", "Price (Low to High)"),
         ("-price", "Price (High to Low)"),
     )
+    # --- IMPROVEMENT: Added the 'q' field to the form ---
+    q = forms.CharField(
+        label="Search by Name/SKU",
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
     category = forms.ModelChoiceField(queryset=Category.objects.all(), required=False, label="Category", widget=forms.Select(attrs={'class': 'form-select'}))
     stock_status = forms.ChoiceField(choices=STOCK_STATUS_CHOICES, required=False, label="Stock Status", widget=forms.Select(attrs={'class': 'form-select'}))
     sort_by = forms.ChoiceField(choices=SORT_BY_CHOICES, required=False, label="Sort By", widget=forms.Select(attrs={'class': 'form-select'}))
@@ -69,11 +75,11 @@ class TransactionFilterForm(forms.Form):
 
 class TransactionReportForm(forms.Form):
     start_date = forms.DateField(
-        required=False, 
+        required=False,
         widget=DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
     end_date = forms.DateField(
-        required=False, 
+        required=False,
         widget=DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
 
@@ -82,3 +88,15 @@ class ProductHistoryFilterForm(forms.Form):
     user = forms.ModelChoiceField(queryset=User.objects.all(), required=False, label="User", widget=forms.Select(attrs={'class': 'form-select'}))
     start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
     end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
+
+# --- NEW FORM: Added the CategoryCreateForm ---
+class CategoryCreateForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter new category name'
+            })
+        }
