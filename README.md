@@ -57,32 +57,32 @@
 
 ---
 
-##  Project Milestones (Completed ✅)
+##  Project Milestones (Completed <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;">)
 
-### ✅ Milestone 1 (Nov W1): Proposal & Design
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 1 (Nov W1): Proposal & Design
 - Defined `Product`, `Category`, `Transaction` models  
 - Completed ITCC14 Doc (Chapters 1–2)  
 - Drafted API endpoints
 
-### ✅ Milestone 2 (Nov W2): Core Backend
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 2 (Nov W2): Core Backend
 - Django + MySQL + DRF setup  
 - Basic CRUD + Swagger UI at `/api/docs/`
 
-### ✅ Milestone 3 (Nov W3): Full API + Reporting
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 3 (Nov W3): Full API + Reporting
 - Full CRUD with validation  
 - Audit history + PDF reports  
 - Seed data script added
 
-### ✅ Milestone 4 (Nov W4): Frontend + Admin
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 4 (Nov W4): Frontend + Admin
 - Responsive dashboard with Bootstrap  
 - Product list, detail, history, and reporting pages  
 - Admin panel enhanced with developer links
 
-### ✅ Milestone 5 (Dec W1): Dockerization 
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 5 (Dec W1): Dockerization  
 - `Dockerfile` and `docker-compose.yml` included  
 - One-command setup for any environment
 
-### ✅ Final (Dec W2): Demo Ready
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Final (Dec W2): Demo Ready
 - Live end-to-end demo prepared  
 - Backup assets and slides completed
 
