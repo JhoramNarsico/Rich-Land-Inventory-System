@@ -19,14 +19,14 @@
 
 ##  Key Features
 
-- ✅ **Full CRUD** operations for products and categories  
-- ✅ **Stock tracking** with stock-in and stock-out transactions  
-- ✅ **Audit trail** for every product change (who changed what & when)  
-- ✅ **Export reports** as **PDF** (`xhtml2pdf`) or **CSV**  
-- ✅ **Responsive UI** with **Bootstrap 5**  
-- ✅ **RESTful API** with **Django REST Framework**  
-- ✅ **Interactive API docs** via **Swagger UI** (`drf-spectacular`)  
-- ✅ **Role-based access** and secure admin panel
+-  **Full CRUD** operations for products and categories  
+-  **Stock tracking** with stock-in and stock-out transactions  
+-  **Audit trail** for every product change (who changed what & when)  
+-  **Export reports** as **PDF** (`xhtml2pdf`) or **CSV**  
+-  **Responsive UI** with **Bootstrap 5**  
+-  **RESTful API** with **Django REST Framework**  
+-  **Interactive API docs** via **Swagger UI** (`drf-spectacular`)  
+-  **Role-based access** and secure admin panel
 
 ---
 
@@ -73,7 +73,7 @@
 - Product list, detail, history, and reporting pages  
 - Admin panel enhanced with developer links
 
-### ✅ Milestone 5 (Dec W1): Dockerization *(Optional but done!)*
+### ✅ Milestone 5 (Dec W1): Dockerization 
 - `Dockerfile` and `docker-compose.yml` included  
 - One-command setup for any environment
 
