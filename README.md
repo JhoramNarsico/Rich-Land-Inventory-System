@@ -87,7 +87,7 @@
 - Backup assets and slides completed
 
 ---
-## Setup Instructions
+## Developer Setup Instructions
 
 Follow these steps to get the project running.
 
