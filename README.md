@@ -1,3 +1,5 @@
+# Rich Land Auto Supply Inventory System
+
 This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python. It has also REST API which we use the Django REST Framework (DRF), a powerful and flexible toolkit for building Web APIs.
 
 # Members
