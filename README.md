@@ -1,4 +1,10 @@
-#  Rich Land Auto Supply Inventory System
+<div align="center">
+  <img src="richland_inventory\static\images\readme_header" alt="Rich Land Auto Supply Logo" width="350" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+</div>
+
+<br>
+
+> A full-featured **inventory management system** for auto parts businesses, built with **Python**, **Django**, and **Bootstrap 5**. Track products, manage stock-in/stock-out transactions, view edit history, and generate PDF/CSV reports—all in one application.
 
 > A full-featured **inventory management system** for auto parts businesses, built with **Python**, **Django**, and **Bootstrap 5**. Track products, manage stock-in/stock-out transactions, view edit history, and generate PDF/CSV reports—all in one application.
 
