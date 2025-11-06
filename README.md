@@ -3,7 +3,7 @@ This document provides instructions on how to set up and run the Rich Land Auto 
 # Members
 * Jhoram Narsico
 * Joseph Ernest Alberto
-* Jillian Boc
+* Jillian Athea Boc
 * Ram Po
 
 # Backend
