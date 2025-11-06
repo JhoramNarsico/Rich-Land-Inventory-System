@@ -13,8 +13,9 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from rest_framework import viewsets, permissions
 
 from .forms import (
-    ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm, 
-    TransactionFilterForm, TransactionReportForm, ProductHistoryFilterForm
+    ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm,
+    TransactionFilterForm, TransactionReportForm, ProductHistoryFilterForm,
+    CategoryCreateForm
 )
 from .models import Product, StockTransaction, Category
 from .serializers import ProductSerializer
@@ -26,37 +27,53 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     template_name = 'inventory/product_list.html'
     paginate_by = 12
     permission_required = 'inventory.view_product'
+
     def get_queryset(self):
         queryset = Product.objects.select_related('category').all()
         form = ProductFilterForm(self.request.GET)
         if form.is_valid():
-            query = self.request.GET.get('q')
-            if query: 
+            query = form.cleaned_data.get('q')
+            if query:
                 queryset = queryset.filter(Q(name__icontains=query) | Q(sku__icontains=query))
+
             category = form.cleaned_data.get('category')
-            if category: 
+            if category:
                 queryset = queryset.filter(category=category)
+
             stock_status = form.cleaned_data.get('stock_status')
-            if stock_status == 'in_stock': 
+            if stock_status == 'in_stock':
                 queryset = queryset.filter(quantity__gt=10)
-            elif stock_status == 'low_stock': 
+            elif stock_status == 'low_stock':
                 queryset = queryset.filter(quantity__gt=0, quantity__lte=10)
-            elif stock_status == 'out_of_stock': 
+            elif stock_status == 'out_of_stock':
                 queryset = queryset.filter(quantity=0)
+
             sort_by = form.cleaned_data.get('sort_by')
-            if sort_by: 
+            if sort_by:
                 queryset = queryset.order_by(sort_by)
-            else: 
+            else:
                 queryset = queryset.order_by('-date_created')
         return queryset
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['filter_form'] = ProductFilterForm(self.request.GET)
+        context['category_form'] = CategoryCreateForm()
         query_params = self.request.GET.copy()
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
         return context
+
+    def post(self, request, *args, **kwargs):
+        category_form = CategoryCreateForm(request.POST)
+        if category_form.is_valid():
+            category_form.save()
+            messages.success(request, "Category was added successfully!")
+        else:
+            error_msg = ". ".join([f"{field.title()}: {error[0]}" for field, error in category_form.errors.items()])
+            messages.error(request, f"Error adding category: {error_msg}")
+        return redirect('inventory:product_list')
 
 class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Product
@@ -103,10 +120,10 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
         initial_quantity = form.cleaned_data.get('quantity', 0)
         if initial_quantity > 0:
             StockTransaction.objects.create(
-                product=self.object, 
-                transaction_type='IN', 
-                quantity=initial_quantity, 
-                user=self.request.user, 
+                product=self.object,
+                transaction_type='IN',
+                quantity=initial_quantity,
+                user=self.request.user,
                 notes='Initial stock on product creation.'
             )
         return response
@@ -149,15 +166,15 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         queryset = StockTransaction.objects.select_related('product', 'user').all()
         form = TransactionFilterForm(self.request.GET)
         if form.is_valid():
-            if form.cleaned_data.get('product'): 
+            if form.cleaned_data.get('product'):
                 queryset = queryset.filter(product=form.cleaned_data['product'])
-            if form.cleaned_data.get('transaction_type'): 
+            if form.cleaned_data.get('transaction_type'):
                 queryset = queryset.filter(transaction_type=form.cleaned_data['transaction_type'])
-            if form.cleaned_data.get('user'): 
+            if form.cleaned_data.get('user'):
                 queryset = queryset.filter(user=form.cleaned_data['user'])
-            if form.cleaned_data.get('start_date'): 
+            if form.cleaned_data.get('start_date'):
                 queryset = queryset.filter(timestamp__date__gte=form.cleaned_data['start_date'])
-            if form.cleaned_data.get('end_date'): 
+            if form.cleaned_data.get('end_date'):
                 queryset = queryset.filter(timestamp__date__lte=form.cleaned_data['end_date'])
         return queryset.order_by('-timestamp')
     def get_context_data(self, **kwargs):
@@ -169,22 +186,50 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         context['query_params'] = query_params.urlencode()
         return context
 
+# --- THIS IS THE IMPROVED FUNCTION ---
 def get_change_summary(record):
     if record.history_type == '+':
         return "Product created."
     if record.history_type == '-':
         return f"Deleted Product: {record.name} (SKU: {record.sku})"
+
     old_record = record.prev_record
-    if old_record:
-        delta = record.diff_against(old_record)
-        changes = []
-        for change in delta.changes:
+    if not old_record:
+        return "No previous record found to compare."
+
+    delta = record.diff_against(old_record)
+    changes = []
+    for change in delta.changes:
+        field_name = change.field.replace('_', ' ').title()
+
+        # Special handling for the 'category' foreign key field
+        if change.field == 'category':
+            old_display_value = 'None'
+            if change.old:
+                try:
+                    old_display_value = Category.objects.get(pk=change.old).name
+                except Category.DoesNotExist:
+                    old_display_value = f"Deleted Category (ID: {change.old})"
+
+            new_display_value = 'None'
+            if change.new:
+                try:
+                    new_display_value = Category.objects.get(pk=change.new).name
+                except Category.DoesNotExist:
+                    new_display_value = f"Deleted Category (ID: {change.new})"
+
             changes.append(
-                f"Changed <strong>{change.field.replace('_', ' ').title()}</strong> from "
+                f"Changed <strong>{field_name}</strong> from "
+                f"'{old_display_value}' to '{new_display_value}'"
+            )
+        else:
+            # Default behavior for all other fields
+            changes.append(
+                f"Changed <strong>{field_name}</strong> from "
                 f"'{change.old}' to '{change.new}'"
             )
-        return ". ".join(changes) if changes else "No changes detected."
-    return "No previous record found to compare."
+
+    return ". ".join(changes) if changes else "No changes detected."
 
 class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Product.history.model
@@ -194,10 +239,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     permission_required = 'inventory.view_product'
 
     def get_queryset(self):
-        # --- THIS IS THE CORRECTED QUERYSET ---
-        # The invalid prefetch_related('instance') has been removed.
         queryset = super().get_queryset().select_related('history_user')
-        
         form = ProductHistoryFilterForm(self.request.GET)
         if form.is_valid():
             if form.cleaned_data.get('product'):
@@ -214,16 +256,15 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
         context = super().get_context_data(**kwargs)
         history_list = context['history_list']
 
-        # Manual Prefetch to solve N+1 on 'instance' property
         product_ids = {record.id for record in history_list}
         products = Product.objects.in_bulk(list(product_ids))
-        
+
         for record in history_list:
             record.prefetched_instance = products.get(record.id)
-        
+
         for record in history_list:
             record.change_summary = get_change_summary(record)
-        
+
         context['filter_form'] = ProductHistoryFilterForm(self.request.GET)
         query_params = self.request.GET.copy()
         if 'page' in query_params:
@@ -259,9 +300,9 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return context
     def get(self, request, *args, **kwargs):
         export_type = request.GET.get('export')
-        if export_type == 'inventory_csv': 
+        if export_type == 'inventory_csv':
             return self.export_inventory_csv()
-        elif export_type == 'transaction_pdf': 
+        elif export_type == 'transaction_pdf':
             return self.export_transactions_pdf(request)
         return super().get(request, *args, **kwargs)
     def export_inventory_csv(self):
@@ -282,9 +323,9 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         if form.is_valid():
             start_date = form.cleaned_data.get('start_date')
             end_date = form.cleaned_data.get('end_date')
-            if start_date: 
+            if start_date:
                 transactions = transactions.filter(timestamp__date__gte=start_date)
-            if end_date: 
+            if end_date:
                 transactions = transactions.filter(timestamp__date__lte=end_date)
         context = {'transactions': transactions, 'start_date': start_date, 'end_date': end_date}
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context)
