@@ -169,13 +169,13 @@ python manage.py migrate
 ```
 (NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
 
-### 6. Create an Administrator Account
+### 7. Create an Administrator Account
 
  ```bash
 python manage.py createsuperuser
 
 ```
-### 7. How to Run the Application
+### 8. How to Run the Application
 
  ```bash
 python manage.py runserver
