@@ -103,7 +103,7 @@ git clone <your-repository-url>
 cd richland_inventory
 
 ```
-2. Create and Activate a Virtual Environment
+### 2. Create and Activate a Virtual Environment
 Using a virtual environment is highly recommended to isolate project dependencies.
 
 ```bash
@@ -121,12 +121,12 @@ python -m venv venv
 #IF there is an error activating the virtual environment, input this
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
-3. Install Required Packages
+### 3. Install Required Packages
    
 ```bash
 python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history
 ```
-4. Set Up the MySQL Database
+### 4. Set Up the MySQL Database
 
 ```bash
 # Create a new database. We recommend using utf8mb4 for full Unicode support.
@@ -138,7 +138,7 @@ GRANT ALL PRIVILEGES ON richland_inventory_db.* TO 'your_db_user'@'localhost';
 FLUSH PRIVILEGES;
 
 ```
-6. Creating a .env file.
+### 5. Creating a .env file.
 In the same directory as your manage.py file (the root of your project), create a new file named .env.
 ```bash
 # .env
@@ -160,7 +160,7 @@ DB_PORT='3306'
 
 ```
 
-6. Apply Database Migrations
+### 6. Apply Database Migrations
    
  ```bash
 python manage.py makemigrations
@@ -169,13 +169,13 @@ python manage.py migrate
 ```
 (NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
 
-5. Create an Administrator Account
+### 6. Create an Administrator Account
 
  ```bash
 python manage.py createsuperuser
 
 ```
-How to Run the Application
+### 7. How to Run the Application
 
  ```bash
 python manage.py runserver
