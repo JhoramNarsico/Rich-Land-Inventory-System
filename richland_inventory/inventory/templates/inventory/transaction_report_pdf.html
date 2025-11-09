@@ -2,58 +2,133 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Transaction History Report</title>
+    <title>General Sales Tracking Report</title>
     <style>
         @page {
             size: a4 portrait;
-            @frame header_frame { -pdf-frame-content: header_content; left: 50pt; top: 50pt; width: 512pt; height: 50pt; }
-            @frame content_frame { left: 50pt; top: 120pt; width: 512pt; height: 632pt; }
-            @frame footer_frame { -pdf-frame-content: footer_content; left: 50pt; top: 772pt; width: 512pt; height: 20pt; }
+            @frame header_frame { -pdf-frame-content: header_content; left: 50pt; top: 35pt; width: 512pt; height: 60pt; }
+            @frame content_frame { left: 50pt; top: 110pt; width: 512pt; height: 650pt; }
+            @frame footer_frame { -pdf-frame-content: footer_content; left: 50pt; top: 782pt; width: 512pt; height: 20pt; }
         }
-        body { font-family: "Helvetica", sans-serif; font-size: 10px; }
-        .header h1 { text-align: center; font-size: 22px; color: #333; }
-        .info { margin-bottom: 20px; font-size: 11px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
-        th { background-color: #f2f2f2; font-size: 11px; font-weight: bold; }
+        body { font-family: "Helvetica", sans-serif; font-size: 9px; color: #333; }
+        .header-content .title { text-align: right; font-size: 20px; color: #111; font-weight: bold; }
+        .header-content .company-name { text-align: left; font-size: 16px; font-weight: bold; color: #555; }
+        .info { margin-bottom: 15px; font-size: 10px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
+        th { background-color: #f7f7f7; font-size: 10px; font-weight: bold; text-transform: uppercase; }
         .footer { text-align: right; font-size: 9px; color: #777; }
+        .text-right { text-align: right; }
+        .summary-section { margin-bottom: 20px; background-color: #f7f7f7; padding: 10px; border: 1px solid #ddd; }
+        .summary-section h3 { margin-top: 0; font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        .summary-item { display: inline-block; width: 45%; font-size: 11px; }
+        h3 { font-size: 14px; color: #333; }
     </style>
 </head>
 <body>
-    <div id="header_content"><div class="header"><h1>Transaction History Report</h1></div></div>
-    <div id="footer_content"><div class="footer">Page <pdf:pagenumber> of <pdf:pagecount></div></div>
+    <!-- HEADER AND FOOTER -->
+    <div id="header_content" class="header-content">
+        <table>
+            <tr>
+                <td style="border:0;" class="company-name">Rich Land Auto Supply</td>
+                <td style="border:0;" class="title">General Sales Report</td>
+            </tr>
+        </table>
+    </div>
+    <div id="footer_content" class="footer">Page <pdf:pagenumber> of <pdf:pagecount></div>
+
+    <!-- REPORT METADATA -->
     <div class="info">
-        <p><strong>Date Generated:</strong> {% now "F d, Y, P" %}</p>
+        <strong>Date Generated:</strong> {% now "F d, Y, P" %}<br/>
         {% if start_date and end_date %}
-            <p><strong>Reporting Period:</strong> {{ start_date|date:"F d, Y" }} to {{ end_date|date:"F d, Y" }}</p>
+            <strong>Reporting Period:</strong> {{ start_date|date:"F d, Y" }} to {{ end_date|date:"F d, Y" }}
         {% elif start_date %}
-            <p><strong>Reporting Period:</strong> From {{ start_date|date:"F d, Y" }} onwards</p>
+            <strong>Reporting Period:</strong> From {{ start_date|date:"F d, Y" }} onwards
         {% elif end_date %}
-            <p><strong>Reporting Period:</strong> Up to {{ end_date|date:"F d, Y" }}</p>
+            <strong>Reporting Period:</strong> Up to {{ end_date|date:"F d, Y" }}
         {% else %}
-            <p><strong>Reporting Period:</strong> All Time</p>
+            <strong>Reporting Period:</strong> All Time
         {% endif %}
     </div>
+
+    <!-- SUMMARY SECTION -->
+    <div class="summary-section">
+        <h3>Report Summary</h3>
+        <div class="summary-item">
+            <strong>Total Sales Value:</strong> ₱{{ summary.total_revenue|floatformat:2|default:"0.00" }}
+        </div>
+        <div class="summary-item">
+            <strong>Total Items Sold:</strong> {{ summary.total_items_sold|default:"0" }}
+        </div>
+    </div>
+
+    <!-- TOP 5 SELLING ITEMS -->
+    <h3>Top 5 Selling Items (by Quantity)</h3>
     <table>
         <thead>
             <tr>
-                <th style="width: 25%;">Product</th> <th style="width: 15%;">SKU</th>
-                <th style="width: 8%;">Type</th> <th style="width: 8%;">Quantity</th>
-                <th style="width: 10%;">User</th> <th style="width: 12%;">Timestamp</th>
-                <th style="width: 22%;">Notes</th>
+                <th style="width: 80%;">Product Name</th>
+                <th class="text-right">Total Quantity Sold</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in top_sellers %}
+            <tr>
+                <td>{{ item.product__name }}</td>
+                <td class="text-right">{{ item.total_quantity_sold }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" style="text-align: center;">No sales data available for this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- DETAILED TRANSACTION LIST -->
+    <h3>Detailed Sales Transaction Log</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Trans. ID</th>
+                <th>Date</th>
+                <th>Product Name</th>
+                <th>SKU</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Price/Unit</th>
+                <th class="text-right">Total Value</th>
+                <th>Sales Specialist</th>
             </tr>
         </thead>
         <tbody>
             {% for transaction in transactions %}
-            <tr>
-                <td>{{ transaction.product.name }}</td> <td>{{ transaction.product.sku }}</td>
-                <td>{{ transaction.get_transaction_type_display }}</td> <td>{{ transaction.quantity }}</td>
-                <td>{{ transaction.user.username|default:"N/A" }}</td> <td>{{ transaction.timestamp|date:"Y-m-d H:i" }}</td>
-                <td>{{ transaction.notes|default:"" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7" style="text-align: center;">No transactions found for the selected period.</td></tr>
+                {% if transaction.transaction_type == 'OUT' %}
+                <tr>
+                    <td>{{ transaction.id }}</td>
+                    <td>{{ transaction.timestamp|date:"Y-m-d H:i" }}</td>
+                    <td>{{ transaction.product.name }}</td>
+                    <td>{{ transaction.product.sku }}</td>
+                    <td class="text-right">{{ transaction.quantity }}</td>
+                    <td class="text-right">
+                        {% if transaction.selling_price is not None %}
+                            ₱{{ transaction.selling_price|floatformat:2 }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        {% if transaction.selling_price is not None %}
+                            {% widthratio transaction.selling_price 1 transaction.quantity as total_value %}
+                            ₱{{ total_value|floatformat:2 }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>{{ transaction.user.username|default:"N/A" }}</td>
+                </tr>
+                {% endif %}
             {% endfor %}
+            {% if not transactions %}
+            <tr><td colspan="8" style="text-align: center;">No transactions found for the selected period.</td></tr>
+            {% endif %}
         </tbody>
     </table>
 </body>
