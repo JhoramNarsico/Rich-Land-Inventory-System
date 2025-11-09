@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-<!-- THIS LINE IS NEW -->
 {% load humanize %}
 
 {% block title %}Dashboard{% endblock %}
@@ -10,13 +9,13 @@
         <p class="lead mb-0">Welcome back, {{ user.username }}!</p>
     </div>
 
-    <!-- Metric Cards (unchanged) -->
+    <!-- Metric Cards -->
     <div class="row">
         <div class="col-md-4 mb-4">
             <div class="card text-white bg-primary h-100">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-box-open"></i> Total Products</h5>
-                    <p class="card-text fs-2 fw-bold">{{ total_products }}</p>
+                    <h5 class="card-title"><i class="fas fa-box-open me-2"></i>Total Products</h5>
+                    <p class="card-text fs-2 fw-bold">{{ total_products|intcomma }}</p>
                     <small>Unique items in inventory</small>
                 </div>
             </div>
@@ -24,10 +23,8 @@
         <div class="col-md-4 mb-4">
             <div class="card text-white bg-success h-100">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-dollar-sign"></i> Total Stock Value</h5>
-                    <!-- THIS IS THE MODIFIED LINE -->
+                    <h5 class="card-title"><i class="fas fa-dollar-sign me-2"></i>Total Stock Value</h5>
                     <p class="card-text fs-2 fw-bold">₱{{ total_stock_value|floatformat:2|intcomma }}</p>
-                    <!-- END OF MODIFICATION -->
                     <small>Combined value of all items</small>
                 </div>
             </div>
@@ -35,26 +32,40 @@
         <div class="col-md-4 mb-4">
             <div class="card text-white bg-danger h-100">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-exclamation-triangle"></i> Low Stock Items</h5>
-                    <p class="card-text fs-2 fw-bold">{{ low_stock_products_count }}</p>
-                    <small>Items with quantity 5 or less</small>
+                    <h5 class="card-title"><i class="fas fa-exclamation-triangle me-2"></i>Low Stock Items</h5>
+                    <p class="card-text fs-2 fw-bold">{{ low_stock_products_count|intcomma }}</p>
+                    <small>Items at or below reorder level</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Top Movers Widgets (unchanged) -->
+    <!-- Sales Chart Card -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-line me-2"></i>Sales Performance (Last 30 Days)</h4>
+                </div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Movers Widgets -->
     <div class="row">
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h4><i class="fas fa-arrow-up text-success"></i> Top Stocked In (Last 30 Days)</h4>
+                    <h4><i class="fas fa-arrow-up text-success me-2"></i>Top Stocked In (Last 30 Days)</h4>
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for item in top_stocked_in %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <a href="{% url 'inventory:product_detail' slug=item.product__slug %}">{{ item.product__name }}</a>
-                            <span class="badge bg-success rounded-pill">{{ item.total_in }} units</span>
+                            <span class="badge bg-success rounded-pill">{{ item.total_in|intcomma }} units</span>
                         </li>
                     {% empty %}
                         <li class="list-group-item text-muted">No stock-in data from the last 30 days.</li>
@@ -65,13 +76,13 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-header">
-                    <h4><i class="fas fa-arrow-down text-danger"></i> Top Stocked Out (Last 30 Days)</h4>
+                    <h4><i class="fas fa-arrow-down text-danger me-2"></i>Top Stocked Out (Last 30 Days)</h4>
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for item in top_stocked_out %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <a href="{% url 'inventory:product_detail' slug=item.product__slug %}">{{ item.product__name }}</a>
-                            <span class="badge bg-danger rounded-pill">{{ item.total_out }} units</span>
+                            <span class="badge bg-danger rounded-pill">{{ item.total_out|intcomma }} units</span>
                         </li>
                     {% empty %}
                         <li class="list-group-item text-muted">No stock-out data from the last 30 days.</li>
@@ -81,10 +92,10 @@
         </div>
     </div>
 
-    <!-- Recently Added Products Table (THIS SECTION IS NOW FIXED) -->
+    <!-- Recently Added Products Table -->
     <div class="card">
         <div class="card-header">
-            <h4><i class="fas fa-history"></i> Recently Added Products</h4>
+            <h4><i class="fas fa-history me-2"></i>Recently Added Products</h4>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -100,21 +111,85 @@
                     <tbody>
                         {% for product in recent_products %}
                         <tr>
-                            <td>
-                                <a href="{% url 'inventory:product_detail' slug=product.slug %}">{{ product.name }}</a>
-                            </td>
+                            <td><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></td>
                             <td>{{ product.sku }}</td>
-                            <td>{{ product.quantity }}</td>
+                            <td>{{ product.quantity|intcomma }}</td>
                             <td>{{ product.date_created|date:"F d, Y" }}</td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center">No products have been added recently.</td>
-                        </tr>
+                        <tr><td colspan="4" class="text-center">No products have been added recently.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const ctx = document.getElementById('salesChart');
+    if (!ctx) return; // Don't run if the canvas element isn't on the page
+
+    // Fetch data from our API endpoint
+    fetch("{% url 'inventory-api:sales-chart-data' %}")
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Total Sales (₱)',
+                        data: data.data,
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                // Format Y-axis ticks as currency
+                                callback: function(value, index, values) {
+                                    return '₱' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                // Format tooltip display as currency
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += '₱' + context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error fetching sales chart data:', error));
+});
+</script>
 {% endblock %}

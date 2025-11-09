@@ -125,6 +125,7 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # --- CACHING CONFIGURATION (Tier 1 Optimization) ---
 CACHES = {
     'default': {
+        # --- THIS IS THE CORRECTED LINE ---
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'unique-snowflake',
     }
@@ -147,3 +148,19 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+
+# --- EMAIL CONFIGURATION (for Low Stock Alerts) ---
+#
+# For production sending real emails with Gmail:
+# Requires a Google App Password. See instructions.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='your-email@example.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your-password')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# --- UNCOMMENT THE LINE BELOW FOR DEVELOPMENT/TESTING ---
+# This will print emails to the console instead of sending them.
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -22,6 +22,11 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
 class Product(models.Model):
+    # --- NEW: Added STATUS_CHOICES ---
+    class Status(models.TextChoices):
+        ACTIVE = 'ACTIVE', 'Active'
+        DEACTIVATED = 'DEACTIVATED', 'Deactivated'
+
     # --- ADD db_index=True to these fields ---
     name = models.CharField(max_length=200, unique=True, help_text='Enter the product name', db_index=True)
     sku = models.CharField(max_length=100, unique=True, help_text='Enter the Stock Keeping Unit (SKU)', db_index=True)
@@ -31,6 +36,12 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, help_text='Enter the price in PHP')
     quantity = models.PositiveIntegerField(default=0, help_text='Enter the available quantity')
     reorder_level = models.PositiveIntegerField(default=5, help_text="Automatically alert when stock quantity falls to this level.")
+    
+    # --- NEW: Added status field ---
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    # --- NEW: Added last_purchase_date field ---
+    last_purchase_date = models.DateTimeField(null=True, blank=True, help_text="Date this product was last restocked.")
+
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     history = HistoricalRecords()
@@ -55,6 +66,10 @@ class StockTransaction(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True, null=True, help_text="Reason for the transaction (e.g., 'Sale to customer X', 'New shipment received')")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    # --- NEW: Added selling_price field ---
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Price per item at the time of a 'Stock Out' transaction.")
+
     class Meta:
         ordering = ['-timestamp']
         permissions = [("can_adjust_stock", "Can adjust stock quantities")]
@@ -80,6 +95,9 @@ class PurchaseOrder(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
     def __str__(self):
         return f"PO #{self.id} from {self.supplier.name}"
+    # --- NEW: Added get_absolute_url for user-facing detail view ---
+    def get_absolute_url(self):
+        return reverse('inventory:purchaseorder_detail', kwargs={'pk': self.pk})
 
 class PurchaseOrderItem(models.Model):
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
