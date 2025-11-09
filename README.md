@@ -124,7 +124,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ### 3. Install Required Packages
    
 ```bash
-python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history
+python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular
 ```
 ### 4. Set Up the MySQL Database
 
@@ -143,7 +143,8 @@ In the same directory as your manage.py file (the root of your project), create 
 ```bash
 # .env
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY='django-insecure-eoqpafol0v1q51=nbciaya+4$2r6)(b3do$jdncm)pz81q7zl#'
+# SECURITY WARNING: Generate your own secret key for production
+SECRET_KEY='django-insecure-your-own-secret-key'
 
 # Set to False in production!
 DEBUG=True
@@ -153,10 +154,18 @@ ALLOWED_HOSTS='127.0.0.1,localhost'
 
 # -- Database Configuration --
 DB_NAME='richland_inventory_db'
-DB_USER='root'
-DB_PASSWORD='your own password'
+DB_USER='your_mysql_username'
+DB_PASSWORD='your_mysql_password'
 DB_HOST='localhost'
 DB_PORT='3306'
+
+# -- Email Configuration (for Low Stock Alerts) --
+# This is the email address that will send the alerts.
+EMAIL_HOST_USER='your_email@gmail.com'
+
+# This is the 16-character Google App Password you generate from your Google Account.
+# DO NOT use your main Google password.
+EMAIL_HOST_PASSWORD='your_16_character_google_app_password'
 
 ```
 
@@ -179,6 +188,11 @@ python manage.py createsuperuser
 
  ```bash
 python manage.py runserver
+
+```
+### 9. Testing the Low-Stock Alert
+ ```bash
+python manage.py send_low_stock_alerts
 
 ```
 
