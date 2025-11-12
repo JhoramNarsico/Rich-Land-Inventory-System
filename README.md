@@ -172,11 +172,6 @@ EMAIL_HOST_PASSWORD='your_16_character_google_app_password'
 
 ```
 
-### 6. Set Up Redis using Docker
- ```bash
-docker run -d -p 6379:6379 --name richland-redis redis
-```
-
 ### 6. Apply Database Migrations
    
  ```bash
@@ -190,19 +185,9 @@ python manage.py migrate
 
  ```bash
 python manage.py createsuperuser
-
-```
-### Terminal 1: Start the Celery Worker
- ```bash
-celery -A core worker -l info -P gevent
 ```
 
-### Terminal 2: Start the Celery Beat Scheduler
- ```bash
-celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-
-```
-### 8. Terminal 3:  Start the Django Web Server
+### 8. Start the Django Web Server
 
  ```bash
 python manage.py runserver
