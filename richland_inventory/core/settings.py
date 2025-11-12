@@ -119,7 +119,6 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 
 # --- CACHING CONFIGURATION (Development) ---
-# Reverted to the simple in-memory cache, suitable for development and single-process deployments.
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
