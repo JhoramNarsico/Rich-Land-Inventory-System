@@ -124,7 +124,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ### 3. Install Required Packages
    
 ```bash
-python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular
+python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular celery redis django-redis django-celery-beat gevent
+
 ```
 ### 4. Set Up the MySQL Database
 
@@ -167,6 +168,13 @@ EMAIL_HOST_USER='your_email@gmail.com'
 # DO NOT use your main Google password.
 EMAIL_HOST_PASSWORD='your_16_character_google_app_password'
 
+
+
+```
+
+### 6. Set Up Redis using Docker
+ ```bash
+docker run -d -p 6379:6379 --name richland-redis redis
 ```
 
 ### 6. Apply Database Migrations
@@ -184,15 +192,26 @@ python manage.py migrate
 python manage.py createsuperuser
 
 ```
-### 8. How to Run the Application
+### Terminal 1: Start the Celery Worker
+ ```bash
+celery -A core worker -l info -P gevent
+```
+
+### Terminal 2: Start the Celery Beat Scheduler
+ ```bash
+celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
+### 8. Terminal 3:  Start the Django Web Server
 
  ```bash
 python manage.py runserver
 
 ```
-### 9. Testing the Low-Stock Alert
+### Testing the Application
  ```bash
-python manage.py send_low_stock_alerts
+python manage.py test inventory
+```
+
 
 ```
 
