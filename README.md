@@ -192,7 +192,6 @@ python manage.py createsuperuser
  ```bash
 python manage.py runserver
 
-
 ```
 ### Testing the Application
  ```bash
