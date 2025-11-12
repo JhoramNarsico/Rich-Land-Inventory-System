@@ -12,7 +12,6 @@ urlpatterns = [
     path('product/<slug:slug>/delete/', views.ProductDeleteView.as_view(), name='product_delete'),
     path('product/<slug:slug>/toggle_status/', views.product_toggle_status, name='product_toggle_status'),
     
-    # --- NEW: URL for handling AJAX category creation ---
     path('category/add/ajax/', views.add_category_ajax, name='add_category_ajax'),
 
     path('history/', views.ProductHistoryListView.as_view(), name='product_history_list'),
@@ -23,4 +22,7 @@ urlpatterns = [
 
     path('purchase-orders/', views.PurchaseOrderListView.as_view(), name='purchaseorder_list'),
     path('purchase-orders/<int:pk>/', views.PurchaseOrderDetailView.as_view(), name='purchaseorder_detail'),
+
+    path('suppliers/', views.SupplierListView.as_view(), name='supplier_list'),
+    path('suppliers/<int:pk>/', views.SupplierDetailView.as_view(), name='supplier_detail'),
 ]

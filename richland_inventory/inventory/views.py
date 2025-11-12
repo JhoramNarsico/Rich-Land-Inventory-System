@@ -17,7 +17,6 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.decorators.http import require_POST
 from rest_framework import viewsets, permissions
 
-# Import the cache clearing function from the core app
 from core.views import clear_dashboard_cache
 
 from .forms import (
@@ -25,7 +24,7 @@ from .forms import (
     TransactionFilterForm, TransactionReportForm, ProductHistoryFilterForm,
     CategoryCreateForm, PurchaseOrderFilterForm
 )
-from .models import Product, StockTransaction, Category, PurchaseOrder
+from .models import Product, StockTransaction, Category, PurchaseOrder, Supplier
 from .serializers import ProductSerializer
 from .utils import render_to_pdf
 
@@ -43,15 +42,12 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             query = form.cleaned_data.get('q')
             if query:
                 queryset = queryset.filter(Q(name__icontains=query) | Q(sku__icontains=query))
-
             category = form.cleaned_data.get('category')
             if category:
                 queryset = queryset.filter(category=category)
-
             product_status = form.cleaned_data.get('product_status')
             if product_status:
                 queryset = queryset.filter(status=product_status)
-
             stock_status = form.cleaned_data.get('stock_status')
             if stock_status == 'in_stock':
                 queryset = queryset.filter(quantity__gt=10)
@@ -59,7 +55,6 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
                 queryset = queryset.filter(quantity__gt=0, quantity__lte=10)
             elif stock_status == 'out_of_stock':
                 queryset = queryset.filter(quantity=0)
-
             sort_by = form.cleaned_data.get('sort_by')
             if sort_by:
                 queryset = queryset.order_by(sort_by)
@@ -78,7 +73,6 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         return context
 
     def post(self, request, *args, **kwargs):
-        # This post method is kept as a non-JS fallback for the category form
         category_form = CategoryCreateForm(request.POST)
         if category_form.is_valid():
             category_form.save()
@@ -93,13 +87,11 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     template_name = 'inventory/product_detail.html'
     context_object_name = 'product'
     permission_required = 'inventory.view_product'
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
         context['transaction_form'] = StockTransactionForm()
         return context
-
     def post(self, request, *args, **kwargs):
         product_object = self.get_object()
         form = StockTransactionForm(request.POST)
@@ -109,16 +101,14 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
             transaction.user = request.user
             transaction_type = form.cleaned_data.get('transaction_type')
             quantity = form.cleaned_data.get('quantity')
-
             if transaction_type == 'OUT':
                 if product_object.quantity < quantity:
                     messages.error(request, f'Cannot stock out more than the available quantity ({product_object.quantity}).')
                     return redirect(product_object.get_absolute_url())
                 Product.objects.filter(pk=product_object.pk).update(quantity=F('quantity') - quantity)
                 transaction.selling_price = product_object.price
-            else: # 'IN'
+            else:
                 Product.objects.filter(pk=product_object.pk).update(quantity=F('quantity') + quantity)
-
             transaction.save()
             clear_dashboard_cache()
             messages.success(request, "Stock was adjusted successfully.")
@@ -133,7 +123,6 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
     success_url = reverse_lazy('inventory:product_list')
     success_message = "Product was created successfully!"
     permission_required = 'inventory.add_product'
-
     def form_valid(self, form):
         response = super().form_valid(form)
         initial_quantity = form.cleaned_data.get('quantity', 0)
@@ -154,7 +143,6 @@ class ProductUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
     template_name = 'inventory/product_form.html'
     success_message = "Product was updated successfully!"
     permission_required = 'inventory.change_product'
-
     def get_success_url(self):
         return self.object.get_absolute_url()
 
@@ -163,14 +151,12 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
     template_name = 'inventory/product_confirm_delete.html'
     success_url = reverse_lazy('inventory:product_list')
     permission_required = 'inventory.delete_product'
-
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
             product = self.get_object()
             return redirect(product.get_absolute_url())
         return super().dispatch(request, *args, **kwargs)
-
     def form_valid(self, form):
         clear_dashboard_cache()
         messages.success(self.request, "The product was permanently deleted successfully.")
@@ -200,7 +186,6 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
     context_object_name = 'transaction_list'
     paginate_by = 25
     permission_required = 'inventory.view_stocktransaction'
-
     def get_queryset(self):
         queryset = StockTransaction.objects.select_related('product', 'user').all()
         form = TransactionFilterForm(self.request.GET)
@@ -216,7 +201,6 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
             if form.cleaned_data.get('end_date'):
                 queryset = queryset.filter(timestamp__date__lte=form.cleaned_data['end_date'])
         return queryset.order_by('-timestamp')
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['filter_form'] = TransactionFilterForm(self.request.GET)
@@ -250,7 +234,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     template_name = 'inventory/product_history_list.html'
     context_object_name = 'history_list'
     paginate_by = 20
-    permission_required = 'inventory.view_product'
+    permission_required = 'inventory.can_view_history'
     def get_queryset(self):
         queryset = super().get_queryset().select_related('history_user')
         form = ProductHistoryFilterForm(self.request.GET)
@@ -280,7 +264,7 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
     template_name = 'inventory/product_history_detail.html'
     context_object_name = 'history_list'
     paginate_by = 20
-    permission_required = 'inventory.view_product'
+    permission_required = 'inventory.can_view_history'
     def dispatch(self, request, *args, **kwargs):
         self.product = get_object_or_404(Product, slug=self.kwargs['slug'])
         return super().dispatch(request, *args, **kwargs)
@@ -295,7 +279,7 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
 
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'inventory/reporting.html'
-    permission_required = 'inventory.view_product'
+    permission_required = 'inventory.can_view_reports'
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['page_title'] = "Inventory Reports"
@@ -371,44 +355,48 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
     def get_queryset(self):
         return super().get_queryset().prefetch_related('items__product')
 
-# --- NEW VIEWS FOR UX ENHANCEMENTS ---
-
 @login_required
 @require_POST
 def add_category_ajax(request):
-    """Handles the creation of a new category via AJAX."""
     form = CategoryCreateForm(request.POST)
     if form.is_valid():
         category = form.save()
-        # On success, return a JSON response with the new category's data
-        return JsonResponse({
-            'status': 'success',
-            'category': {
-                'id': category.id,
-                'name': category.name,
-            }
-        })
+        return JsonResponse({'status': 'success', 'category': {'id': category.id, 'name': category.name}})
     else:
-        # On failure, return the form errors
         return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
 @login_required
 def sales_chart_data(request):
-    """Provides sales data for the last 30 days for the dashboard chart."""
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    
     sales_data = StockTransaction.objects.filter(
         transaction_type='OUT',
         timestamp__gte=thirty_days_ago,
         selling_price__isnull=False
-    ).annotate(
-        day=TruncDate('timestamp')
-    ).values('day').annotate(
+    ).annotate(day=TruncDate('timestamp')).values('day').annotate(
         total_sales=Sum(F('selling_price') * F('quantity'))
     ).order_by('day')
-
-    # Prepare data into a format that Chart.js understands
     labels = [sale['day'].strftime('%b %d') for sale in sales_data]
     data = [float(sale['total_sales']) for sale in sales_data]
-
     return JsonResponse({'labels': labels, 'data': data})
+
+class SupplierListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = Supplier
+    template_name = 'inventory/supplier_list.html'
+    context_object_name = 'supplier_list'
+    paginate_by = 20
+    permission_required = 'inventory.view_purchaseorder' # Reuse permission
+    def get_queryset(self):
+        return Supplier.objects.order_by('name')
+
+class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    model = Supplier
+    template_name = 'inventory/supplier_detail.html'
+    context_object_name = 'supplier'
+    permission_required = 'inventory.view_purchaseorder' # Reuse permission
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        supplier = self.get_object()
+        context['purchase_orders'] = PurchaseOrder.objects.filter(
+            supplier=supplier
+        ).order_by('-order_date')
+        return context

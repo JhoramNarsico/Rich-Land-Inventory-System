@@ -34,7 +34,6 @@
                             </div>
                             <div class="col-md-3">
                                 <label for="{{ filter_form.category.id_for_label }}" class="form-label">{{ filter_form.category.label }}</label>
-                                <!-- The ID is added to the select widget in forms.py, but we ensure it's here -->
                                 {{ filter_form.category }}
                             </div>
                             <div class="col-md-2">
@@ -193,73 +192,89 @@
 
 {% block extra_js %}
 <script>
-// Logic for switching between table and card view
 document.addEventListener('DOMContentLoaded', function () {
+    // --- Part 1: View Switching Logic ---
     const tableView = document.getElementById('table-view');
     const cardView = document.getElementById('card-view');
     const tableViewBtn = document.getElementById('table-view-btn');
     const cardViewBtn = document.getElementById('card-view-btn');
-    
-    function switchView(viewToShow, btnToActivate) {
-        // ... (view switching logic) ...
-    }
-    
-    // ... (event listeners for view buttons) ...
-});
 
-// --- NEW: AJAX Script for adding a category ---
-document.addEventListener('DOMContentLoaded', function() {
+    function switchView(viewToShow, btnToActivate) {
+        if (!viewToShow || !btnToActivate) return;
+        const viewToHide = viewToShow === tableView ? cardView : tableView;
+        const btnToDeactivate = btnToActivate === tableViewBtn ? cardViewBtn : tableViewBtn;
+        
+        viewToShow.style.display = 'block';
+        viewToHide.style.display = 'none';
+        btnToActivate.classList.add('active');
+        btnToDeactivate.classList.remove('active');
+        localStorage.setItem('product_view_preference', viewToShow.id);
+    }
+
+    if (tableViewBtn) {
+        tableViewBtn.addEventListener('click', () => switchView(tableView, tableViewBtn));
+    }
+    if (cardViewBtn) {
+        cardViewBtn.addEventListener('click', () => switchView(cardView, cardViewBtn));
+    }
+
+    const savedPreference = localStorage.getItem('product_view_preference');
+    if (savedPreference === 'card-view') {
+        switchView(cardView, cardViewBtn);
+    } else {
+        switchView(tableView, tableViewBtn);
+    }
+
+    // --- Part 2: AJAX Form Handling Logic ---
     const categoryForm = document.getElementById('addCategoryForm');
-    const categorySelect = document.querySelector('[name="category"]'); // More robust selector
+    const categorySelect = document.querySelector('[name="category"]');
     const categoryModalEl = document.getElementById('addCategoryModal');
     const categoryModal = bootstrap.Modal.getOrCreateInstance(categoryModalEl);
     const errorDiv = document.getElementById('category-form-errors');
 
-    categoryForm.addEventListener('submit', function(event) {
-        event.preventDefault(); // Stop the default page reload
-        
-        const formData = new FormData(categoryForm);
-        
-        fetch(categoryForm.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
-                'X-Requested-With': 'XMLHttpRequest' // Standard header for AJAX
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Create a new option element
-                const newOption = document.createElement('option');
-                newOption.value = data.category.id;
-                newOption.textContent = data.category.name;
-                
-                // Add the new option to the select dropdown
-                if(categorySelect) {
-                    categorySelect.appendChild(newOption);
+    if (categoryForm) {
+        categoryForm.addEventListener('submit', function(event) {
+            event.preventDefault(); // Stop the default page reload
+            
+            const formData = new FormData(categoryForm);
+            
+            fetch(categoryForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
-                
-                // Clear the form, hide errors, and hide the modal
-                categoryForm.reset();
-                errorDiv.classList.add('d-none');
-                errorDiv.textContent = '';
-                categoryModal.hide();
-                
-                alert('Category added successfully!');
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const newOption = document.createElement('option');
+                    newOption.value = data.category.id;
+                    newOption.textContent = data.category.name;
+                    
+                    if(categorySelect) {
+                        categorySelect.appendChild(newOption);
+                    }
+                    
+                    categoryForm.reset();
+                    errorDiv.classList.add('d-none');
+                    errorDiv.textContent = '';
+                    categoryModal.hide();
+                    
+                    alert('Category added successfully!');
 
-            } else {
-                // Display form errors
-                errorDiv.textContent = data.errors.name[0];
-                errorDiv.classList.remove('d-none');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An unexpected error occurred. Please try again.');
+                } else {
+                    errorDiv.textContent = data.errors.name[0];
+                    errorDiv.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred. Please try again.');
+            });
         });
-    });
+    }
 });
 </script>
 {% endblock %}
