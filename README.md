@@ -200,11 +200,13 @@ celery -A core worker -l info -P gevent
 ### Terminal 2: Start the Celery Beat Scheduler
  ```bash
 celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
 ```
 ### 8. Terminal 3:  Start the Django Web Server
 
  ```bash
 python manage.py runserver
+
 
 ```
 ### Testing the Application
@@ -212,7 +214,5 @@ python manage.py runserver
 python manage.py test inventory
 ```
 
-
-```
 
 
