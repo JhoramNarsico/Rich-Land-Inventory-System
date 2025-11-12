@@ -9,14 +9,32 @@
         <p class="lead mb-0">Welcome back, {{ user.username }}!</p>
     </div>
 
+    <!-- Low Stock Alerts Section -->
+    {% if low_stock_products %}
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Low Stock Alert!</h4>
+        <p>The following {{ low_stock_products_count }} item(s) are at or below their reorder level and require attention:</p>
+        <hr>
+        <ul class="mb-0">
+            {% for product in low_stock_products %}
+            <li>
+                <a href="{{ product.get_absolute_url }}" class="alert-link fw-bold">{{ product.name }}</a> - 
+                Current Stock: <strong>{{ product.quantity|intcomma }}</strong> (Reorder Level is {{ product.reorder_level|intcomma }})
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    <!-- END: Low Stock Alerts Section -->
+
     <!-- Metric Cards -->
     <div class="row">
         <div class="col-md-4 mb-4">
             <div class="card text-white bg-primary h-100">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-box-open me-2"></i>Total Products</h5>
+                    <h5 class="card-title"><i class="fas fa-box-open me-2"></i>Total Active Products</h5>
                     <p class="card-text fs-2 fw-bold">{{ total_products|intcomma }}</p>
-                    <small>Unique items in inventory</small>
+                    <small>Unique active items in inventory</small>
                 </div>
             </div>
         </div>
@@ -25,14 +43,14 @@
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-dollar-sign me-2"></i>Total Stock Value</h5>
                     <p class="card-text fs-2 fw-bold">₱{{ total_stock_value|floatformat:2|intcomma }}</p>
-                    <small>Combined value of all items</small>
+                    <small>Combined value of all active items</small>
                 </div>
             </div>
         </div>
         <div class="col-md-4 mb-4">
-            <div class="card text-white bg-danger h-100">
+            <div class="card text-white bg-warning h-100">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-exclamation-triangle me-2"></i>Low Stock Items</h5>
+                    <h5 class="card-title"><i class="fas fa-chart-pie me-2"></i>Items with Low Stock</h5>
                     <p class="card-text fs-2 fw-bold">{{ low_stock_products_count|intcomma }}</p>
                     <small>Items at or below reorder level</small>
                 </div>
@@ -54,7 +72,7 @@
         </div>
     </div>
 
-    <!-- Top Movers Widgets -->
+    <!-- Top Movers & Recently Added Widgets -->
     <div class="row">
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
@@ -92,7 +110,6 @@
         </div>
     </div>
 
-    <!-- Recently Added Products Table -->
     <div class="card">
         <div class="card-header">
             <h4><i class="fas fa-history me-2"></i>Recently Added Products</h4>
@@ -130,9 +147,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const ctx = document.getElementById('salesChart');
-    if (!ctx) return; // Don't run if the canvas element isn't on the page
+    if (!ctx) return;
 
-    // Fetch data from our API endpoint
     fetch("{% url 'inventory-api:sales-chart-data' %}")
         .then(response => {
             if (!response.ok) {
@@ -162,8 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         y: {
                             beginAtZero: true,
                             ticks: {
-                                // Format Y-axis ticks as currency
-                                callback: function(value, index, values) {
+                                callback: function(value) {
                                     return '₱' + value.toLocaleString();
                                 }
                             }
@@ -172,7 +187,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     plugins: {
                         tooltip: {
                             callbacks: {
-                                // Format tooltip display as currency
                                 label: function(context) {
                                     let label = context.dataset.label || '';
                                     if (label) {

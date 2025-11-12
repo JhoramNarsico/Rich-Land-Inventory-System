@@ -17,12 +17,8 @@ from decouple import config, Csv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- SECURITY CONFIGURATION ---
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
-
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
 
@@ -44,7 +40,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',     # For API token authentication
     'simple_history',               # For auditing model changes
     'drf_spectacular',              # For generating API documentation
-    'django_celery_beat',           # For Celery's scheduler
 ]
 
 MIDDLEWARE = [
@@ -118,20 +113,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # --- AUTHENTICATION CONFIGURATION ---
-LOGIN_REDIRECT_URL = '/inventory/'
+LOGIN_REDIRECT_URL = '/'
 LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 
-# --- CACHING CONFIGURATION (Production-Ready) ---
-# Switched from LocMemCache to a Redis cache for scalability and persistence.
+# --- CACHING CONFIGURATION (Development) ---
+# Reverted to the simple in-memory cache, suitable for development and single-process deployments.
 CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1", # Use database 1 for cache
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
 }
 
@@ -148,38 +140,8 @@ REST_FRAMEWORK = {
 # --- DRF-SPECTACULAR CONFIGURATION (API Docs) ---
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Rich Land Inventory API',
-    'DESCRIPTION': 'A comprehensive API for managing products, stock, and transactions for the Rich Land Inventory System.',
+    'DESCRIPTION': 'A comprehensive API for managing products, stock, and transactions.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
-
-# --- CELERY CONFIGURATION ---
-# URL for the Redis message broker
-CELERY_BROKER_URL = 'redis://localhost:6379/0' # Use database 0 for celery tasks
-# URL for storing task results
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-# Accept and serialize content in JSON format
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-# Use UTC timezone for consistency
-CELERY_TIMEZONE = 'UTC'
-# Tell Celery Beat to use the Django database for scheduling
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
-
-
-# --- EMAIL CONFIGURATION (for Low Stock Alerts) ---
-# For production sending real emails with Gmail:
-# Requires a Google App Password. See instructions.
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='your-email@example.com')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your-password')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
-# --- UNCOMMENT THE LINE BELOW FOR DEVELOPMENT/TESTING ---
-# This will print emails to the console instead of sending them.
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
