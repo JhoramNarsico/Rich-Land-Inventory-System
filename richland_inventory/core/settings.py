@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',     # For API token authentication
     'simple_history',               # For auditing model changes
     'drf_spectacular',              # For generating API documentation
+    'django_celery_beat',           # For Celery's scheduler
 ]
 
 MIDDLEWARE = [
@@ -122,12 +123,15 @@ LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 
-# --- CACHING CONFIGURATION (Tier 1 Optimization) ---
+# --- CACHING CONFIGURATION (Production-Ready) ---
+# Switched from LocMemCache to a Redis cache for scalability and persistence.
 CACHES = {
-    'default': {
-        # --- THIS IS THE CORRECTED LINE ---
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1", # Use database 1 for cache
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 
@@ -149,8 +153,23 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
+
+# --- CELERY CONFIGURATION ---
+# URL for the Redis message broker
+CELERY_BROKER_URL = 'redis://localhost:6379/0' # Use database 0 for celery tasks
+# URL for storing task results
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# Accept and serialize content in JSON format
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+# Use UTC timezone for consistency
+CELERY_TIMEZONE = 'UTC'
+# Tell Celery Beat to use the Django database for scheduling
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+
 # --- EMAIL CONFIGURATION (for Low Stock Alerts) ---
-#
 # For production sending real emails with Gmail:
 # Requires a Google App Password. See instructions.
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -163,4 +182,4 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # --- UNCOMMENT THE LINE BELOW FOR DEVELOPMENT/TESTING ---
 # This will print emails to the console instead of sending them.
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -14,26 +14,67 @@
             <a class="navbar-brand" href="{% url 'home' %}">
                 <img src="{% static 'images/logo.png' %}" alt="Rich Land Logo" height="30">
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_list' %}">Products</a></li>
-                    <!-- NEW: Added Purchase Orders link -->
-                    <li class="nav-item"><a class="nav-link" href="{% url 'inventory:purchaseorder_list' %}">Purchase Orders</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'inventory:transaction_list' %}">Transactions</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_history_list' %}">Edit History</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'inventory:reporting' %}">Reports</a></li>
+                    {% if perms.inventory.view_product %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_list' %}">Products</a></li>
+                    {% endif %}
+                    {% if perms.inventory.view_purchaseorder %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:supplier_list' %}">Suppliers</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:purchaseorder_list' %}">Purchase Orders</a></li>
+                    {% endif %}
+                    {% if perms.inventory.view_stocktransaction %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:transaction_list' %}">Transactions</a></li>
+                    {% endif %}
+                    {% if perms.inventory.can_view_history %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_history_list' %}">Edit History</a></li>
+                    {% endif %}
+                    {% if perms.inventory.can_view_reports %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:reporting' %}">Reports</a></li>
+                    {% endif %}
                 </ul>
                 <ul class="navbar-nav">
-                    {% if user.is_authenticated %}<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Hello, {{ user.username }}</a><ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">{% if user.is_staff %}<li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin Panel</a></li><li><hr class="dropdown-divider"></li>{% endif %}<li><form action="{% url 'logout' %}" method="post" class="px-2">{% csrf_token %}<button type="submit" class="btn btn-sm btn-danger w-100">Logout</button></form></li></ul></li>{% else %}<li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>{% endif %}
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Hello, {{ user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                {% if user.is_staff %}
+                                    <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin Panel</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                <li>
+                                    <form action="{% url 'logout' %}" method="post" class="px-2">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger w-100">Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
     <div class="container mt-4">
-        {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>{% endfor %}{% endif %}
-        <main>{% block content %}{% endblock %}</main>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        <main>
+            {% block content %}{% endblock %}
+        </main>
     </div>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
