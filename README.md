@@ -1,38 +1,93 @@
-# Rich Land Auto Supply - Inventory System
+<div align="center">
+  <img src="richland_inventory\static\images\readme_header.png" alt="Rich Land Auto Supply Logo" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+</div>
 
-This document provides instructions on how to set up and run the Rich Land Auto Supply Inventory System project on a local development machine. This project is a web application built using the Django framework in Python. It has also REST API which we use the Django REST Framework (DRF), a powerful and flexible toolkit for building Web APIs.
+<br>
 
-# Backend
-* Python: Core programming language.
-* Django: Main web framework.
-* Django REST Framework: For building APIs.
-* xhtml2pdf: For PDF report generation.
+> A full-featured **inventory management system** for auto parts businesses, built with **Python**, **Django**, and **Bootstrap 5**. Track products, manage stock-in/stock-out transactions, view edit history, and generate PDF/CSV reports—all in one application.
 
-# Database
-* MySQL: Relational database system.
-* PyMySQL: Database connector for Python.
 
-# Frontend
-* HTML: Page structure and content.
-* Bootstrap: CSS framework for UI and styling.
-* JavaScript: For user interactivity.
-* Font Awesome: Icon set.
+---
 
-# Development & Tooling
-* pip & venv: Package and environment management.
-* python-decouple: For managing secret settings.
-* cryptography: Core encryption library.
+##  Team Members
 
-## Prerequisites
+| Name                      | GitHub Profile                                      |
+|--------------------------|-----------------------------------------------------|
+| Jhoram Narsico           | [github.com/jhoramnarsico](https://github.com/jhoramnarsico) |
+| Joseph Ernest Alberto    | [github.com/josephernestalberto](https://github.com/Jepoyskies) |
+| Jillian Athea Boc        | [github.com/Jillian-Athea](https://github.com/Jillian-Athea) |
+| Ram Jay Po               | [github.com/rampo](https://github.com/FunkyAtoms) |
 
-Before you start, make sure you have the following software installed on your computer:
 
-*   **Python** 
-*   **Git:** 
-*   **pip**
-*   **MySQL Server**
 
-## Setup Instructions
+---
+
+##  Key Features
+
+-  **Full CRUD** operations for products and categories  
+-  **Stock tracking** with stock-in and stock-out transactions  
+-  **Audit trail** for every product change (who changed what & when)  
+-  **Export reports** as **PDF** (`xhtml2pdf`) or **CSV**  
+-  **Responsive UI** with **Bootstrap 5**  
+-  **RESTful API** with **Django REST Framework**  
+-  **Interactive API docs** via **Swagger UI** (`drf-spectacular`)  
+-  **Role-based access** and secure admin panel
+
+---
+
+## Technology Stack
+
+### Backend
+- **Language**: Python 3.8+  
+- **Framework**: Django  
+- **Database**: MySQL  
+- **API**: Django REST Framework (DRF)
+
+### Libraries
+- `django-simple-history` → Audit logs  
+- `drf-spectacular` → OpenAPI 3.0 documentation  
+- `xhtml2pdf` → PDF report generation  
+- `python-decouple` → Secure `.env` management  
+- `PyMySQL` → MySQL database driver
+
+### Frontend
+- **Templates**: Django HTML  
+- **Styling**: Bootstrap 5  
+- **Interactivity**: Vanilla JavaScript + Bootstrap JS
+
+---
+
+##  Project Milestones (Completed <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;">)
+
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 1 (Nov W1): Proposal & Design
+- Defined `Product`, `Category`, `Transaction` models  
+- Completed ITCC14 Doc (Chapters 1–2)  
+- Drafted API endpoints
+
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 2 (Nov W2): Core Backend
+- Django + MySQL + DRF setup  
+- Basic CRUD + Swagger UI at `/api/docs/`
+
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 3 (Nov W3): Full API + Reporting
+- Full CRUD with validation  
+- Audit history + PDF reports  
+- Seed data script added
+
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 4 (Nov W4): Frontend + Admin
+- Responsive dashboard with Bootstrap  
+- Product list, detail, history, and reporting pages  
+- Admin panel enhanced with developer links
+
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 5 (Dec W1): Dockerization  
+- `Dockerfile` and `docker-compose.yml` included  
+- One-command setup for any environment
+
+### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Final (Dec W2): Demo Ready
+- Live end-to-end demo prepared  
+- Backup assets and slides completed
+
+---
+## Developer Setup Instructions
 
 Follow these steps to get the project running.
 
@@ -48,7 +103,7 @@ git clone <your-repository-url>
 cd richland_inventory
 
 ```
-2. Create and Activate a Virtual Environment
+### 2. Create and Activate a Virtual Environment
 Using a virtual environment is highly recommended to isolate project dependencies.
 
 ```bash
@@ -66,12 +121,12 @@ python -m venv venv
 #IF there is an error activating the virtual environment, input this
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
-3. Install Required Packages
+### 3. Install Required Packages
    
 ```bash
-python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history
+python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular
 ```
-4. Set Up the MySQL Database
+### 4. Set Up the MySQL Database
 
 ```bash
 # Create a new database. We recommend using utf8mb4 for full Unicode support.
@@ -83,12 +138,13 @@ GRANT ALL PRIVILEGES ON richland_inventory_db.* TO 'your_db_user'@'localhost';
 FLUSH PRIVILEGES;
 
 ```
-6. Creating a .env file.
+### 5. Creating a .env file.
 In the same directory as your manage.py file (the root of your project), create a new file named .env.
 ```bash
 # .env
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY='django-insecure-eoqpafol0v1q51=nbciaya+4$2r6)(b3do$jdncm)pz81q7zl#'
+# SECURITY WARNING: Generate your own secret key for production
+SECRET_KEY='django-insecure-your-own-secret-key'
 
 # Set to False in production!
 DEBUG=True
@@ -98,14 +154,22 @@ ALLOWED_HOSTS='127.0.0.1,localhost'
 
 # -- Database Configuration --
 DB_NAME='richland_inventory_db'
-DB_USER='root'
-DB_PASSWORD='your own password'
+DB_USER='your_mysql_username'
+DB_PASSWORD='your_mysql_password'
 DB_HOST='localhost'
 DB_PORT='3306'
 
+# -- Email Configuration (for Low Stock Alerts) --
+# This is the email address that will send the alerts.
+EMAIL_HOST_USER='your_email@gmail.com'
+
+# This is the 16-character Google App Password you generate from your Google Account.
+# DO NOT use your main Google password.
+EMAIL_HOST_PASSWORD='your_16_character_google_app_password'
+
 ```
 
-6. Apply Database Migrations
+### 6. Apply Database Migrations
    
  ```bash
 python manage.py makemigrations
@@ -114,99 +178,22 @@ python manage.py migrate
 ```
 (NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
 
-5. Create an Administrator Account
+### 7. Create an Administrator Account
 
  ```bash
 python manage.py createsuperuser
 
 ```
-How to Run the Application
+### 8. How to Run the Application
 
  ```bash
 python manage.py runserver
 
 ```
-Access the Application:
+### 9. Testing the Low-Stock Alert
+ ```bash
+python manage.py send_low_stock_alerts
 
-Open your web browser and go to the following addresses:
-
-* Main Application: http://127.0.0.1:8000
-
-* Admin Panel: http://127.0.0.1:8000/admin/
-
-
-```bash
-Rich-Land-Inventory-System/
-│
-├── .env
-│   └── Description: Stores secret settings like your database password and Django's SECRET_KEY.
-│
-├── manage.py
-│   └── Description: The command-line utility for interacting with your Django project (e.g., runserver, migrate).
-│
-├── core/ (Project Configuration App)
-│   ├── __init__.py      -> Marks this directory as a Python package.
-│   ├── asgi.py          -> Entry-point for asynchronous web servers.
-│   ├── settings.py      -> The main settings file for the entire project (database, installed apps, etc.).
-│   ├── urls.py          -> The root URL configuration. It includes the URLs from your other apps.
-│   ├── views.py         -> Can be used for project-level views, like a homepage.
-│   └── wsgi.py          -> The standard entry-point for synchronous web servers.
-│
-├── inventory/ (Your Core Business Logic App)
-│   ├── __init__.py      -> Marks this directory as a Python package.
-│   ├── admin.py         -> Registers your models with the Django admin site.
-│   ├── api_urls.py      -> Defines the URL routes for your app's API endpoints.
-│   ├── apps.py          -> Configuration specific to the 'inventory' app.
-│   ├── forms.py         -> Contains your form classes (ProductForm, filters, etc.).
-│   ├── models.py        -> Defines your database tables (Product, Category, Transaction).
-│   ├── serializers.py   -> Converts your model data to formats like JSON for the API.
-│   ├── tests.py         -> A place for writing automated tests.
-│   ├── urls.py          -> Defines the URL routes for this app's user-facing pages.
-│   ├── utils.py         -> Contains custom helper functions, like your 'render_to_pdf' utility.
-│   ├── views.py         -> The main application logic for handling user requests and responses.
-│   │
-│   ├── migrations/
-│   │   └── 0001_initial.py -> Auto-generated instructions to create your database tables.
-│   │
-│   └── templates/
-│       └── inventory/      -> App-specific HTML templates, namespaced to avoid conflicts.
-│           ├── product_confirm_delete.html -> Page to confirm the deletion of a product.
-│           ├── product_detail.html         -> The detailed view and management page for a single product.
-│           ├── product_form.html           -> The form for creating or updating a product's core details.
-│           ├── product_list.html           -> The main page displaying all products with filters.
-│           ├── reporting.html              -> The page for generating CSV and PDF reports.
-│           ├── transaction_list.html       -> The master log of all stock transactions.
-│           └── transaction_report_pdf.html -> A special, print-friendly template for the PDF report.
-│
-├── static/ (Bootstrap Assets)  YOU DO NOT edit files here.
-│   ├── css/             -> Your custom CSS files for styling the application.
-│   ├── images/          -> Your image assets, such as the company logo.
-│   └── js/              -> Your custom JavaScript files for front-end interactivity.
-│
-├── staticfiles/ (Collected Static Files for Deployment)  YOU DO NOT edit files here.
-│   └── Description: The target folder for the `collectstatic` command. It gathers all static
-│       files from your project and its dependencies (like the admin panel's CSS) into one
-│       place for a live web server to use.
-│
-└── templates/ (Project-Level Templates)
-    ├── admin/
-    │   ├── index.html   -> A custom template to override the Django admin homepage.
-    │   └── login.html   -> A custom template to override the Django admin login page.
-    │
-    ├── registration/
-    │   └── login.html   -> The login page for your application's regular users.
-    │
-    ├── rest_framework/
-    │   └── api.html     -> A custom template for Django REST Framework's browsable API.
-    │
-    ├── base.html        -> The main site layout. All other templates extend this file.
-    ├── base_auth.html   -> A base template specifically for authentication-related pages.
-    └── home.html        -> The template for your project's main homepage.
 ```
-
-
-
-
-
 
 
