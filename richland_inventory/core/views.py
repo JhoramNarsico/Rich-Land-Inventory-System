@@ -2,7 +2,7 @@
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q # Import Q
 from django.utils import timezone
 from datetime import timedelta
 from django.core.cache import cache
@@ -11,19 +11,17 @@ from inventory.models import Product, StockTransaction
 
 def clear_dashboard_cache():
     """Removes the dashboard data from the cache."""
-    # This key must match the one used in the home view
     cache.delete('dashboard_data')
 
 
 @login_required
 def home(request):
-    """View for the homepage dashboard with caching and low-stock alerts."""
+    """View for the homepage dashboard with caching and improved low-stock alerts."""
     
     cache_key = 'dashboard_data'
     dashboard_data = cache.get(cache_key)
 
     if not dashboard_data:
-        # Filter for active products for all dashboard metrics
         active_products = Product.objects.filter(status=Product.Status.ACTIVE)
 
         total_products = active_products.count()
@@ -33,9 +31,11 @@ def home(request):
         )
         total_stock_value = total_stock_value_agg['total_value'] or 0
         
-        # Get the actual list of low-stock products to display as an alert
+        # --- THIS IS THE REVISED LOGIC ---
+        # Find products that are EITHER out of stock OR have a quantity
+        # strictly LESS THAN their reorder level.
         low_stock_products = active_products.filter(
-            quantity__lte=F('reorder_level')
+            Q(quantity=0) | Q(quantity__lt=F('reorder_level'))
         ).order_by('quantity')
         
         low_stock_products_count = low_stock_products.count()
@@ -56,12 +56,11 @@ def home(request):
             'total_products': total_products,
             'total_stock_value': total_stock_value,
             'low_stock_products_count': low_stock_products_count,
-            'low_stock_products': low_stock_products, # Pass the list to the template
+            'low_stock_products': low_stock_products,
             'recent_products': recent_products,
             'top_stocked_in': top_stocked_in,
             'top_stocked_out': top_stocked_out,
         }
-        # Cache the data for 5 minutes
         cache.set(cache_key, dashboard_data, 300) 
     
     return render(request, 'home.html', dashboard_data)
