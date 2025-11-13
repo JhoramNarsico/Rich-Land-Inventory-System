@@ -124,7 +124,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ### 3. Install Required Packages
    
 ```bash
-python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular
+python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular celery redis django-redis django-celery-beat gevent
+
 ```
 ### 4. Set Up the MySQL Database
 
@@ -167,6 +168,8 @@ EMAIL_HOST_USER='your_email@gmail.com'
 # DO NOT use your main Google password.
 EMAIL_HOST_PASSWORD='your_16_character_google_app_password'
 
+
+
 ```
 
 ### 6. Apply Database Migrations
@@ -182,18 +185,18 @@ python manage.py migrate
 
  ```bash
 python manage.py createsuperuser
-
 ```
-### 8. How to Run the Application
+
+### 8. Start the Django Web Server
 
  ```bash
 python manage.py runserver
 
 ```
-### 9. Testing the Low-Stock Alert
+### Testing the Application
  ```bash
-python manage.py send_low_stock_alerts
-
+python manage.py test inventory
 ```
+
 
 
