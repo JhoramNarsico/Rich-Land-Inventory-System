@@ -160,16 +160,6 @@ DB_PASSWORD='your_mysql_password'
 DB_HOST='localhost'
 DB_PORT='3306'
 
-# -- Email Configuration (for Low Stock Alerts) --
-# This is the email address that will send the alerts.
-EMAIL_HOST_USER='your_email@gmail.com'
-
-# This is the 16-character Google App Password you generate from your Google Account.
-# DO NOT use your main Google password.
-EMAIL_HOST_PASSWORD='your_16_character_google_app_password'
-
-
-
 ```
 
 ### 6. Apply Database Migrations
