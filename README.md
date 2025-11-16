@@ -129,7 +129,7 @@ python -m pip install --upgrade pip Django PyMySQL djangorestframework python-de
 OR
 
 ```bash
-pip install -r requirements.tx
+pip install -r requirements.txt
 
 ```
 ### 4. Set Up the MySQL Database
