@@ -1,0 +1,91 @@
+# ###########################
+#  Environment Variables
+# ###########################
+# This is the most important line. It prevents your secrets and passwords from being uploaded.
+.env
+
+
+# ###########################
+#  Python Virtual Environment
+# ###########################
+# Ignore the virtual environment folder.
+venv/
+env/
+.venv/
+.env/
+
+
+# ###########################
+#  Python Cache & Artifacts
+# ###########################
+# Ignore Python's compiled bytecode and cache folders.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+
+# ###########################
+#  Django Specific
+# ###########################
+# Ignore the folder where collectstatic places all static files for production.
+staticfiles/
+
+# Ignore the folder where user-uploaded files (like images) would be stored.
+media/
+
+# Ignore the default SQLite database file (good practice even if you're using MySQL).
+db.sqlite3
+db.sqlite3-journal
+
+
+# ###########################
+#  IDE / Editor Configuration
+# ###########################
+# Ignore Visual Studio Code specific settings.
+.vscode/
+
+
+# ###########################
+#  Operating System Files
+# ###########################
+# Ignore macOS specific files.
+.DS_Store
+
+# Ignore Windows specific files.
+Thumbs.db
+desktop.ini
+
+
+# ###########################
+#  Logs & Database Dumps
+# ###########################
+# Ignore log files.
+*.log
+
+# Ignore database backup files.
+*.sql
+*.dump
+
+
+# ###########################
+#  Python Packaging & Build Artifacts
+# ###########################
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/
+*.egg-info/
+.installed.cfg
+*.egg
