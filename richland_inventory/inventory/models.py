@@ -21,7 +21,7 @@ class Category(models.Model):
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
-class Product(models.Model):
+class Product(models.Model): #Represents a single auto part in the inventory system.
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
         DEACTIVATED = 'DEACTIVATED', 'Deactivated'
