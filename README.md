@@ -124,7 +124,12 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ### 3. Install Required Packages
    
 ```bash
-python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular celery redis django-redis django-celery-beat gevent
+python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular
+```
+OR
+
+```bash
+pip install -r requirements.txt
 
 ```
 ### 4. Set Up the MySQL Database
