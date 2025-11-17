@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="richland_inventory\static\images\readme_header.png" alt="Rich Land Auto Supply Logo" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+  <img src="richland_inventory/static/images/readme_header.png" alt="Rich Land Auto Supply Logo" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
 </div>
 
 <br>
@@ -14,9 +14,9 @@
 | Name                      | GitHub Profile                                      |
 |--------------------------|-----------------------------------------------------|
 | Jhoram Narsico           | [github.com/jhoramnarsico](https://github.com/jhoramnarsico) |
-| Joseph Ernest Alberto    | [github.com/josephernestalberto](https://github.com/Jepoyskies) |
+| Joseph Ernest Alberto    | [github.com/Jepoyskies](https://github.com/Jepoyskies) |
 | Jillian Athea Boc        | [github.com/Jillian-Athea](https://github.com/Jillian-Athea) |
-| Ram Jay Po               | [github.com/rampo](https://github.com/FunkyAtoms) |
+| Ram Jay Po               | [github.com/FunkyAtoms](https://github.com/FunkyAtoms) |
 
 
 
@@ -57,32 +57,32 @@
 
 ---
 
-##  Project Milestones (Completed <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;">)
+##  Project Milestones (Completed <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;">)
 
-### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 1 (Nov W1): Proposal & Design
+### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 1 (Nov W1): Proposal & Design
 - Defined `Product`, `Category`, `Transaction` models  
 - Completed ITCC14 Doc (Chapters 1–2)  
 - Drafted API endpoints
 
-### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 2 (Nov W2): Core Backend
+### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 2 (Nov W2): Core Backend
 - Django + MySQL + DRF setup  
 - Basic CRUD + Swagger UI at `/api/docs/`
 
-### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 3 (Nov W3): Full API + Reporting
+### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 3 (Nov W3): Full API + Reporting
 - Full CRUD with validation  
 - Audit history + PDF reports  
 - Seed data script added
 
-### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 4 (Nov W4): Frontend + Admin
+### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 4 (Nov W4): Frontend + Admin
 - Responsive dashboard with Bootstrap  
 - Product list, detail, history, and reporting pages  
 - Admin panel enhanced with developer links
 
-### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Milestone 5 (Dec W1): Dockerization  
+### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 5 (Dec W1): Dockerization  
 - `Dockerfile` and `docker-compose.yml` included  
 - One-command setup for any environment
 
-### <img src="richland_inventory\static\images\check.png" width="20" style="vertical-align: middle;"> Final (Dec W2): Demo Ready
+### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Final (Dec W2): Demo Ready
 - Live end-to-end demo prepared  
 - Backup assets and slides completed
 
