@@ -1,12 +1,12 @@
+# Virtual Environment
 venv/
 
+# Environment variables
 .env
 
+# Python cache
 __pycache__/
 *.pyc
 
+# Database file
 db.sqlite3
-```3.  **Commit the file:**
-```bash
-git add .gitignore
-git commit -m "feat: Add .gitignore to exclude venv and environment files"
