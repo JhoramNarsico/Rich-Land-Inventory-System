@@ -17,7 +17,8 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.decorators.http import require_POST
 from rest_framework import viewsets, permissions
 
-from core.views import clear_dashboard_cache
+# --- THIS IS THE CORRECTED IMPORT ---
+from core.cache_utils import clear_dashboard_cache
 
 from .forms import (
     ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm,
@@ -50,9 +51,9 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
                 queryset = queryset.filter(status=product_status)
             stock_status = form.cleaned_data.get('stock_status')
             if stock_status == 'in_stock':
-                queryset = queryset.filter(quantity__gt=10)
+                queryset = queryset.filter(quantity__gt=F('reorder_level'))
             elif stock_status == 'low_stock':
-                queryset = queryset.filter(quantity__gt=0, quantity__lte=10)
+                queryset = queryset.filter(quantity__gt=0, quantity__lte=F('reorder_level'))
             elif stock_status == 'out_of_stock':
                 queryset = queryset.filter(quantity=0)
             sort_by = form.cleaned_data.get('sort_by')
@@ -384,7 +385,7 @@ class SupplierListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     template_name = 'inventory/supplier_list.html'
     context_object_name = 'supplier_list'
     paginate_by = 20
-    permission_required = 'inventory.view_purchaseorder' # Reuse permission
+    permission_required = 'inventory.view_purchaseorder'
     def get_queryset(self):
         return Supplier.objects.order_by('name')
 
@@ -392,7 +393,7 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     model = Supplier
     template_name = 'inventory/supplier_detail.html'
     context_object_name = 'supplier'
-    permission_required = 'inventory.view_purchaseorder' # Reuse permission
+    permission_required = 'inventory.view_purchaseorder'
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         supplier = self.get_object()
