@@ -17,7 +17,6 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.decorators.http import require_POST
 from rest_framework import viewsets, permissions
 
-# --- THIS IS THE CORRECTED IMPORT ---
 from core.cache_utils import clear_dashboard_cache
 
 from .forms import (
@@ -144,6 +143,14 @@ class ProductUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
     template_name = 'inventory/product_form.html'
     success_message = "Product was updated successfully!"
     permission_required = 'inventory.change_product'
+
+    def form_valid(self, form):
+        """
+        If the form is valid, clear the dashboard cache before saving the model.
+        """
+        clear_dashboard_cache()
+        return super().form_valid(form)
+
     def get_success_url(self):
         return self.object.get_absolute_url()
 
@@ -174,6 +181,7 @@ def product_toggle_status(request, slug):
         product.status = Product.Status.ACTIVE
         messages.success(request, f"'{product.name}' has been activated.")
     product.save()
+    clear_dashboard_cache() # Also clear cache when status changes
     return redirect(product.get_absolute_url())
 
 class ProductViewSet(viewsets.ModelViewSet):
