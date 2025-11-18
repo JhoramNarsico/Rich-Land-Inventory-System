@@ -17,7 +17,8 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.decorators.http import require_POST
 from rest_framework import viewsets, permissions
 
-from core.views import clear_dashboard_cache
+# --- THIS IS THE CORRECTED IMPORT ---
+from core.cache_utils import clear_dashboard_cache
 
 from .forms import (
     ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm,
@@ -42,29 +43,19 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             query = form.cleaned_data.get('q')
             if query:
                 queryset = queryset.filter(Q(name__icontains=query) | Q(sku__icontains=query))
-
             category = form.cleaned_data.get('category')
             if category:
                 queryset = queryset.filter(category=category)
-
             product_status = form.cleaned_data.get('product_status')
             if product_status:
                 queryset = queryset.filter(status=product_status)
-
             stock_status = form.cleaned_data.get('stock_status')
-            
-            # --- THIS IS THE CORRECTED LOGIC BLOCK ---
             if stock_status == 'in_stock':
-                # An item is "in stock" if its quantity is greater than its reorder level.
                 queryset = queryset.filter(quantity__gt=F('reorder_level'))
             elif stock_status == 'low_stock':
-                # An item is "low stock" if its quantity is > 0 but <= its reorder level.
                 queryset = queryset.filter(quantity__gt=0, quantity__lte=F('reorder_level'))
             elif stock_status == 'out_of_stock':
-                # An item is "out of stock" if its quantity is 0.
                 queryset = queryset.filter(quantity=0)
-            # --- END OF CORRECTION ---
-
             sort_by = form.cleaned_data.get('sort_by')
             if sort_by:
                 queryset = queryset.order_by(sort_by)

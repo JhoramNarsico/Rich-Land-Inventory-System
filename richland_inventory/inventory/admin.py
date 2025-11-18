@@ -4,7 +4,9 @@ from django.contrib import admin
 from django.utils import timezone
 from simple_history.admin import SimpleHistoryAdmin
 from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, PurchaseOrderItem
-from core.views import clear_dashboard_cache
+
+# --- THIS IS THE CORRECTED IMPORT ---
+from core.cache_utils import clear_dashboard_cache
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
