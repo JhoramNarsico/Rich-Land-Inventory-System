@@ -2,23 +2,20 @@
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, F, Q # Import Q
+from django.db.models import Sum, F, Q
 from django.utils import timezone
 from datetime import timedelta
 from django.core.cache import cache
 
 from inventory.models import Product, StockTransaction
 
-def clear_dashboard_cache():
-    """Removes the dashboard data from the cache."""
-    cache.delete('dashboard_data')
-
+# The clear_dashboard_cache function is NO LONGER HERE. It has been moved.
 
 @login_required
 def home(request):
     """View for the homepage dashboard with caching and improved low-stock alerts."""
     
-    cache_key = 'dashboard_data'
+    cache_key = 'dashboard_data' # This key must match the one in cache_utils.py
     dashboard_data = cache.get(cache_key)
 
     if not dashboard_data:
@@ -31,16 +28,12 @@ def home(request):
         )
         total_stock_value = total_stock_value_agg['total_value'] or 0
         
-        # --- THIS IS THE REVISED LOGIC ---
-        # Find products that are EITHER out of stock OR have a quantity
-        # strictly LESS THAN their reorder level.
         low_stock_products = active_products.filter(
             Q(quantity=0) | Q(quantity__lt=F('reorder_level'))
         ).order_by('quantity')
         
         low_stock_products_count = low_stock_products.count()
 
-        # Other dashboard metrics
         recent_products = Product.objects.order_by('-date_created')[:5]
         thirty_days_ago = timezone.now() - timedelta(days=30)
         
