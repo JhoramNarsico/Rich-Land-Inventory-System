@@ -1,0 +1,75 @@
+<!-- /templates/inventory/sales_report_pdf.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Sales Report</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            @frame header_frame { -pdf-frame-content: header_content; left: 50pt; top: 35pt; width: 512pt; height: 60pt; }
+            @frame content_frame { left: 50pt; top: 110pt; width: 512pt; height: 650pt; }
+            @frame footer_frame { -pdf-frame-content: footer_content; left: 50pt; top: 782pt; width: 512pt; height: 20pt; }
+        }
+        body { font-family: "Helvetica", sans-serif; font-size: 9px; color: #333; }
+        .header-content .title { text-align: right; font-size: 20px; color: #111; font-weight: bold; }
+        .header-content .company-name { text-align: left; font-size: 16px; font-weight: bold; color: #555; }
+        .info { margin-bottom: 15px; font-size: 10px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background-color: #f7f7f7; font-size: 10px; font-weight: bold; }
+        .footer { text-align: right; font-size: 9px; color: #777; }
+        .text-right { text-align: right; }
+    </style>
+</head>
+<body>
+    <!-- Header and Footer Content -->
+    <div id="header_content" class="header-content">
+        <table>
+            <tr>
+                <td style="border:0;" class="company-name">Rich Land Auto Supply</td>
+                <td style="border:0;" class="title">Sales Transaction Report</td>
+            </tr>
+        </table>
+    </div>
+    <div id="footer_content" class="footer">Page <pdf:pagenumber> of <pdf:pagecount></div>
+
+    <!-- Main Content -->
+    <div class="info">
+        <strong>Date Generated:</strong> {{ generation_date.strftime('%B %d, %Y, %I:%M %p') }}<br/>
+        <strong>Reporting Period:</strong> {{ start_date.strftime('%B %d, %Y') if start_date else 'Start of Records' }} to {{ end_date.strftime('%B %d, %Y') if end_date else 'Today' }}
+    </div>
+
+    <h3>Detailed Transaction Log</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>User</th>
+                <th>Product Name</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Price/Unit</th>
+                <th class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sale in sales %}
+                {% for item in sale.items_sold %}
+                    {% if item.type == 'OUT' %}
+                    <tr>
+                        <td>{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ sale.user_username }}</td>
+                        <td>{{ item.product_name }}</td>
+                        <td class="text-right">{{ item.quantity_sold }}</td>
+                        <td class="text-right">₱{{ "%.2f"|format(item.price_per_unit|float) }}</td>
+                        <td class="text-right">₱{{ "%.2f"|format((item.quantity_sold * item.price_per_unit)|float) }}</td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+            <tr><td colspan="6" style="text-align: center;">No sales transactions found for this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

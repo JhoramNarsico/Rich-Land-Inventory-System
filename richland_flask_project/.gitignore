@@ -1,0 +1,66 @@
+# ==============================================================================
+# Gitignore for the Rich Land Auto Supply Flask/MongoDB Project
+# ==============================================================================
+
+# --- Secrets ---
+# This is the MOST IMPORTANT section.
+# Never commit your environment variables, which contain secret keys and
+# database credentials, to version control.
+.env
+*.env
+
+# --- Virtual Environment ---
+# This is the SECOND MOST IMPORTANT section.
+# The virtual environment folder can be huge and is specific to your computer.
+# Each developer should create their own from the requirements.txt file.
+venv/
+.venv/
+env/
+ENV/
+
+# --- Python Bytecode & Cache ---
+# These files are generated automatically by Python at runtime.
+# They are not needed in the repository.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Python Distribution / Packaging ---
+# Folders created when building a distributable package.
+build/
+dist/
+*.egg-info/
+*.egg
+
+# --- IDE & Editor Directories ---
+# Configuration files specific to your code editor.
+# Prevents conflicts between developers using different editors.
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- Operating System Generated Files ---
+# Annoying files created by macOS, Windows, and Linux.
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Log Files ---
+# Ignore any files that end with .log
+*.log
+*.log.*
+
+# --- Flask Specific ---
+# The instance folder is often used by Flask for runtime configuration
+# or temporary files that should not be in version control.
+instance/
+
+# --- Testing & Coverage Reports ---
+# Files generated when running tests or checking code coverage.
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+nosetests.xml

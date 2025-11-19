@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Product Edit History{% endblock %}
+{% block content %}
+    <h1 class="mb-4">Product Edit History</h1>
+    <!-- Add filter form here later if needed -->
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Product SKU</th>
+                        <th>User</th>
+                        <th class="text-center">Type</th>
+                        <th>Changes Made</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in history_list %}
+                    <tr>
+                        <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td><a href="{{ url_for('product_detail', sku=log.product_sku) }}">{{ log.product_sku }}</a></td>
+                        <td>{{ log.user_username }}</td>
+                        <td class="text-center">
+                            {% if log.change_type == 'CREATE' %}<span class="badge bg-success">Created</span>
+                            {% elif log.change_type == 'UPDATE' %}<span class="badge bg-warning text-dark">Updated</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.changes %}
+                                <ul>
+                                {% for field, values in log.changes.items() %}
+                                    <li><strong>{{ field|capitalize }}:</strong> Changed from '{{ values.old }}' to '{{ values.new }}'</li>
+                                {% endfor %}
+                                </ul>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center">No history records found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

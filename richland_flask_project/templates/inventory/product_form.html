@@ -1,0 +1,54 @@
+<!-- /templates/inventory/product_form.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="mb-0">{{ title }}</h2>
+        </div>
+        <div class="card-body">
+            <!-- INFO: No action needed, Flask handles it. Post goes to the same URL. -->
+            <form method="post">
+                <!-- CHANGED: This is required for security in all POST forms -->
+                {{ form.hidden_tag() }}
+
+                <!-- Generic Field Rendering with Error Handling -->
+                {% macro render_field(field) %}
+                    <div class="mb-3">
+                        {{ field.label(class="form-label") }}
+                        {{ field(class="form-control") }}
+                        {% if field.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in field.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endmacro %}
+
+                <!-- Render fields based on which form was passed (Create or Update) -->
+                {% if form.sku %} {{ render_field(form.sku) }} {% endif %}
+                {% if form.name %} {{ render_field(form.name) }} {% endif %}
+                {% if form.category %} {{ render_field(form.category) }} {% endif %}
+                {% if form.price %} {{ render_field(form.price) }} {% endif %}
+                {% if form.reorder_level %} {{ render_field(form.reorder_level) }} {% endif %}
+                
+                <!-- This field only exists on the Create form -->
+                {% if form.quantity %} {{ render_field(form.quantity) }} {% endif %}
+                
+                <!-- This field only exists on the Update form -->
+                {% if form.status %} {{ render_field(form.status) }} {% endif %}
+
+                <hr>
+                
+                {{ form.submit(class="btn btn-primary") }}
+                <a href="{{ url_for('product_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-ban me-2"></i>Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+{% endblock %}

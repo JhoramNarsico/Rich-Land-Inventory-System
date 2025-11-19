@@ -1,0 +1,51 @@
+<!-- /templates/inventory/reporting.html -->
+{% extends "base.html" %}
+
+{% block title %}Inventory Reports{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Inventory Reports</h1>
+
+    <div class="row">
+        <!-- Current Inventory Report Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header"><h4>Current Inventory Report</h4></div>
+                <div class="card-body"><p class="card-text">Generate a complete CSV snapshot of your current inventory, including stock levels, prices, and status.</p></div>
+                <div class="card-footer">
+                    <a href="{{ url_for('export_inventory_csv') }}" class="btn btn-primary">
+                        <i class="fas fa-file-csv me-2"></i> Export Inventory as CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sales Transaction Report Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header"><h4>Sales Transaction Report</h4></div>
+                <!-- The form now correctly uses the 'form' variable passed from app.py -->
+                <form action="{{ url_for('export_sales_pdf') }}" method="get">
+                    <div class="card-body">
+                        <p class="card-text">Select a date range to generate a print-friendly PDF of all sales transactions within that period.</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.start_date.label(class="form-label") }}
+                                {{ form.start_date(class="form-control") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.end_date.label(class="form-label") }}
+                                {{ form.end_date(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <!-- Renders the submit button from the WTForms class -->
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

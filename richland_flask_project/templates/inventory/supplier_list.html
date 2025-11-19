@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Suppliers{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Suppliers</h1>
+        <!--
+            *** THIS IS THE FIX ***
+            The 'if' condition now correctly includes the 'Owner' group.
+        -->
+        {% if current_user.group in ['Owner', 'Admin'] %}
+        <a href="{{ url_for('add_supplier') }}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add New Supplier</a>
+        {% endif %}
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Supplier Name</th>
+                            <th>Contact Person</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in supplier_list %}
+                        <tr>
+                            <td><strong>{{ supplier.name }}</strong></td>
+                            <td>{{ supplier.contact_person or 'N/A' }}</td>
+                            <td><a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a></td>
+                            <td>{{ supplier.phone or 'N/A' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center py-4">No suppliers have been added yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

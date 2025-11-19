@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Purchase Order #{{ po._id }}{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">Purchase Order #{{ po._id }}</h2>
+        <a href="{{ url_for('purchase_order_list') }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i>Back to List</a>
+    </div>
+    <div class="card-body">
+        <p><strong>Supplier:</strong> {{ po.supplier_name }}</p>
+        <p><strong>Order Date:</strong> {{ po.order_date.strftime('%B %d, %Y') }}</p>
+        <p><strong>Status:</strong> {{ po.status }}</p>
+        <hr>
+        <h4>Items Ordered</h4>
+        <table class="table">
+            <thead><tr><th>SKU</th><th>Product Name</th><th class="text-end">Quantity</th></tr></thead>
+            <tbody>
+                {% for item in po.items %}
+                <tr>
+                    <td><a href="{{ url_for('product_detail', sku=item.product_sku) }}">{{ item.product_sku }}</a></td>
+                    <td>{{ item.product_name }}</td>
+                    <td class="text-end">{{ item.quantity_ordered }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if po.status == 'PENDING' %}
+    <div class="card-footer text-end">
+        <form action="{{ url_for('complete_purchase_order', po_id=po._id) }}" method="post" onsubmit="return confirm('Are you sure you want to mark this PO as completed? This will add items to your stock and cannot be undone.');">
+            <button type="submit" class="btn btn-success"><i class="fas fa-check me-2"></i>Mark as Completed & Receive Stock</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

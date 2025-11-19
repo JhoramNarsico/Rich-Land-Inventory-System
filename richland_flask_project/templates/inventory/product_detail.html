@@ -1,0 +1,87 @@
+<!-- /templates/inventory/product_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} Details{% endblock %}
+
+{% block content %}
+    {% if product.status == 'DEACTIVATED' %}
+    <div class="alert alert-warning" role="alert">
+        This product is currently deactivated and will not appear in default searches.
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="mb-0">Product Details: {{ product.name }}</h2>
+            <a href="{{ url_for('product_list') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to List
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <p><strong>SKU:</strong> {{ product._id }}</p>
+                    <p><strong>Category:</strong> {{ product.category_name or "N/A" }}</p>
+                    <p><strong>Price:</strong> ₱{{ "%.2f"|format(product.price|float) }}</p>
+                    <p><strong>Status:</strong> {{ product.status }}</p>
+                    <p><strong>Reorder Level:</strong> {{ product.reorder_level|intcomma }} units</p>
+                    <p><strong>Date Added:</strong> {{ product.date_created.strftime('%B %d, %Y') }}</p>
+                    <p><strong>Last Updated:</strong> {{ product.date_updated.strftime('%B %d, %Y') }}</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <h5 class="text-muted">Quantity on Hand</h5>
+                    <p class="display-4 fw-bold">{{ product.quantity|intcomma }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <!--
+                *** THIS IS THE FIX ***
+                The permission checks now use the correct groups.
+            -->
+            {% if current_user.group in ['Owner', 'Admin', 'Stock Manager'] %}
+                <a href="{{ url_for('update_product', sku=product._id) }}" class="btn btn-info"><i class="fas fa-edit me-2"></i>Edit Details</a>
+                <form action="{{ url_for('toggle_product_status', sku=product._id) }}" method="post" class="d-inline">
+                    {% if product.status == 'ACTIVE' %}
+                        <button type="submit" class="btn btn-warning"><i class="fas fa-eye-slash me-2"></i>Deactivate</button>
+                    {% else %}
+                        <button type="submit" class="btn btn-success"><i class="fas fa-eye me-2"></i>Activate</button>
+                    {% endif %}
+                </form>
+            {% endif %}
+            
+            {% if current_user.group == 'Owner' %}
+                <form action="{{ url_for('delete_product', sku=product._id) }}" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to permanently delete this product?');">
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-2"></i>Delete</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Adjust Stock Form -->
+    <div class="card mb-4">
+        <div class="card-header"><h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Adjust Stock Quantity</h4></div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('product_detail', sku=product._id) }}">
+                {{ transaction_form.hidden_tag() }}
+                <div class="row align-items-end">
+                    <div class="col-md-3 mb-3">
+                        {{ transaction_form.transaction_type.label(class="form-label") }}
+                        {{ transaction_form.transaction_type(class="form-select") }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ transaction_form.quantity.label(class="form-label") }}
+                        {{ transaction_form.quantity(class="form-control") }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ transaction_form.notes.label(class="form-label") }}
+                        {{ transaction_form.notes(class="form-control", rows=1) }}
+                    </div>
+                    <div class="col-md-2 mb-3 d-grid">
+                        {{ transaction_form.submit(class="btn btn-primary") }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
