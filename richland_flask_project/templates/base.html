@@ -35,6 +35,8 @@
                         {% if current_user.group in ['Owner', 'Admin'] %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('product_history_list') }}">Edit History</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('reporting_hub') }}">Reports</a></li>
+                            <!-- ADDED ANALYTICS LINK HERE -->
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('analytics_dashboard') }}">Analytics</a></li>
                         {% endif %}
                         <!-- END OF UPDATED BLOCK -->
 

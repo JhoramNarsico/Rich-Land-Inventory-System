@@ -441,9 +441,48 @@ def export_sales_pdf():
     flash("There was an error generating the PDF.", "danger")
     return redirect(url_for('reporting_hub'))
     
+
+
+
+
 # ==============================================================================
 # Helper Script for User Creation
 # ==============================================================================
+
+@app.route('/analytics')
+@login_required
+@role_required('Owner', 'Admin')
+def analytics_dashboard():
+    # Requirement: Advanced Aggregation Pipeline
+    pipeline = [
+        {"$unwind": "$items_sold"},
+        {"$match": {"items_sold.type": "OUT"}},
+        {"$lookup": {
+            "from": "products",
+            "localField": "items_sold.product_sku",
+            "foreignField": "_id",
+            "as": "product_info"
+        }},
+        {"$unwind": "$product_info"},
+        {"$group": {
+            "_id": "$product_info.category_name",
+            "total_revenue": {"$sum": {"$multiply": ["$items_sold.quantity_sold", "$items_sold.price_per_unit"]}},
+            "units_sold": {"$sum": "$items_sold.quantity_sold"}
+        }},
+        {"$sort": {"total_revenue": -1}}
+    ]
+    data = list(sales_collection.aggregate(pipeline))
+    labels = [row['_id'] for row in data]
+    values = [row['total_revenue'] for row in data]
+    return render_template('inventory/analytics.html', labels=labels, values=values, table_data=data)
+
+
+
+
+
+#============================
+
+
 
 def create_initial_users():
     """A helper function to create initial users with group-based roles."""
