@@ -20,21 +20,28 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
+                    
                     {% if perms.inventory.view_product %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_list' %}">Products</a></li>
                     {% endif %}
+                    
                     {% if perms.inventory.view_purchaseorder %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'inventory:supplier_list' %}">Suppliers</a></li>
                         <li class="nav-item"><a class="nav-link" href="{% url 'inventory:purchaseorder_list' %}">Purchase Orders</a></li>
                     {% endif %}
+                    
                     {% if perms.inventory.view_stocktransaction %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'inventory:transaction_list' %}">Transactions</a></li>
                     {% endif %}
+                    
                     {% if perms.inventory.can_view_history %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_history_list' %}">Edit History</a></li>
                     {% endif %}
+                    
                     {% if perms.inventory.can_view_reports %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'inventory:reporting' %}">Reports</a></li>
+                        <!-- ADDED ANALYTICS LINK HERE -->
+                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:analytics' %}">Analytics</a></li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">

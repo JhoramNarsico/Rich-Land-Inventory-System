@@ -1,7 +1,9 @@
 # inventory/views.py
 
 import csv
+import json
 from datetime import timedelta
+from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
@@ -10,7 +12,7 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Q, F, Sum
 from django.db.models.functions import TruncDate
 from django.urls import reverse_lazy
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.utils import timezone
 from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
@@ -409,3 +411,48 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             supplier=supplier
         ).order_by('-order_date')
         return context
+
+@login_required
+@permission_required('inventory.can_view_reports', raise_exception=True)
+def analytics_dashboard(request):
+    # 1. Query the StockTransaction model
+    analytics_data = StockTransaction.objects.filter(
+        transaction_type='OUT',
+        selling_price__isnull=False
+    ).values(
+        'product__category__name'  # Group By Category Name
+    ).annotate(
+        # Calculate Revenue: Quantity * Selling Price
+        total_revenue=Sum(F('quantity') * F('selling_price')),
+        # Calculate Units Sold: Sum of Quantity
+        units_sold=Sum('quantity')
+    ).order_by('-total_revenue')
+
+    # 2. Process data for the Chart and Table
+    labels = []
+    values = []
+    table_data = []
+
+    for entry in analytics_data:
+        category_name = entry['product__category__name'] or "Uncategorized"
+        revenue = float(entry['total_revenue'] or 0)
+        units = int(entry['units_sold'] or 0)
+
+        labels.append(category_name)
+        values.append(revenue)
+        
+        table_data.append({
+            'category': category_name,
+            'revenue': revenue,
+            'units': units
+        })
+
+    # 3. Package into context
+    context = {
+        'page_title': 'Business Analytics',
+        'table_data': table_data,
+        'labels_json': json.dumps(labels, cls=DjangoJSONEncoder),
+        'values_json': json.dumps(values, cls=DjangoJSONEncoder),
+    }
+
+    return render(request, 'inventory/analytics.html', context)
