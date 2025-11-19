@@ -76,7 +76,11 @@ Before you begin, ensure you have the following installed and running on your ma
         python -m venv venv
         venv\Scripts\activate
         ```
-
+        ```sh
+         #IF there is an error activating the virtual environment, input this
+         Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+        ```
+        
 3.  **Install the required packages:**
     (This project includes a `requirements.txt` file).
     ```sh
