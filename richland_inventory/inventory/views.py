@@ -1,7 +1,9 @@
 # inventory/views.py
 
 import csv
+import json
 from datetime import timedelta
+from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
@@ -10,7 +12,7 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Q, F, Sum
 from django.db.models.functions import TruncDate
 from django.urls import reverse_lazy
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.utils import timezone
 from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
