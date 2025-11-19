@@ -16,6 +16,7 @@ from xhtml2pdf import pisa
 
 # --- Flask Extension Imports ---
 from flask_login import (LoginManager, login_user, logout_user, login_required, current_user)
+from flask_wtf.csrf import CSRFProtect
 
 # --- Project-Specific Imports ---
 from database import (
@@ -37,6 +38,9 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+
+# Initialize CSRF Protection globally
+csrf = CSRFProtect(app)
 
 # --- Password Hashing Setup ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -143,16 +147,28 @@ def home():
 @app.route('/inventory/products')
 @login_required
 def product_list():
-    form = ProductFilterForm(request.args)
-    query = {"status": "ACTIVE"}
+    # [FIX] Disable CSRF for GET forms so validation passes
+    form = ProductFilterForm(request.args, meta={'csrf': False})
+    
+    query = {}
     sort_by = request.args.get('sort_by', '-date_created')
+
+    # [FIX] Better logic for default "ACTIVE" status
+    # If the user submitted the filter form (product_status is in args), use their choice.
+    # If they didn't submit the form (just loaded the page), default to ACTIVE.
+    if 'product_status' in request.args:
+        if form.product_status.data:
+            query['status'] = form.product_status.data
+        # If form.product_status.data is empty ("All Statuses"), we leave query['status'] empty (find all)
+    else:
+        query['status'] = 'ACTIVE'
+
     if form.validate():
         if form.q.data:
             query['$or'] = [{'name': {'$regex': form.q.data, '$options': 'i'}}, {'_id': {'$regex': form.q.data, '$options': 'i'}}]
         if form.category.data:
             query['category_name'] = form.category.data
-        if form.product_status.data:
-            query['status'] = form.product_status.data
+            
     sort_field, sort_order = (sort_by[1:], -1) if sort_by.startswith('-') else (sort_by, 1)
     products = list(products_collection.find(query).sort(sort_field, sort_order))
     return render_template('inventory/product_list.html', product_list=products, filter_form=form)
@@ -192,6 +208,19 @@ def product_detail(sku):
         return redirect(url_for('product_detail', sku=sku))
     recent_transactions = list(sales_collection.find({"items_sold.product_sku": sku}).sort("sale_date", -1).limit(10))
     return render_template('inventory/product_detail.html', product=product, transaction_form=transaction_form, transactions=recent_transactions)
+
+@app.route('/inventory/product/<sku>/toggle_status', methods=['POST'])
+@login_required
+@role_required('Owner', 'Admin', 'Stock Manager')
+def toggle_product_status(sku):
+    product = products_collection.find_one({'_id': sku})
+    if product:
+        new_status = 'DEACTIVATED' if product['status'] == 'ACTIVE' else 'ACTIVE'
+        products_collection.update_one({'_id': sku}, {'$set': {'status': new_status, 'date_updated': datetime.now(timezone.utc)}})
+        flash(f'Product status changed to {new_status}.', 'success')
+    else:
+        flash('Product not found.', 'danger')
+    return redirect(url_for('product_detail', sku=sku))
 
 @app.route('/inventory/product/add', methods=['GET', 'POST'])
 @login_required
@@ -268,7 +297,8 @@ def add_supplier():
 @login_required
 @role_required('Owner', 'Admin', 'Stock Manager')
 def purchase_order_list():
-    form = POFilterForm(request.args)
+    # [FIX] Disable CSRF for GET forms
+    form = POFilterForm(request.args, meta={'csrf': False})
     query = {}
     if form.validate():
         start_date = form.start_date.data
@@ -296,23 +326,28 @@ def purchase_order_detail(po_id):
 @login_required
 @role_required('Owner', 'Admin', 'Stock Manager')
 def add_purchase_order():
-    form = PurchaseOrderForm(request.form if request.method == 'POST' else None)
+    form = PurchaseOrderForm() 
     form.supplier.choices = [("", "--- Select a Supplier ---")] + [(str(s['_id']), s['name']) for s in suppliers_collection.find({})]
     
     if form.validate_on_submit():
         items_list = []
         for item_form in form.items.data:
+            if not item_form['product_sku']:
+                continue
             product = products_collection.find_one({'_id': item_form['product_sku']})
             if not product:
                 flash(f"Product with SKU '{item_form['product_sku']}' not found.", 'danger')
                 return render_template('inventory/purchase_order_form.html', form=form, title="Create Purchase Order")
-            
             items_list.append({
                 "product_sku": item_form['product_sku'], 
                 "product_name": product['name'], 
                 "quantity_ordered": item_form['quantity']
             })
         
+        if not items_list:
+            flash("You must add at least one valid item.", "danger")
+            return render_template('inventory/purchase_order_form.html', form=form, title="Create Purchase Order")
+
         supplier = suppliers_collection.find_one({'_id': ObjectId(form.supplier.data)})
         new_po = {
             "order_date": datetime.now(timezone.utc), 
@@ -323,7 +358,6 @@ def add_purchase_order():
             "items": items_list
         }
         purchase_orders_collection.insert_one(new_po)
-        
         flash('Purchase Order created successfully!', 'success')
         return redirect(url_for('purchase_order_list'))
 
@@ -358,7 +392,8 @@ def complete_purchase_order(po_id):
 @login_required
 @role_required('Owner', 'Admin')
 def product_history_list():
-    form = ProductHistoryFilterForm(request.args)
+    # [FIX] Disable CSRF for GET forms
+    form = ProductHistoryFilterForm(request.args, meta={'csrf': False})
     query = {}
     if form.validate():
         if form.product_sku.data:
@@ -375,7 +410,8 @@ def product_history_list():
 @app.route('/transactions')
 @login_required
 def transaction_list():
-    form = TransactionFilterForm(request.args)
+    # [FIX] Disable CSRF for GET forms
+    form = TransactionFilterForm(request.args, meta={'csrf': False})
     query = {}
     if form.validate():
         if form.product.data:
@@ -421,7 +457,8 @@ def export_inventory_csv():
 @login_required
 @role_required('Owner', 'Admin')
 def export_sales_pdf():
-    form = SalesReportForm(request.args)
+    # [FIX] Disable CSRF for GET forms
+    form = SalesReportForm(request.args, meta={'csrf': False})
     query = { "items_sold.type": "OUT" }
     start_date = form.start_date.data
     end_date = form.end_date.data
@@ -441,19 +478,14 @@ def export_sales_pdf():
     flash("There was an error generating the PDF.", "danger")
     return redirect(url_for('reporting_hub'))
     
-
-
-
-
 # ==============================================================================
-# Helper Script for User Creation
+# Analytics
 # ==============================================================================
 
 @app.route('/analytics')
 @login_required
 @role_required('Owner', 'Admin')
 def analytics_dashboard():
-    # Requirement: Advanced Aggregation Pipeline
     pipeline = [
         {"$unwind": "$items_sold"},
         {"$match": {"items_sold.type": "OUT"}},
@@ -477,13 +509,6 @@ def analytics_dashboard():
     return render_template('inventory/analytics.html', labels=labels, values=values, table_data=data)
 
 
-
-
-
-#============================
-
-
-
 def create_initial_users():
     """A helper function to create initial users with group-based roles."""
     print("Checking for initial users...")
@@ -496,11 +521,7 @@ def create_initial_users():
             {"username": "sales", "hashed_password": pwd_context.hash("salespass"), "group": "Salesman"}
         ]
         users_collection.insert_many(users_to_create)
-        print("Initial users created successfully:")
-        print("- owner / ownerpass (Group: Owner)")
-        print("- admin / adminpass (Group: Admin)")
-        print("- manager / managerpass (Group: Stock Manager)")
-        print("- sales / salespass (Group: Salesman)")
+        print("Initial users created successfully.")
     else:
         print("Users already exist.")
 

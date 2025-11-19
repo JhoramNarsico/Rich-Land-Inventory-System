@@ -22,31 +22,39 @@
 
             <hr>
             <h4>Items to Order</h4>
+            
+            <!-- Header Row for cleaner UI -->
+            <div class="row fw-bold mb-2 d-none d-md-flex">
+                <div class="col-md-6">Product SKU</div>
+                <div class="col-md-4">Quantity</div>
+                <div class="col-md-2">Action</div>
+            </div>
+
             <div id="item-list">
                 {% for item_form in form.items %}
-                <div class="row item-row mb-3 align-items-end">
+                <div class="row item-row mb-3 align-items-start">
                     <div class="col-md-6">
-                        {{ item_form.product_sku.label(class="form-label") }}
-                        {{ item_form.product_sku(class="form-control") }}
+                        <!-- Mobile Label -->
+                        <label class="form-label d-md-none">Product SKU</label>
+                        {{ item_form.product_sku(class="form-control product-search", list="sku-list") }}
+                        {% if item_form.product_sku.errors %}
+                            <div class="text-danger small mt-1">{% for error in item_form.product_sku.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
                     </div>
                     <div class="col-md-4">
-                        {{ item_form.quantity.label(class="form-label") }}
+                        <label class="form-label d-md-none">Quantity</label>
                         {{ item_form.quantity(class="form-control") }}
+                        {% if item_form.quantity.errors %}
+                            <div class="text-danger small mt-1">{% for error in item_form.quantity.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
                     </div>
                     <div class="col-md-2">
-                         <button type="button" class="btn btn-danger remove-item-btn w-100">Remove</button>
-                    </div>
-                    <div class="col-12">
-                        {% if item_form.product_sku.errors %}
-                            <div class="text-danger small mt-1">Product SKU: {% for error in item_form.product_sku.errors %}{{ error }}{% endfor %}</div>
-                        {% endif %}
-                        {% if item_form.quantity.errors %}
-                            <div class="text-danger small mt-1">Quantity: {% for error in item_form.quantity.errors %}{{ error }}{% endfor %}</div>
-                        {% endif %}
+                        <button type="button" class="btn btn-danger remove-item-btn w-100"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
                 {% endfor %}
             </div>
+
             <button type="button" id="add-item-btn" class="btn btn-secondary mt-2"><i class="fas fa-plus me-2"></i>Add Another Item</button>
             <hr>
             {{ form.submit(class="btn btn-primary") }}
@@ -55,47 +63,77 @@
     </div>
 </div>
 
-<!-- Hidden template for new item rows -->
-<div id="item-template" style="display: none;">
-    <div class="row item-row mb-3 align-items-end">
-        <div class="col-md-6">
-            <!-- FIX: Added 'for' attribute to the label -->
-            <label class="form-label" for="items-__prefix__-product_sku">Product SKU</label>
-            <!-- FIX: Added 'id' attribute to the input -->
-            <input class="form-control" id="items-__prefix__-product_sku" name="items-__prefix__-product_sku" type="text">
-        </div>
-        <div class="col-md-4">
-            <!-- FIX: Added 'for' attribute to the label -->
-            <label class="form-label" for="items-__prefix__-quantity">Quantity</label>
-            <!-- FIX: Added 'id' attribute to the input -->
-            <input class="form-control" id="items-__prefix__-quantity" name="items-__prefix__-quantity" type="number" value="1">
-        </div>
-        <div class="col-md-2">
-            <button type="button" class="btn btn-danger remove-item-btn w-100 mt-3">Remove</button>
-        </div>
-    </div>
-</div>
-{% endblock %}
+<!-- Datalist for Autocomplete (Populated by JS) -->
+<datalist id="sku-list"></datalist>
 
-{% block extra_js %}
-<!-- JavaScript for dynamically adding/removing item rows -->
+<!-- JavaScript Logic -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let itemIndex = {{ form.items|length }};
+    const container = document.getElementById('item-list');
+    const addButton = document.getElementById('add-item-btn');
+    const form = document.getElementById('po-form');
+    
+    // Fetch products for autocomplete
+    fetch("{{ url_for('search_products') }}?q=")
+        .then(response => response.json())
+        .then(data => {
+            const datalist = document.getElementById('sku-list');
+            data.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.value; // SKU
+                option.innerText = item.text; // Name
+                datalist.appendChild(option);
+            });
+        });
 
-    document.getElementById('add-item-btn').addEventListener('click', function() {
-        const template = document.getElementById('item-template').innerHTML;
-        const newItemHtml = template.replace(/__prefix__/g, itemIndex);
+    // Add Item Function
+    addButton.addEventListener('click', function() {
+        const newIndex = container.children.length;
         
-        document.getElementById('item-list').insertAdjacentHTML('beforeend', newItemHtml);
+        const rowHtml = `
+        <div class="row item-row mb-3 align-items-start">
+            <div class="col-md-6">
+                <label class="form-label d-md-none">Product SKU</label>
+                <input class="form-control product-search" id="items-${newIndex}-product_sku" list="sku-list" name="items-${newIndex}-product_sku" type="text" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label d-md-none">Quantity</label>
+                <input class="form-control" id="items-${newIndex}-quantity" name="items-${newIndex}-quantity" type="number" value="1" min="1" required>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-danger remove-item-btn w-100"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>`;
         
-        itemIndex++;
+        container.insertAdjacentHTML('beforeend', rowHtml);
     });
 
-    document.getElementById('item-list').addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('remove-item-btn')) {
-            e.target.closest('.item-row').remove();
+    // Remove Item Function (Delegated)
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-item-btn')) {
+            const row = e.target.closest('.item-row');
+            // Only allow removal if there's more than 1 item
+            if (container.children.length > 1) {
+                row.remove();
+            } else {
+                alert("You must have at least one item.");
+            }
         }
+    });
+
+    // CRITICAL: Renumber indices on submit to prevent Flask-WTF errors
+    form.addEventListener('submit', function(e) {
+        const rows = container.querySelectorAll('.item-row');
+        rows.forEach((row, index) => {
+            const skuInput = row.querySelector('input[name*="product_sku"]');
+            const qtyInput = row.querySelector('input[name*="quantity"]');
+            
+            // Rename fields to be sequential: items-0, items-1, items-2...
+            skuInput.name = `items-${index}-product_sku`;
+            skuInput.id = `items-${index}-product_sku`;
+            qtyInput.name = `items-${index}-quantity`;
+            qtyInput.id = `items-${index}-quantity`;
+        });
     });
 });
 </script>
