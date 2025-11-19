@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Business Analytics{% endblock %}
+{% block content %}
+<h1 class="mb-4">Business Analytics</h1>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Revenue by Category</h6></div>
+            <div class="card-body"><canvas id="myPieChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Performance Data</h6></div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead><tr><th>Category</th><th>Units Sold</th><th>Revenue</th></tr></thead>
+                    <tbody>
+                        {% for row in table_data %}
+                        <tr>
+                            <td>{{ row._id }}</td>
+                            <td>{{ row.units_sold }}</td>
+                            <td>₱{{ "{:,.2f}".format(row.total_revenue) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+var ctx = document.getElementById("myPieChart");
+var myPieChart = new Chart(ctx, {
+  type: 'doughnut',
+  data: {
+    labels: {{ labels|tojson }},
+    datasets: [{
+      data: {{ values|tojson }},
+      backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+    }],
+  },
+});
+</script>
+{% endblock %}

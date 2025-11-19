@@ -1,26 +1,34 @@
-# Rich Land Auto Supply Inventory System
+# Rich Land Auto Supply Inventory System (Flask & MongoDB Edition)
 
-A comprehensive inventory and sales management system built for Rich Land Auto Supply, a specialized automotive business. This web application was developed as a course requirement for ITCC 33: Advance Database Systems, migrating a conceptual relational model to a fully functional NoSQL (MongoDB) implementation.
+A comprehensive inventory and sales management system built for Rich Land Auto Supply. This web application was developed as a course requirement for ITCC 33: Advance Database Systems, demonstrating the full migration of a conceptual relational model to a functional, feature-complete NoSQL (MongoDB) implementation.
 
-The system is built with a server-side rendered architecture using the Flask web framework and connects to a MongoDB database.
+The system is built with a server-side rendered architecture using the Flask web framework, providing a dynamic and responsive user interface for managing all core business operations.
 
-## Features
+## Key Features
 
-*   **Inventory Management:** Full CRUD (Create, Read, Update, Delete) functionality for the product catalog.
-*   **Stock Control:** Real-time tracking of stock levels with low-stock alerts on the dashboard.
-*   **User & Group Management:** A robust Role-Based Access Control (RBAC) system with four distinct user groups:
-    *   **Owner:** Full control over the entire system.
-    *   **Admin:** Manages users, products, and reports.
-    *   **Stock Manager:** Manages products, suppliers, and purchase orders.
-    *   **Salesman:** Can view products and record sales transactions.
-*   **Supplier & Purchasing:** Functionality to add and manage suppliers and create multi-item purchase orders to replenish stock.
-*   **Transaction Logging:** All stock movements (sales, new shipments) are recorded.
-*   **Audit Trail:** A complete edit history is maintained for all changes made to products.
-*   **Reporting:**
-    *   Generate a full inventory snapshot as a downloadable **CSV file**.
-    *   Generate a detailed sales report for a selected date range as a downloadable **PDF file**.
+*   **Group-Based Access Control:** A robust permission system with four distinct user groups:
+    *   **Owner:** Full, unrestricted control over the entire system, including product deletion.
+    *   **Admin:** Manages users, products, suppliers, and reporting.
+    *   **Stock Manager:** Manages the lifecycle of products, including creation, updates, and purchasing.
+    *   **Salesman:** Can view products and record sales transactions (stock adjustments).
+*   **Comprehensive Inventory Management:** Full CRUD (Create, Read, Update, Delete) functionality for the product catalog, including status changes (Active/Deactivated).
+*   **Supplier & Purchasing Workflow:**
+    *   Full CRUD for managing suppliers.
+    *   Create multi-item purchase orders with a user-friendly, auto-detecting product search field.
+    *   Receive stock and automatically update inventory levels by marking purchase orders as "Completed".
+*   **Real-time Stock Control:** All stock movements (sales, new shipments) are recorded and reflected instantly using atomic database operations.
+*   **Dynamic Dashboard:** The homepage provides an at-a-glance operational overview, including:
+    *   Immediate low-stock alerts.
+    *   Key metrics like total stock value.
+    *   A "Top 5 Selling Items" report based on sales quantity.
+*   **Complete Audit Trail:**
+    *   **Transaction Log:** A filterable log of all stock-in and stock-out events.
+    *   **Product Edit History:** A detailed, immutable log of all changes made to any product, tracking what was changed, who changed it, and when.
+*   **Reporting Engine:**
+    *   Generate and download a complete inventory snapshot as a **CSV file**.
+    *   Generate and download a detailed sales report for a selected date range as a professional **PDF document**.
 
-## Built With
+## Technology Stack
 
 *   **Backend:**
     *   [Python 3](https://www.python.org/)
@@ -30,11 +38,13 @@ The system is built with a server-side rendered architecture using the Flask web
 *   **Frontend:**
     *   [Jinja2](https://jinja.palletsprojects.com/) (Templating Engine)
     *   [Bootstrap 5](https://getbootstrap.com/) (CSS Framework)
+    *   [TomSelect.js](https://tom-select.js.org/) (for searchable dropdowns)
 *   **Key Libraries:**
     *   [Flask-Login](https://flask-login.readthedocs.io/) (User Session Management)
     *   [Flask-WTF](https://flask-wtf.readthedocs.io/) (Forms and CSRF Protection)
     *   [passlib](https://passlib.readthedocs.io/) (Password Hashing)
     *   [xhtml2pdf](https://xhtml2pdf.readthedocs.io/) (PDF Generation)
+    *   [python-dotenv](https://github.com/theskumar/python-dotenv) (Environment Variable Management)
 
 ## Getting Started
 
@@ -42,12 +52,12 @@ To get a local copy up and running, follow these simple steps.
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed on your machine:
+Before you begin, ensure you have the following installed and running on your machine:
 *   **Python 3.8+** and `pip`
-*   **MongoDB Community Server**. Most importantly, make sure the MongoDB service is **running** in the background.
-*   **Git** (for cloning the repository)
+*   **MongoDB Community Server**. Crucially, make sure the MongoDB service is **actively running** in the background.
+*   **Git**
 
-### Installation & Setup
+### Installation and Setup
 
 1.  **Clone the repository:**
     ```sh
@@ -68,31 +78,40 @@ Before you begin, ensure you have the following installed on your machine:
         ```
 
 3.  **Install the required packages:**
-    (First, ensure you have a `requirements.txt` file by running `pip freeze > requirements.txt` in your working project).
+    (This project includes a `requirements.txt` file).
     ```sh
     pip install -r requirements.txt
-    ```
-    If you do not have a `requirements.txt` file, you can install the packages manually:
-    ```sh
-    pip install Flask Flask-WTF Flask-Login pymongo passlib[bcrypt] python-dotenv xhtml2pdf
     ```
 
 4.  **Configure Environment Variables:**
     *   In the root of the project, create a new file named `.env`.
-    *   Copy the contents from the example below into your new `.env` file. You can change the `SECRET_KEY` to any random string.
+    *   Copy the contents below into your new `.env` file. Change the `SECRET_KEY` to any random string for security.
 
     ```env
     # .env file
-    SECRET_KEY='a_super_secret_key_for_flask_sessions'
+    SECRET_KEY='a_very_long_and_random_secret_string_for_flask'
     MONGO_URI='mongodb://localhost:27017/'
     DB_NAME='richland_autosupply'
     ```
 
-5.  **(First Time Only) Delete the Old Database:**
-    If you have run the project before and are setting it up again with new user roles, you must drop the old database to allow the initial user creation script to run. Open `mongosh` and run:
+5.  **(First Time Only) Clean the Database:**
+    To ensure the initial user accounts with the correct groups are created properly, you must drop the old database if it exists. Open `mongosh` in your terminal and run:
     ```js
     use richland_autosupply;
     db.dropDatabase();
+    exit;
+    ```
+
+6.  **Initialize Database Indexes (Required):**
+    Run the setup script to create MongoDB indexes. This is a specific course requirement for optimizing query performance and data integrity.
+    ```sh
+    python setup_indexes.py
+    ```
+
+7.  **Populate with Sample Data (Seeding):**
+    **Crucial Step:** To meet the Milestone III requirement of having 30+ records and to ensure the dashboard, analytics, and reports are populated for demonstration, run the seeder script. This generates dummy products, suppliers, and sales history.
+    ```sh
+    python seed_data.py
     ```
 
 ## Running the Application
@@ -120,4 +139,4 @@ The application will redirect you to the login page. You can use the following d
 | **Stock Manager**| `manager` | `managerpass` |
 | **Salesman**| `sales` | `salespass` |
 
-Congratulations! You are now running the Rich Land Auto Supply Inventory System.
+You are now ready to explore all the features of the Rich Land Auto Supply Inventory System.
