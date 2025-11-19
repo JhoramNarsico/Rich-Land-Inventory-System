@@ -70,7 +70,7 @@
     </div>
 
     <!-- Adjust Stock Form -->
-    <div class="card mb-4">
+   <div class="card mb-4">
         <div class="card-header"><h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Adjust Stock Quantity</h4></div>
         <div class="card-body">
             <form method="post" action="{{ url_for('product_detail', sku=product._id) }}">
@@ -84,12 +84,18 @@
                         {{ transaction_form.quantity.label(class="form-label") }}
                         {{ transaction_form.quantity(class="form-control") }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    
+                    <!-- CHANGED: Use 'col-md' here to let notes fill remaining space -->
+                    <div class="col-md mb-3">
                         {{ transaction_form.notes.label(class="form-label") }}
                         {{ transaction_form.notes(class="form-control", rows=1) }}
                     </div>
-                    <div class="col-md-2 mb-3 d-grid">
-                        {{ transaction_form.submit(class="btn btn-primary") }}
+                    
+                    <!-- CHANGED: Use 'col-md-auto' so the column fits the button size exactly -->
+                    <div class="col-md-auto mb-3">
+                         <!-- Optional: invisible label to ensure perfect alignment if 'align-items-end' fails -->
+                         <label class="form-label d-none d-md-block">&nbsp;</label>
+                        {{ transaction_form.submit(class="btn btn-primary w-100") }}
                     </div>
                 </div>
             </form>
