@@ -1,12 +1,9 @@
 # forms.py
-
 from flask_wtf import FlaskForm
 from wtforms import (StringField, PasswordField, SubmitField, DecimalField, 
                      IntegerField, SelectField, TextAreaField, FieldList, 
-                     FormField, HiddenField)
+                     FormField, HiddenField, DateField)
 from wtforms.validators import DataRequired, NumberRange, Optional, Email
-from wtforms import DateField
-
 
 # ==============================================================================
 # Authentication Forms
@@ -66,6 +63,8 @@ class SupplierForm(FlaskForm):
 
 class PurchaseOrderItemForm(FlaskForm):
     """Sub-form for a single item within a purchase order."""
+    # CHANGED to SelectField to work with the searchable dropdown
+    # forms.py (NEW, CORRECTED LINE)
     product_sku = StringField('Product SKU', validators=[DataRequired()])
     quantity = IntegerField('Quantity', validators=[DataRequired(), NumberRange(min=1)])
     id = HiddenField()
@@ -99,9 +98,16 @@ class ProductHistoryFilterForm(FlaskForm):
     product_sku = StringField('Filter by Product SKU', validators=[Optional()])
     user = StringField('Filter by User', validators=[Optional()])
     submit = SubmitField('Apply Filters')
-    
+
 class SalesReportForm(FlaskForm):
     """Form for selecting a date range for the sales report."""
     start_date = DateField('Start Date', validators=[Optional()])
     end_date = DateField('End Date', validators=[Optional()])
     submit = SubmitField('Generate PDF Report')
+
+class POFilterForm(FlaskForm):
+    """Form for filtering the Purchase Order list."""
+    start_date = DateField('Start Date', validators=[Optional()])
+    end_date = DateField('End Date', validators=[Optional()])
+    status = SelectField('Status', choices=[('', 'All Statuses'), ('PENDING', 'Pending'), ('COMPLETED', 'Completed')], validators=[Optional()])
+    submit = SubmitField('Apply Filters')

@@ -6,7 +6,6 @@
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Dashboard</h1>
-        <!-- INFO: 'current_user' is globally available from Flask-Login -->
         <p class="lead mb-0">Welcome back, {{ current_user.username }}!</p>
     </div>
 
@@ -19,9 +18,7 @@
         <ul class="mb-0">
             {% for product in low_stock_products %}
             <li>
-                <!-- CHANGED: url_for() syntax with sku=product._id -->
                 <a href="{{ url_for('product_detail', sku=product._id) }}" class="alert-link fw-bold">{{ product.name }}</a> -
-                <!-- CHANGED: Custom 'intcomma' filter and standard dot notation for dict access -->
                 Current Stock: <strong>{{ product.quantity|intcomma }}</strong> (Reorder Level is {{ product.reorder_level|intcomma }})
             </li>
             {% endfor %}
@@ -36,7 +33,6 @@
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-box-open me-2"></i>Total Active Products</h5>
                     <p class="card-text fs-2 fw-bold">{{ total_products|intcomma }}</p>
-                    <small>Unique active items in inventory</small>
                 </div>
             </div>
         </div>
@@ -44,9 +40,7 @@
             <div class="card text-white bg-success h-100">
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-dollar-sign me-2"></i>Total Stock Value</h5>
-                    <!-- CHANGED: Formatting a float to 2 decimal places in Jinja2 -->
                     <p class="card-text fs-2 fw-bold">₱{{ "%.2f"|format(total_stock_value|float) }}</p>
-                    <small>Combined value of all active items</small>
                 </div>
             </div>
         </div>
@@ -55,42 +49,45 @@
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-chart-pie me-2"></i>Items with Low Stock</h5>
                     <p class="card-text fs-2 fw-bold">{{ low_stock_products_count|intcomma }}</p>
-                    <small>Items at or below reorder level</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Recently Added Products -->
-    <div class="card">
-        <div class="card-header">
-            <h4><i class="fas fa-history me-2"></i>Recently Added Products</h4>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>SKU</th>
-                            <th>Quantity</th>
-                            <th>Date Added</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+    <!-- Recently Added & Top Sellers -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header"><h4><i class="fas fa-history me-2"></i>Recently Added Products</h4></div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
                         {% for product in recent_products %}
-                        <tr>
-                            <!-- NOTE: MongoDB's primary key is '_id', which we've set to the SKU -->
-                            <td><a href="{{ url_for('product_detail', sku=product._id) }}">{{ product.name }}</a></td>
-                            <td>{{ product._id }}</td>
-                            <td>{{ product.quantity|intcomma }}</td>
-                            <td>{{ product.date_created.strftime('%B %d, %Y') }}</td>
-                        </tr>
+                        <li class="list-group-item">
+                            <a href="{{ url_for('product_detail', sku=product._id) }}">{{ product.name }}</a>
+                            <small class="text-muted d-block">Added on {{ product.date_created.strftime('%b %d, %Y') }}</small>
+                        </li>
                         {% else %}
-                        <tr><td colspan="4" class="text-center">No products have been added recently.</td></tr>
+                        <li class="list-group-item text-muted">No products have been added recently.</li>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header"><h4><i class="fas fa-fire-alt me-2 text-danger"></i>Top 5 Selling Items (By Quantity)</h4></div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for item in top_selling_items %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <a href="{{ url_for('product_detail', sku=item._id) }}">{{ item.product_name }}</a>
+                                <span class="badge bg-danger rounded-pill">{{ item.total_quantity_sold|intcomma }} units sold</span>
+                            </li>
+                        {% else %}
+                            <li class="list-group-item text-muted">No sales data available.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

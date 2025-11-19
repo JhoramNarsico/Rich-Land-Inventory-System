@@ -1,23 +1,49 @@
+<!-- /templates/inventory/purchase_order_form.html -->
 {% extends "base.html" %}
+
 {% block title %}{{ title }}{% endblock %}
+
 {% block content %}
 <div class="card">
     <div class="card-header"><h2 class="mb-0">{{ title }}</h2></div>
     <div class="card-body">
         <form method="post" id="po-form">
             {{ form.hidden_tag() }}
+
             <div class="mb-3">
                 {{ form.supplier.label(class="form-label") }}
                 {{ form.supplier(class="form-select") }}
+                {% if form.supplier.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.supplier.errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
             </div>
+
             <hr>
             <h4>Items to Order</h4>
             <div id="item-list">
                 {% for item_form in form.items %}
-                <div class="row item-row mb-2 align-items-end">
-                    <div class="col-md-6">{{ item_form.product_sku(class="form-control", placeholder="Product SKU") }}</div>
-                    <div class="col-md-4">{{ item_form.quantity(class="form-control", placeholder="Quantity") }}</div>
-                    <div class="col-md-2"><button type="button" class="btn btn-danger remove-item-btn">Remove</button></div>
+                <div class="row item-row mb-3 align-items-end">
+                    <div class="col-md-6">
+                        {{ item_form.product_sku.label(class="form-label") }}
+                        {{ item_form.product_sku(class="form-control") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ item_form.quantity.label(class="form-label") }}
+                        {{ item_form.quantity(class="form-control") }}
+                    </div>
+                    <div class="col-md-2">
+                         <button type="button" class="btn btn-danger remove-item-btn w-100">Remove</button>
+                    </div>
+                    <div class="col-12">
+                        {% if item_form.product_sku.errors %}
+                            <div class="text-danger small mt-1">Product SKU: {% for error in item_form.product_sku.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                        {% if item_form.quantity.errors %}
+                            <div class="text-danger small mt-1">Quantity: {% for error in item_form.quantity.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -29,17 +55,30 @@
     </div>
 </div>
 
-<!-- Template for new item rows (hidden) -->
+<!-- Hidden template for new item rows -->
 <div id="item-template" style="display: none;">
-    <div class="row item-row mb-2 align-items-end">
-        <div class="col-md-6"><input class="form-control" placeholder="Product SKU" name="items-__prefix__-product_sku"></div>
-        <div class="col-md-4"><input class="form-control" placeholder="Quantity" name="items-__prefix__-quantity" type="number" value="1"></div>
-        <div class="col-md-2"><button type="button" class="btn btn-danger remove-item-btn">Remove</button></div>
+    <div class="row item-row mb-3 align-items-end">
+        <div class="col-md-6">
+            <!-- FIX: Added 'for' attribute to the label -->
+            <label class="form-label" for="items-__prefix__-product_sku">Product SKU</label>
+            <!-- FIX: Added 'id' attribute to the input -->
+            <input class="form-control" id="items-__prefix__-product_sku" name="items-__prefix__-product_sku" type="text">
+        </div>
+        <div class="col-md-4">
+            <!-- FIX: Added 'for' attribute to the label -->
+            <label class="form-label" for="items-__prefix__-quantity">Quantity</label>
+            <!-- FIX: Added 'id' attribute to the input -->
+            <input class="form-control" id="items-__prefix__-quantity" name="items-__prefix__-quantity" type="number" value="1">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-danger remove-item-btn w-100 mt-3">Remove</button>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- JavaScript for dynamically adding/removing item rows -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let itemIndex = {{ form.items|length }};
@@ -47,7 +86,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('add-item-btn').addEventListener('click', function() {
         const template = document.getElementById('item-template').innerHTML;
         const newItemHtml = template.replace(/__prefix__/g, itemIndex);
+        
         document.getElementById('item-list').insertAdjacentHTML('beforeend', newItemHtml);
+        
         itemIndex++;
     });
 

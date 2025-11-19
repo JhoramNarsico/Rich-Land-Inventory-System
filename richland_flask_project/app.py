@@ -8,7 +8,7 @@ import csv
 from io import BytesIO, StringIO
 from datetime import datetime, timezone
 from functools import wraps
-from flask import (Flask, render_template, request, redirect, url_for, flash, Response)
+from flask import (Flask, render_template, request, redirect, url_for, flash, Response, jsonify)
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 from bson.objectid import ObjectId
@@ -26,7 +26,7 @@ from models import User
 from forms import (
     LoginForm, ProductCreateForm, ProductUpdateForm, StockTransactionForm,
     ProductFilterForm, TransactionFilterForm, SupplierForm, PurchaseOrderForm,
-    ProductHistoryFilterForm, SalesReportForm
+    ProductHistoryFilterForm, SalesReportForm, POFilterForm
 )
 
 # ==============================================================================
@@ -120,10 +120,24 @@ def home():
     metrics_data = list(products_collection.aggregate(metrics_pipeline))
     metrics = metrics_data[0] if metrics_data else {"total_products": 0, "total_stock_value": 0}
     recent_products = list(products_collection.find().sort("date_created", -1).limit(5))
-    return render_template('home.html', low_stock_products=low_stock_products, low_stock_products_count=len(low_stock_products), total_products=metrics['total_products'], total_stock_value=metrics['total_stock_value'], recent_products=recent_products)
+    top_sellers_pipeline = [
+        {"$match": {"items_sold.type": "OUT"}},
+        {"$unwind": "$items_sold"},
+        {"$group": {"_id": "$items_sold.product_sku", "product_name": {"$first": "$items_sold.product_name"}, "total_quantity_sold": {"$sum": "$items_sold.quantity_sold"}}},
+        {"$sort": {"total_quantity_sold": -1}},
+        {"$limit": 5}
+    ]
+    top_selling_items = list(sales_collection.aggregate(top_sellers_pipeline))
+    return render_template('home.html',
+                           low_stock_products=low_stock_products,
+                           low_stock_products_count=len(low_stock_products),
+                           total_products=metrics['total_products'],
+                           total_stock_value=metrics['total_stock_value'],
+                           recent_products=recent_products,
+                           top_selling_items=top_selling_items)
 
 # ==============================================================================
-# Product Management Routes
+# Product Management Routes & Internal APIs
 # ==============================================================================
 
 @app.route('/inventory/products')
@@ -142,6 +156,23 @@ def product_list():
     sort_field, sort_order = (sort_by[1:], -1) if sort_by.startswith('-') else (sort_by, 1)
     products = list(products_collection.find(query).sort(sort_field, sort_order))
     return render_template('inventory/product_list.html', product_list=products, filter_form=form)
+
+@app.route('/search/products')
+@login_required
+def search_products():
+    search_term = request.args.get('q', '')
+    query = {
+        'status': 'ACTIVE',
+        '$or': [
+            {'_id': {'$regex': search_term, '$options': 'i'}},
+            {'name': {'$regex': search_term, '$options': 'i'}}
+        ]
+    }
+    products = products_collection.find(query).limit(50)
+    results = [
+        {'value': p['_id'], 'text': f"{p['name']} ({p['_id']})"} for p in products
+    ]
+    return jsonify(results)
 
 @app.route('/inventory/product/<sku>', methods=['GET', 'POST'])
 @login_required
@@ -237,8 +268,22 @@ def add_supplier():
 @login_required
 @role_required('Owner', 'Admin', 'Stock Manager')
 def purchase_order_list():
-    pos = list(purchase_orders_collection.find({}).sort("order_date", -1))
-    return render_template('inventory/purchase_order_list.html', po_list=pos)
+    form = POFilterForm(request.args)
+    query = {}
+    if form.validate():
+        start_date = form.start_date.data
+        end_date = form.end_date.data
+        if form.status.data:
+            query['status'] = form.status.data
+        if start_date:
+            query["order_date"] = {"$gte": datetime.combine(start_date, datetime.min.time())}
+        if end_date:
+            if "order_date" in query:
+                query["order_date"]["$lte"] = datetime.combine(end_date, datetime.max.time())
+            else:
+                query["order_date"] = {"$lte": datetime.combine(end_date, datetime.max.time())}
+    pos = list(purchase_orders_collection.find(query).sort("order_date", -1))
+    return render_template('inventory/purchase_order_list.html', po_list=pos, filter_form=form)
 
 @app.route('/purchase-order/<po_id>')
 @login_required
@@ -251,8 +296,9 @@ def purchase_order_detail(po_id):
 @login_required
 @role_required('Owner', 'Admin', 'Stock Manager')
 def add_purchase_order():
-    form = PurchaseOrderForm()
-    form.supplier.choices = [(str(s['_id']), s['name']) for s in suppliers_collection.find({})]
+    form = PurchaseOrderForm(request.form if request.method == 'POST' else None)
+    form.supplier.choices = [("", "--- Select a Supplier ---")] + [(str(s['_id']), s['name']) for s in suppliers_collection.find({})]
+    
     if form.validate_on_submit():
         items_list = []
         for item_form in form.items.data:
@@ -260,12 +306,27 @@ def add_purchase_order():
             if not product:
                 flash(f"Product with SKU '{item_form['product_sku']}' not found.", 'danger')
                 return render_template('inventory/purchase_order_form.html', form=form, title="Create Purchase Order")
-            items_list.append({"product_sku": item_form['product_sku'], "product_name": product['name'], "quantity_ordered": item_form['quantity']})
+            
+            items_list.append({
+                "product_sku": item_form['product_sku'], 
+                "product_name": product['name'], 
+                "quantity_ordered": item_form['quantity']
+            })
+        
         supplier = suppliers_collection.find_one({'_id': ObjectId(form.supplier.data)})
-        new_po = {"order_date": datetime.now(timezone.utc), "status": "PENDING", "supplier_id": ObjectId(form.supplier.data), "supplier_name": supplier['name'], "created_by_username": current_user.username, "items": items_list}
+        new_po = {
+            "order_date": datetime.now(timezone.utc), 
+            "status": "PENDING", 
+            "supplier_id": ObjectId(form.supplier.data), 
+            "supplier_name": supplier['name'], 
+            "created_by_username": current_user.username, 
+            "items": items_list
+        }
         purchase_orders_collection.insert_one(new_po)
+        
         flash('Purchase Order created successfully!', 'success')
         return redirect(url_for('purchase_order_list'))
+
     return render_template('inventory/purchase_order_form.html', form=form, title="Create Purchase Order")
 
 @app.route('/purchase-order/<po_id>/complete', methods=['POST'])
@@ -274,8 +335,15 @@ def add_purchase_order():
 def complete_purchase_order(po_id):
     po = purchase_orders_collection.find_one({'_id': ObjectId(po_id)})
     if po and po['status'] == 'PENDING':
+        completion_date = datetime.now(timezone.utc)
         for item in po['items']:
-            products_collection.update_one({'_id': item['product_sku']}, {'$inc': {'quantity': item['quantity_ordered']}})
+            products_collection.update_one(
+                {'_id': item['product_sku']},
+                {
+                    '$inc': {'quantity': item['quantity_ordered']},
+                    '$set': {'last_purchase_date': completion_date}
+                }
+            )
         purchase_orders_collection.update_one({'_id': ObjectId(po_id)}, {'$set': {'status': 'COMPLETED'}})
         flash(f'Purchase Order #{po_id} marked as completed and stock updated.', 'success')
     else:
@@ -321,7 +389,6 @@ def transaction_list():
 @login_required
 @role_required('Owner', 'Admin')
 def reporting_hub():
-    """Renders the main reporting page and provides the date-picker form."""
     form = SalesReportForm()
     return render_template('inventory/reporting.html', form=form)
 
@@ -331,10 +398,22 @@ def reporting_hub():
 def export_inventory_csv():
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow(['SKU', 'Name', 'Category', 'Price', 'Quantity', 'Reorder Level', 'Status', 'Date Updated'])
+    writer.writerow(['SKU', 'Name', 'Category', 'Price', 'Quantity', 'Reorder Level', 'Status', 'Last Purchase Date', 'Date Updated'])
     products = products_collection.find({})
     for product in products:
-        writer.writerow([product.get('_id'), product.get('name'), product.get('category_name'), product.get('price'), product.get('quantity'), product.get('reorder_level'), product.get('status'), product.get('date_updated').strftime('%Y-%m-%d') if product.get('date_updated') else ''])
+        last_purchase = product.get('last_purchase_date')
+        last_purchase_str = last_purchase.strftime('%Y-%m-%d') if last_purchase else 'N/A'
+        writer.writerow([
+            product.get('_id'),
+            product.get('name'),
+            product.get('category_name'),
+            product.get('price'),
+            product.get('quantity'),
+            product.get('reorder_level'),
+            product.get('status'),
+            last_purchase_str,
+            product.get('date_updated').strftime('%Y-%m-%d') if product.get('date_updated') else ''
+        ])
     output.seek(0)
     return Response(output, mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=inventory_report.csv"})
 
