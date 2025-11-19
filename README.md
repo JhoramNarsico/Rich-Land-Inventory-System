@@ -78,7 +78,7 @@ Before you begin, ensure you have the following installed and running on your ma
         ```
 
 3.  **Install the required packages:**
-    (This project should include a `requirements.txt` file. If not, create one with `pip freeze > requirements.txt`).
+    (This project includes a `requirements.txt` file).
     ```sh
     pip install -r requirements.txt
     ```
@@ -95,11 +95,23 @@ Before you begin, ensure you have the following installed and running on your ma
     ```
 
 5.  **(First Time Only) Clean the Database:**
-    To ensure the initial user accounts with the correct groups are created, you must drop the old database if it exists. Open `mongosh` in your terminal and run:
+    To ensure the initial user accounts with the correct groups are created properly, you must drop the old database if it exists. Open `mongosh` in your terminal and run:
     ```js
     use richland_autosupply;
     db.dropDatabase();
     exit;
+    ```
+
+6.  **Initialize Database Indexes (Required):**
+    Run the setup script to create MongoDB indexes. This is a specific course requirement for optimizing query performance and data integrity.
+    ```sh
+    python setup_indexes.py
+    ```
+
+7.  **Populate with Sample Data (Seeding):**
+    **Crucial Step:** To meet the Milestone III requirement of having 30+ records and to ensure the dashboard, analytics, and reports are populated for demonstration, run the seeder script. This generates dummy products, suppliers, and sales history.
+    ```sh
+    python seed_data.py
     ```
 
 ## Running the Application

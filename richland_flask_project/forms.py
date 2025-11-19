@@ -63,11 +63,13 @@ class SupplierForm(FlaskForm):
 
 class PurchaseOrderItemForm(FlaskForm):
     """Sub-form for a single item within a purchase order."""
-    # CHANGED to SelectField to work with the searchable dropdown
-    # forms.py (NEW, CORRECTED LINE)
+    
+    # Meta configuration to allow this form to be used dynamically in a list without strict CSRF per row
+    class Meta:
+        csrf = False
+
     product_sku = StringField('Product SKU', validators=[DataRequired()])
     quantity = IntegerField('Quantity', validators=[DataRequired(), NumberRange(min=1)])
-    id = HiddenField()
 
 class PurchaseOrderForm(FlaskForm):
     """Main form for creating a purchase order."""

@@ -15,7 +15,7 @@
         <table class="table">
             <thead><tr><th>SKU</th><th>Product Name</th><th class="text-end">Quantity</th></tr></thead>
             <tbody>
-                {% for item in po.items %}
+             {% for item in po['items'] %}
                 <tr>
                     <td><a href="{{ url_for('product_detail', sku=item.product_sku) }}">{{ item.product_sku }}</a></td>
                     <td>{{ item.product_name }}</td>
