@@ -194,6 +194,9 @@ def search_products():
 @login_required
 def product_detail(sku):
     product = products_collection.find_one({'_id': sku})
+    if not product:
+        flash(f"Product {sku} not found or has been deleted.", "warning")
+        return redirect(url_for('product_list'))
     transaction_form = StockTransactionForm()
     if transaction_form.validate_on_submit():
         quantity = transaction_form.quantity.data
