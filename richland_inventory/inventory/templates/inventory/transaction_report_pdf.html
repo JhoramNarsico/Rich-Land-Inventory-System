@@ -100,7 +100,6 @@
         </thead>
         <tbody>
             {% for transaction in transactions %}
-                {% if transaction.transaction_type == 'OUT' %}
                 <tr>
                     <td>{{ transaction.id }}</td>
                     <td>{{ transaction.timestamp|date:"Y-m-d H:i" }}</td>
@@ -115,16 +114,15 @@
                         {% endif %}
                     </td>
                     <td class="text-right">
-                        {% if transaction.selling_price is not None %}
-                            {% widthratio transaction.selling_price 1 transaction.quantity as total_value %}
-                            ₱{{ total_value|floatformat:2 }}
+                        <!-- FIX: Use calculated row_total from view instead of widthratio -->
+                        {% if transaction.row_total is not None %}
+                            ₱{{ transaction.row_total|floatformat:2 }}
                         {% else %}
                             N/A
                         {% endif %}
                     </td>
                     <td>{{ transaction.user.username|default:"N/A" }}</td>
                 </tr>
-                {% endif %}
             {% endfor %}
             {% if not transactions %}
             <tr><td colspan="8" style="text-align: center;">No transactions found for the selected period.</td></tr>

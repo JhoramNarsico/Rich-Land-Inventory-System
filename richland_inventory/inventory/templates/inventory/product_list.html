@@ -87,7 +87,7 @@
                                 <td>{{ product.sku }}</td>
                                 <td>{{ product.category.name|default:"N/A" }}</td>
                                 <td class="text-center">
-                                    {% if product.quantity > 10 %}
+                                    {% if product.quantity > product.reorder_level %}
                                         <span class="badge rounded-pill bg-success" style="font-size: 0.9rem;">In Stock ({{ product.quantity|intcomma }})</span>
                                     {% elif product.quantity > 0 %}
                                         <span class="badge rounded-pill bg-warning text-dark" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
@@ -119,7 +119,7 @@
                         <p class="card-text text-muted small">{{ product.category.name|default:"" }}</p>
                         <p class="card-text fs-4 fw-bold mt-2">₱{{ product.price|floatformat:2|intcomma }}</p>
                         <div class="mt-auto">
-                            {% if product.quantity > 10 %}
+                            {% if product.quantity > product.reorder_level %}
                                 <span class="badge rounded-pill bg-success" style="font-size: 0.9rem;">In Stock ({{ product.quantity|intcomma }})</span>
                             {% elif product.quantity > 0 %}
                                 <span class="badge rounded-pill bg-warning text-dark" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
@@ -246,7 +246,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                // FIX: Check if the response is a redirect (indicates session expired)
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    throw new Error('Session expired, redirecting to login...');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'success') {
                     const newOption = document.createElement('option');
@@ -271,7 +278,9 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An unexpected error occurred. Please try again.');
+                if (error.message !== 'Session expired, redirecting to login...') {
+                    alert('An unexpected error occurred. Please try again.');
+                }
             });
         });
     }

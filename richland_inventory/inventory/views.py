@@ -3,13 +3,15 @@
 import csv
 import json
 from datetime import timedelta
+from decimal import Decimal
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.messages.views import SuccessMessageMixin
-from django.db.models import Q, F, Sum
+from django.db import transaction
+from django.db.models import Q, F, Sum, ExpressionWrapper, DecimalField
 from django.db.models.functions import TruncDate
 from django.urls import reverse_lazy
 from django.shortcuts import redirect, get_object_or_404, render
@@ -54,6 +56,7 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             if stock_status == 'in_stock':
                 queryset = queryset.filter(quantity__gt=F('reorder_level'))
             elif stock_status == 'low_stock':
+                # FIX: Ensure consistent <= logic
                 queryset = queryset.filter(quantity__gt=0, quantity__lte=F('reorder_level'))
             elif stock_status == 'out_of_stock':
                 queryset = queryset.filter(quantity=0)
@@ -94,28 +97,40 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
         context['transaction_form'] = StockTransactionForm()
         return context
+    
     def post(self, request, *args, **kwargs):
-        product_object = self.get_object()
-        form = StockTransactionForm(request.POST)
-        if form.is_valid():
-            transaction = form.save(commit=False)
-            transaction.product = product_object
-            transaction.user = request.user
-            transaction_type = form.cleaned_data.get('transaction_type')
-            quantity = form.cleaned_data.get('quantity')
-            if transaction_type == 'OUT':
-                if product_object.quantity < quantity:
-                    messages.error(request, f'Cannot stock out more than the available quantity ({product_object.quantity}).')
-                    return redirect(product_object.get_absolute_url())
-                Product.objects.filter(pk=product_object.pk).update(quantity=F('quantity') - quantity)
-                transaction.selling_price = product_object.price
+        # FIX: Use transaction.atomic to prevent race conditions
+        with transaction.atomic():
+            # FIX: select_for_update() locks the row until transaction finishes
+            product_object = Product.objects.select_for_update().get(pk=self.get_object().pk)
+            
+            form = StockTransactionForm(request.POST)
+            if form.is_valid():
+                transaction_obj = form.save(commit=False)
+                transaction_obj.product = product_object
+                transaction_obj.user = request.user
+                transaction_type = form.cleaned_data.get('transaction_type')
+                quantity = form.cleaned_data.get('quantity')
+                
+                if transaction_type == 'OUT':
+                    if product_object.quantity < quantity:
+                        messages.error(request, f'Cannot stock out more than the available quantity ({product_object.quantity}).')
+                        return redirect(product_object.get_absolute_url())
+                    
+                    # Update object in memory and DB
+                    product_object.quantity -= quantity
+                    product_object.save()
+                    transaction_obj.selling_price = product_object.price
+                else:
+                    product_object.quantity += quantity
+                    product_object.save()
+                
+                transaction_obj.save()
+                clear_dashboard_cache()
+                messages.success(request, "Stock was adjusted successfully.")
             else:
-                Product.objects.filter(pk=product_object.pk).update(quantity=F('quantity') + quantity)
-            transaction.save()
-            clear_dashboard_cache()
-            messages.success(request, "Stock was adjusted successfully.")
-        else:
-            messages.error(request, "There was an error with your submission.")
+                messages.error(request, "There was an error with your submission.")
+                
         return redirect(product_object.get_absolute_url())
 
 class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
@@ -147,9 +162,6 @@ class ProductUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
     permission_required = 'inventory.change_product'
 
     def form_valid(self, form):
-        """
-        If the form is valid, clear the dashboard cache before saving the model.
-        """
         clear_dashboard_cache()
         return super().form_valid(form)
 
@@ -183,7 +195,7 @@ def product_toggle_status(request, slug):
         product.status = Product.Status.ACTIVE
         messages.success(request, f"'{product.name}' has been activated.")
     product.save()
-    clear_dashboard_cache() # Also clear cache when status changes
+    clear_dashboard_cache() 
     return redirect(product.get_absolute_url())
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -312,6 +324,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             stock_value = product.quantity * product.price
             writer.writerow([product.name, product.sku, category_name, product.get_status_display(), product.quantity, product.price, stock_value, product.last_purchase_date])
         return response
+    
     def export_transactions_pdf(self, request):
         transactions_base = StockTransaction.objects.select_related('product', 'user').all()
         form = TransactionReportForm(request.GET)
@@ -321,10 +334,22 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             end_date = form.cleaned_data.get('end_date')
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
-        sales_transactions = transactions_base.filter(transaction_type='OUT', selling_price__isnull=False)
+        
+        # Annotate total value per row to avoid widthratio bug in templates
+        sales_transactions = transactions_base.filter(transaction_type='OUT', selling_price__isnull=False).annotate(
+            row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
+        )
+        
         summary = sales_transactions.aggregate(total_revenue=Sum(F('selling_price') * F('quantity')), total_items_sold=Sum('quantity'))
         top_sellers = sales_transactions.values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
-        context = {'transactions': transactions_base.order_by('timestamp'), 'start_date': start_date, 'end_date': end_date, 'summary': summary, 'top_sellers': top_sellers}
+        
+        context = {
+            'transactions': sales_transactions.order_by('timestamp'), # Pass the annotated queryset
+            'start_date': start_date,
+            'end_date': end_date,
+            'summary': summary,
+            'top_sellers': top_sellers
+        }
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         pdf['Content-Disposition'] = 'attachment; filename="general_sales_report.pdf"'
@@ -415,20 +440,16 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
 @login_required
 @permission_required('inventory.can_view_reports', raise_exception=True)
 def analytics_dashboard(request):
-    # 1. Query the StockTransaction model
     analytics_data = StockTransaction.objects.filter(
         transaction_type='OUT',
         selling_price__isnull=False
     ).values(
-        'product__category__name'  # Group By Category Name
+        'product__category__name'
     ).annotate(
-        # Calculate Revenue: Quantity * Selling Price
         total_revenue=Sum(F('quantity') * F('selling_price')),
-        # Calculate Units Sold: Sum of Quantity
         units_sold=Sum('quantity')
     ).order_by('-total_revenue')
 
-    # 2. Process data for the Chart and Table
     labels = []
     values = []
     table_data = []
@@ -447,7 +468,6 @@ def analytics_dashboard(request):
             'units': units
         })
 
-    # 3. Package into context
     context = {
         'page_title': 'Business Analytics',
         'table_data': table_data,
