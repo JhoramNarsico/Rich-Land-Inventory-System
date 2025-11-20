@@ -25,4 +25,8 @@ urlpatterns = [
 
     path('suppliers/', views.SupplierListView.as_view(), name='supplier_list'),
     path('suppliers/<int:pk>/', views.SupplierDetailView.as_view(), name='supplier_detail'),
+
+    # Add under existing reporting path
+    path('reports/dashboard/', views.ReportsDashboardView.as_view(), name='reports_dashboard'),
+
 ]

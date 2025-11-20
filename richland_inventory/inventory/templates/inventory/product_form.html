@@ -11,6 +11,13 @@
             <form method="post">
                 {% csrf_token %}
                 
+                <!-- NEW: Summary error message block -->
+                {% if form.errors and not form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        Please correct the error(s) below.
+                    </div>
+                {% endif %}
+
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger">
                         {% for error in form.non_field_errors %}
@@ -44,8 +51,15 @@
                     {% if form.price.errors %}<div class="text-danger small mt-1">{{ form.price.errors.0 }}</div>{% endif %}
                 </div>
 
+                <!-- NEW: Added Reorder Level field (common to both forms) -->
+                <div class="mb-3">
+                    <label for="{{ form.reorder_level.id_for_label }}" class="form-label">Reorder Level</label>
+                    {{ form.reorder_level }}
+                    {% if form.reorder_level.errors %}<div class="text-danger small mt-1">{{ form.reorder_level.errors.0 }}</div>{% endif %}
+                </div>
+
                 <!-- THIS BLOCK IS FOR CREATION ONLY -->
-                {% if form.quantity %}
+                {% if 'quantity' in form.fields %}
                 <div class="mb-3">
                     <label for="{{ form.quantity.id_for_label }}" class="form-label">Initial Quantity</label>
                     {{ form.quantity }}
@@ -53,23 +67,24 @@
                 </div>
                 {% endif %}
 
-                <!-- THIS BLOCK IS FOR UPDATES ONLY -->
-                {% if form.change_reason %}
+                <!-- NEW: THIS BLOCK IS FOR UPDATES ONLY -->
+                {% if 'status' in form.fields %}
                 <div class="mb-3">
-                    <label for="{{ form.change_reason.id_for_label }}" class="form-label">{{ form.change_reason.label }}</label>
-                    {{ form.change_reason }}
-                    <div class="form-text">{{ form.change_reason.help_text }}</div>
-                    {% if form.change_reason.errors %}<div class="text-danger small mt-1">{{ form.change_reason.errors.0 }}</div>{% endif %}
+                    <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors.0 }}</div>{% endif %}
                 </div>
                 {% endif %}
+                
+                <!-- The old 'change_reason' block has been removed as it's not in the form -->
 
                 <hr>
                 
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save
+                    <i class="fas fa-save me-2"></i>Save
                 </button>
                 <a href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'inventory:product_list' %}{% endif %}" class="btn btn-secondary">
-                    <i class="fas fa-ban"></i> Cancel
+                    <i class="fas fa-ban me-2"></i>Cancel
                 </a>
             </form>
         </div>
