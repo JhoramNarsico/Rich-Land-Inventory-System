@@ -21,7 +21,7 @@ class Category(models.Model):
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
-class Product(models.Model): #Represents a single auto part in the inventory system.
+class Product(models.Model): 
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
         DEACTIVATED = 'DEACTIVATED', 'Deactivated'
@@ -59,7 +59,8 @@ class StockTransaction(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=3, choices=TransactionType.choices)
     quantity = models.PositiveIntegerField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    # OPTIMIZATION 1: Added Index to timestamp
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
     notes = models.TextField(blank=True, null=True, help_text="Reason for the transaction (e.g., 'Sale to customer X', 'New shipment received')")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Price per item at the time of a 'Stock Out' transaction.")
@@ -70,6 +71,10 @@ class StockTransaction(models.Model):
             ("can_adjust_stock", "Can adjust stock quantities"),
             ("can_view_history", "Can view product edit history"),
             ("can_view_reports", "Can view and generate reports"),
+        ]
+        # OPTIMIZATION 1: Composite Index for filtering by type and sorting by time
+        indexes = [
+            models.Index(fields=['transaction_type', 'timestamp']),
         ]
 
     def __str__(self):

@@ -39,6 +39,12 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     paginate_by = 12
     permission_required = 'inventory.view_product'
 
+    # OPTIMIZATION 3: HTMX support
+    def get_template_names(self):
+        if self.request.headers.get('HX-Request'):
+            return ['inventory/partials/product_list_rows.html']
+        return ['inventory/product_list.html']
+
     def get_queryset(self):
         queryset = Product.objects.select_related('category').all()
         form = ProductFilterForm(self.request.GET)
@@ -56,7 +62,6 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             if stock_status == 'in_stock':
                 queryset = queryset.filter(quantity__gt=F('reorder_level'))
             elif stock_status == 'low_stock':
-                # FIX: Ensure consistent <= logic
                 queryset = queryset.filter(quantity__gt=0, quantity__lte=F('reorder_level'))
             elif stock_status == 'out_of_stock':
                 queryset = queryset.filter(quantity=0)
@@ -99,11 +104,8 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
         return context
     
     def post(self, request, *args, **kwargs):
-        # FIX: Use transaction.atomic to prevent race conditions
         with transaction.atomic():
-            # FIX: select_for_update() locks the row until transaction finishes
             product_object = Product.objects.select_for_update().get(pk=self.get_object().pk)
-            
             form = StockTransactionForm(request.POST)
             if form.is_valid():
                 transaction_obj = form.save(commit=False)
@@ -116,8 +118,6 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                     if product_object.quantity < quantity:
                         messages.error(request, f'Cannot stock out more than the available quantity ({product_object.quantity}).')
                         return redirect(product_object.get_absolute_url())
-                    
-                    # Update object in memory and DB
                     product_object.quantity -= quantity
                     product_object.save()
                     transaction_obj.selling_price = product_object.price
@@ -130,7 +130,6 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 messages.success(request, "Stock was adjusted successfully.")
             else:
                 messages.error(request, "There was an error with your submission.")
-                
         return redirect(product_object.get_absolute_url())
 
 class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
@@ -335,7 +334,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
         
-        # Annotate total value per row to avoid widthratio bug in templates
         sales_transactions = transactions_base.filter(transaction_type='OUT', selling_price__isnull=False).annotate(
             row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
         )
@@ -344,13 +342,14 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         top_sellers = sales_transactions.values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
         
         context = {
-            'transactions': sales_transactions.order_by('timestamp'), # Pass the annotated queryset
+            'transactions': sales_transactions.order_by('timestamp'),
             'start_date': start_date,
             'end_date': end_date,
             'summary': summary,
             'top_sellers': top_sellers
         }
-        pdf = render_to_pdf('inventory/transaction_report_pdf.html', context)
+        # OPTIMIZATION 2: Updated render_to_pdf call with request object
+        pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         pdf['Content-Disposition'] = 'attachment; filename="general_sales_report.pdf"'
         return pdf

@@ -26,7 +26,15 @@
             </h2>
             <div id="collapseFilter" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#filterAccordion">
                 <div class="accordion-body">
-                    <form method="get" action="">
+                    <!-- OPTIMIZATION 3: HTMX Filters -->
+                    <!-- hx-get triggers a GET request to the current URL -->
+                    <!-- hx-target updates the tbody with id 'product-table-body' -->
+                    <!-- hx-trigger="change, keyup delay:500ms" allows instant updates -->
+                    <form method="get" action="" 
+                          hx-get="{% url 'inventory:product_list' %}" 
+                          hx-target="#product-table-body" 
+                          hx-trigger="change from:select, keyup delay:500ms from:input">
+                        
                         <div class="row g-3 align-items-end">
                             <div class="col-md-3">
                                 <label for="{{ filter_form.q.id_for_label }}" class="form-label">{{ filter_form.q.label }}</label>
@@ -50,6 +58,7 @@
                             </div>
                         </div>
                         <div class="mt-3 d-flex">
+                            <!-- Standard submit for non-JS users or full refresh -->
                             <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Apply</button>
                             <a href="{% url 'inventory:product_list' %}" class="btn btn-secondary ms-2">Reset</a>
                             <button type="button" class="btn btn-success ms-auto" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
@@ -77,29 +86,9 @@
                                 <th>Price</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for product in product_list %}
-                            <tr>
-                                <td>
-                                    <strong><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></strong>
-                                    {% if product.status == 'DEACTIVATED' %}<span class="badge bg-secondary ms-2">Deactivated</span>{% endif %}
-                                </td>
-                                <td>{{ product.sku }}</td>
-                                <td>{{ product.category.name|default:"N/A" }}</td>
-                                <td class="text-center">
-                                    {% if product.quantity > product.reorder_level %}
-                                        <span class="badge rounded-pill bg-success" style="font-size: 0.9rem;">In Stock ({{ product.quantity|intcomma }})</span>
-                                    {% elif product.quantity > 0 %}
-                                        <span class="badge rounded-pill bg-warning text-dark" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
-                                    {% else %}
-                                        <span class="badge rounded-pill bg-danger" style="font-size: 0.9rem;">Out of Stock</span>
-                                    {% endif %}
-                                </td>
-                                <td>₱{{ product.price|floatformat:2|intcomma }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="5" class="text-center py-4">No products found matching your criteria.</td></tr>
-                            {% endfor %}
+                        <!-- ID added for HTMX target -->
+                        <tbody id="product-table-body">
+                            {% include 'inventory/partials/product_list_rows.html' %}
                         </tbody>
                     </table>
                 </div>
@@ -107,7 +96,7 @@
         </div>
     </div>
 
-    <!-- Card View -->
+    <!-- Card View (Not HTMX optimized in this step, uses standard load) -->
     <div id="card-view" style="display: none;">
         <div class="row">
             {% for product in product_list %}
@@ -247,7 +236,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             })
             .then(response => {
-                // FIX: Check if the response is a redirect (indicates session expired)
                 if (response.redirected) {
                     window.location.href = response.url;
                     throw new Error('Session expired, redirecting to login...');
