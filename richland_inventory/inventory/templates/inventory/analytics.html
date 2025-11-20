@@ -1,127 +1,188 @@
 {% extends "base.html" %}
+{% load humanize %}
 
 {% block title %}Business Analytics{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="fw-bold text-secondary">Business Analytics</h1>
-        <span class="badge bg-secondary">Last 30 Days</span>
-    </div>
+<div class="container-fluid mb-5">
     
-    <div class="row">
-        <!-- Chart Section -->
+    <!-- 1. HEADER & FILTER -->
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Analytics Dashboard</h2>
+            <p class="text-muted small mb-0">
+                Performance from <strong>{{ start_date|date:"M d, Y" }}</strong> to <strong>{{ end_date|date:"M d, Y" }}</strong>
+            </p>
+        </div>
+        
+        <!-- Filter Form -->
+        <form method="get" class="d-flex align-items-end shadow-sm p-2 bg-white rounded border">
+            <div class="me-2">
+                <label class="small text-muted fw-bold">From</label>
+                {{ filter_form.start_date }}
+            </div>
+            <div class="me-2">
+                <label class="small text-muted fw-bold">To</label>
+                {{ filter_form.end_date }}
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter me-1"></i> Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- 2. KPI CARDS -->
+    <div class="row g-4 mb-4">
         <div class="col-md-6">
-            <div class="card shadow border-0 mb-4">
-                <div class="card-header bg-white py-3">
-                    <h5 class="m-0 font-weight-bold text-primary">Revenue by Category</h5>
-                </div>
+            <div class="card border-0 shadow-sm border-start border-4 border-primary">
                 <div class="card-body">
-                    <div style="height: 300px;">
-                        <canvas id="myPieChart"></canvas>
-                    </div>
+                    <div class="text-muted text-uppercase small fw-bold">Total Revenue (Selected Period)</div>
+                    <div class="fs-2 fw-bold text-dark">₱{{ total_revenue|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm border-start border-4 border-warning">
+                <div class="card-body">
+                    <div class="text-muted text-uppercase small fw-bold">Units Sold (Selected Period)</div>
+                    <div class="fs-2 fw-bold text-dark">{{ total_units|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. CHARTS ROW 1 -->
+    <div class="row g-4 mb-4">
+        <!-- CATEGORY BREAKDOWN -->
+        <div class="col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 fw-bold text-dark">Sales by Category</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center" style="height: 300px;">
+                    <canvas id="categoryChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Data Table Section -->
-        <div class="col-md-6">
-            <div class="card shadow border-0 mb-4">
+        <!-- TOP PRODUCTS -->
+        <div class="col-lg-8">
+            <div class="card h-100 border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
-                    <h5 class="m-0 font-weight-bold text-primary">Performance Data</h5>
+                    <h6 class="m-0 fw-bold text-dark">Top 5 Best Selling Products</h6>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover align-middle">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>Category</th>
-                                    <th>Units Sold</th>
-                                    <th>Revenue</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for row in table_data %}
-                                <tr>
-                                    <td>{{ row.category }}</td>
-                                    <td>{{ row.units }}</td>
-                                    <td>₱{{ row.revenue|floatformat:2 }}</td> 
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="3" class="text-center">No sales data available yet.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="productChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. CHARTS ROW 2 -->
+    <div class="row">
+        <!-- DAILY TREND -->
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 fw-bold text-dark">Daily Sales Trend</h6>
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="trendChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Chart.js Scripts -->
+<!-- CHART JS CONFIGURATION -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        var labels = JSON.parse('{{ labels_json|safe }}');
-        var values = JSON.parse('{{ values_json|safe }}');
+    // Common Chart Defaults
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = '#6c757d';
 
-        if (labels.length === 0) {
-            return;
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // 1. CATEGORY CHART (Doughnut)
+        const catLabels = JSON.parse('{{ cat_labels|safe }}');
+        const catValues = JSON.parse('{{ cat_values|safe }}');
+        
+        if (catLabels.length > 0) {
+            new Chart(document.getElementById("categoryChart"), {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catValues,
+                        backgroundColor: ['#20c997', '#2c3e50', '#f39c12', '#e74a3b', '#3498db', '#95a5a6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' }
+                    },
+                    cutout: '75%'
+                }
+            });
         }
 
-        var ctx = document.getElementById("myPieChart");
-        var myPieChart = new Chart(ctx, {
-          type: 'doughnut',
-          data: {
-            labels: labels,
-            datasets: [{
-              data: values,
-              // CUSTOM PALETTE: Teal, Dark Grey, Light Teal, Slate, Green-Teal, Muted Grey
-              backgroundColor: [
-                  '#20c997', // Brand Teal
-                  '#2c3e50', // Brand Dark
-                  '#63dcb9', // Light Teal
-                  '#95a5a6', // Grey
-                  '#1abc9c', // Greenish Teal
-                  '#34495e'  // Slate
-              ],
-              hoverBackgroundColor: [
-                  '#17a673', 
-                  '#1a252f', 
-                  '#48cba4', 
-                  '#7f8c8d', 
-                  '#16a085', 
-                  '#2c3e50'
-              ],
-              hoverBorderColor: "rgba(234, 236, 244, 1)",
-            }],
-          },
-          options: {
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            if (context.parsed !== null) {
-                                label += '₱' + context.parsed.toFixed(2);
-                            }
-                            return label;
-                        }
-                    }
-                }
+        // 2. TOP PRODUCTS CHART (Horizontal Bar)
+        const prodLabels = JSON.parse('{{ prod_labels|safe }}');
+        const prodValues = JSON.parse('{{ prod_values|safe }}');
+
+        new Chart(document.getElementById("productChart"), {
+            type: 'bar',
+            data: {
+                labels: prodLabels,
+                datasets: [{
+                    label: 'Revenue',
+                    data: prodValues,
+                    backgroundColor: '#20c997',
+                    borderRadius: 4,
+                    barThickness: 20
+                }]
             },
-            cutout: '70%',
-          },
+            options: {
+                indexAxis: 'y', // Makes it horizontal
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+
+        // 3. TREND CHART (Bar)
+        const dateLabels = JSON.parse('{{ date_labels|safe }}');
+        const dateValues = JSON.parse('{{ date_values|safe }}');
+
+        new Chart(document.getElementById("trendChart"), {
+            type: 'bar',
+            data: {
+                labels: dateLabels,
+                datasets: [{
+                    label: 'Daily Revenue',
+                    data: dateValues,
+                    backgroundColor: '#2c3e50',
+                    borderRadius: 4,
+                    barThickness: 'flex',
+                    maxBarThickness: 30
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f8f9fa' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
         });
     });
 </script>

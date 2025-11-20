@@ -30,7 +30,7 @@ class ProductUpdateForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
         }
 
-# --- UPDATED: Standard form for Admin use or history editing ---
+# Standard form for Admin use or history editing
 class StockTransactionForm(forms.ModelForm):
     class Meta:
         model = StockTransaction
@@ -42,7 +42,7 @@ class StockTransactionForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
-# --- NEW FORM: Strictly for Manual Stock Out (Sales/Damage) ---
+# Strictly for Manual Stock Out (Sales/Damage)
 class StockOutForm(forms.ModelForm):
     class Meta:
         model = StockTransaction
@@ -138,3 +138,14 @@ class PurchaseOrderFilterForm(forms.Form):
     status = forms.ChoiceField(choices=(("", "All Statuses"),) + PurchaseOrder.STATUS_CHOICES, required=False, label="Status", widget=forms.Select(attrs={'class': 'form-select'}))
     start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
     end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
+
+# NEW: Analytics Date Filter
+class AnalyticsFilterForm(forms.Form):
+    start_date = forms.DateField(
+        required=False,
+        widget=DateInput(attrs={'type': 'date', 'class': 'form-control', 'placeholder': 'Start Date'})
+    )
+    end_date = forms.DateField(
+        required=False,
+        widget=DateInput(attrs={'type': 'date', 'class': 'form-control', 'placeholder': 'End Date'})
+    )
