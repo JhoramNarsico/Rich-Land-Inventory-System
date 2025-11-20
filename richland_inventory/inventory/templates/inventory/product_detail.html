@@ -1,16 +1,9 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}{{ product.name }} Details{% endblock %}
+{% block title %}Product Details{% endblock %}
 
 {% block content %}
-    {% if product.status == 'DEACTIVATED' %}
-    <div class="alert alert-warning" role="alert">
-        <h4 class="alert-heading"><i class="fas fa-eye-slash me-2"></i>Deactivated Product</h4>
-        <p>This product is currently deactivated. It will not appear in default searches or the API. You can reactivate it using the button below.</p>
-    </div>
-    {% endif %}
-
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="mb-0">Product Details: {{ product.name }}</h2>
@@ -48,35 +41,39 @@
                     {% endif %}
                 </form>
             {% endif %}
-            
-            <!-- The Delete Product button has been completely removed from this section -->
-            
         </div>
     </div>
 
-    <!-- Adjust Stock Form -->
+    <!-- Adjust Stock Form (UPDATED: ONLY ALLOWS STOCK OUT) -->
     {% if perms.inventory.can_adjust_stock %}
-    <div class="card mb-4">
-        <div class="card-header"><h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Adjust Stock Quantity</h4></div>
+    <div class="card mb-4 border-danger">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0"><i class="fas fa-minus-circle me-2"></i>Record Stock Out / Sale</h4>
+        </div>
         <div class="card-body">
             <form method="post" action="">
                 {% csrf_token %}
                 <div class="row align-items-end">
+                    <!-- No Transaction Type field (Hardcoded to OUT in backend) -->
+                    
                     <div class="col-md-3 mb-3">
-                        <label for="{{ transaction_form.transaction_type.id_for_label }}" class="form-label">{{ transaction_form.transaction_type.label }}</label>
-                         {{ transaction_form.transaction_type }}
+                        <label for="{{ transaction_form.transaction_reason.id_for_label }}" class="form-label">Reason</label>
+                         {{ transaction_form.transaction_reason }}
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="{{ transaction_form.quantity.id_for_label }}" class="form-label">{{ transaction_form.quantity.label }}</label>
+                        <label for="{{ transaction_form.quantity.id_for_label }}" class="form-label">Quantity</label>
                         {{ transaction_form.quantity }}
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label for="{{ transaction_form.notes.id_for_label }}" class="form-label">{{ transaction_form.notes.label }}</label>
+                        <label for="{{ transaction_form.notes.id_for_label }}" class="form-label">Notes</label>
                         {{ transaction_form.notes }}
                     </div>
                     <div class="col-md-2 mb-3 d-grid">
-                        <button type="submit" class="btn btn-primary">Record Adjustment</button>
+                        <button type="submit" class="btn btn-danger">Remove Stock</button>
                     </div>
+                </div>
+                <div class="form-text">
+                    To add stock, please create and receive a Purchase Order.
                 </div>
             </form>
         </div>
@@ -92,6 +89,7 @@
                     <thead>
                         <tr>
                             <th>Type</th>
+                            <th>Reason</th>
                             <th>Quantity</th>
                             <th>User</th>
                             <th>Timestamp</th>
@@ -108,17 +106,22 @@
                                     <span class="badge bg-danger">Stock Out</span>
                                 {% endif %}
                             </td>
+                            <td>{{ transaction.get_transaction_reason_display }}</td>
                             <td>{{ transaction.quantity|intcomma }}</td>
                             <td>{{ transaction.user.username|default:"N/A" }}</td>
                             <td>{{ transaction.timestamp|date:"F d, Y, P" }}</td>
                             <td>{{ transaction.notes|default:"" }}</td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="5" class="text-center">No transactions recorded for this product.</td></tr>
+                        <tr><td colspan="6" class="text-center">No transactions recorded for this product.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- No JS needed for filtering dropdowns anymore since there's only one transaction type allowed. -->
 {% endblock %}

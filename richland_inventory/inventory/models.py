@@ -1,11 +1,14 @@
 # inventory/models.py
 
-from django.db import models
+from django.db import models, transaction
 from django.urls import reverse
 from django.utils.text import slugify
+from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from simple_history.models import HistoricalRecords
+
+# ... (Category and Product models remain the same) ...
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -56,12 +59,23 @@ class StockTransaction(models.Model):
     class TransactionType(models.TextChoices):
         IN = 'IN', 'Stock In'
         OUT = 'OUT', 'Stock Out'
+    
+    class TransactionReason(models.TextChoices):
+        SALE = 'SALE', 'Sale (Revenue)'
+        PURCHASE_ORDER = 'PO', 'Purchase Order (Restock)'
+        DAMAGE = 'DAMAGE', 'Damaged / Expired (Loss)'
+        INTERNAL = 'INTERNAL', 'Internal Use / Demo'
+        CORRECTION = 'CORRECTION', 'Inventory Correction / Mistake'
+        RETURN = 'RETURN', 'Customer Return'
+        OTHER = 'OTHER', 'Other'
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=3, choices=TransactionType.choices)
+    transaction_reason = models.CharField(max_length=20, choices=TransactionReason.choices, default=TransactionReason.SALE)
+    
     quantity = models.PositiveIntegerField()
-    # OPTIMIZATION 1: Added Index to timestamp
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
-    notes = models.TextField(blank=True, null=True, help_text="Reason for the transaction (e.g., 'Sale to customer X', 'New shipment received')")
+    notes = models.TextField(blank=True, null=True, help_text="Reason for the transaction")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Price per item at the time of a 'Stock Out' transaction.")
 
@@ -72,13 +86,13 @@ class StockTransaction(models.Model):
             ("can_view_history", "Can view product edit history"),
             ("can_view_reports", "Can view and generate reports"),
         ]
-        # OPTIMIZATION 1: Composite Index for filtering by type and sorting by time
         indexes = [
             models.Index(fields=['transaction_type', 'timestamp']),
+            models.Index(fields=['transaction_reason']),
         ]
 
     def __str__(self):
-        return f'{self.transaction_type} - {self.product.name} ({self.quantity}) on {self.timestamp.strftime("%Y-%m-%d")}'
+        return f'{self.transaction_type} ({self.get_transaction_reason_display()}) - {self.product.name}'
 
 class Supplier(models.Model):
     name = models.CharField(max_length=150, unique=True)
@@ -94,8 +108,9 @@ class Supplier(models.Model):
 
 class PurchaseOrder(models.Model):
     STATUS_CHOICES = (
-        ('PENDING', 'Pending'),
-        ('COMPLETED', 'Completed'),
+        ('PENDING', 'Pending (In Delivery)'),
+        ('COMPLETED', 'Arrived (Ready to Receive)'),  # Step 2: Admin sets this when truck arrives
+        ('RECEIVED', 'Received & Stocked'),           # Step 3: Final state, stock added
         ('CANCELED', 'Canceled'),
     )
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchase_orders')
@@ -107,6 +122,37 @@ class PurchaseOrder(models.Model):
 
     def __str__(self):
         return f"PO #{self.id} from {self.supplier.name}"
+
+    # LOGIC UPDATED: Now transitions from COMPLETED -> RECEIVED
+    def complete_order(self, user):
+        """
+        Finalizes the order and adds stock to inventory.
+        """
+        if self.status == 'RECEIVED':
+            return # Already done
+
+        with transaction.atomic():
+            # 1. Update Status to Final State
+            self.status = 'RECEIVED'
+            self.save()
+
+            # 2. Create Transactions and Update Product Stock
+            for item in self.items.all():
+                product = item.product
+                
+                StockTransaction.objects.create(
+                    product=product,
+                    transaction_type='IN',
+                    transaction_reason=StockTransaction.TransactionReason.PURCHASE_ORDER,
+                    quantity=item.quantity,
+                    user=user,
+                    notes=f'Received from Purchase Order PO #{self.id}'
+                )
+                
+                # Update Product
+                product.quantity += item.quantity
+                product.last_purchase_date = timezone.now()
+                product.save()
 
 class PurchaseOrderItem(models.Model):
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')

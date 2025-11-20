@@ -26,7 +26,7 @@ from core.cache_utils import clear_dashboard_cache
 from .forms import (
     ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm,
     TransactionFilterForm, TransactionReportForm, ProductHistoryFilterForm,
-    CategoryCreateForm, PurchaseOrderFilterForm
+    CategoryCreateForm, PurchaseOrderFilterForm, StockOutForm
 )
 from .models import Product, StockTransaction, Category, PurchaseOrder, Supplier
 from .serializers import ProductSerializer
@@ -39,7 +39,6 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     paginate_by = 12
     permission_required = 'inventory.view_product'
 
-    # OPTIMIZATION 3: HTMX support
     def get_template_names(self):
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
@@ -97,37 +96,42 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     template_name = 'inventory/product_detail.html'
     context_object_name = 'product'
     permission_required = 'inventory.view_product'
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
-        context['transaction_form'] = StockTransactionForm()
+        context['transaction_form'] = StockOutForm()
         return context
     
     def post(self, request, *args, **kwargs):
         with transaction.atomic():
             product_object = Product.objects.select_for_update().get(pk=self.get_object().pk)
-            form = StockTransactionForm(request.POST)
+            form = StockOutForm(request.POST)
+            
             if form.is_valid():
                 transaction_obj = form.save(commit=False)
                 transaction_obj.product = product_object
                 transaction_obj.user = request.user
-                transaction_type = form.cleaned_data.get('transaction_type')
+                transaction_obj.transaction_type = 'OUT'
+                
+                transaction_reason = form.cleaned_data.get('transaction_reason')
                 quantity = form.cleaned_data.get('quantity')
                 
-                if transaction_type == 'OUT':
-                    if product_object.quantity < quantity:
-                        messages.error(request, f'Cannot stock out more than the available quantity ({product_object.quantity}).')
-                        return redirect(product_object.get_absolute_url())
-                    product_object.quantity -= quantity
-                    product_object.save()
+                if product_object.quantity < quantity:
+                    messages.error(request, f'Cannot stock out more than the available quantity ({product_object.quantity}).')
+                    return redirect(product_object.get_absolute_url())
+                
+                product_object.quantity -= quantity
+                product_object.save()
+                
+                if transaction_reason == StockTransaction.TransactionReason.SALE:
                     transaction_obj.selling_price = product_object.price
                 else:
-                    product_object.quantity += quantity
-                    product_object.save()
+                    transaction_obj.selling_price = None 
                 
                 transaction_obj.save()
                 clear_dashboard_cache()
-                messages.success(request, "Stock was adjusted successfully.")
+                messages.success(request, "Stock Out recorded successfully.")
             else:
                 messages.error(request, "There was an error with your submission.")
         return redirect(product_object.get_absolute_url())
@@ -139,6 +143,7 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
     success_url = reverse_lazy('inventory:product_list')
     success_message = "Product was created successfully!"
     permission_required = 'inventory.add_product'
+    
     def form_valid(self, form):
         response = super().form_valid(form)
         initial_quantity = form.cleaned_data.get('quantity', 0)
@@ -146,6 +151,7 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
             StockTransaction.objects.create(
                 product=self.object,
                 transaction_type='IN',
+                transaction_reason=StockTransaction.TransactionReason.CORRECTION,
                 quantity=initial_quantity,
                 user=self.request.user,
                 notes='Initial stock on product creation.'
@@ -172,12 +178,14 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
     template_name = 'inventory/product_confirm_delete.html'
     success_url = reverse_lazy('inventory:product_list')
     permission_required = 'inventory.delete_product'
+    
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
             product = self.get_object()
             return redirect(product.get_absolute_url())
         return super().dispatch(request, *args, **kwargs)
+        
     def form_valid(self, form):
         clear_dashboard_cache()
         messages.success(self.request, "The product was permanently deleted successfully.")
@@ -208,6 +216,7 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
     context_object_name = 'transaction_list'
     paginate_by = 25
     permission_required = 'inventory.view_stocktransaction'
+    
     def get_queryset(self):
         queryset = StockTransaction.objects.select_related('product', 'user').all()
         form = TransactionFilterForm(self.request.GET)
@@ -216,6 +225,8 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
                 queryset = queryset.filter(product=form.cleaned_data['product'])
             if form.cleaned_data.get('transaction_type'):
                 queryset = queryset.filter(transaction_type=form.cleaned_data['transaction_type'])
+            if form.cleaned_data.get('transaction_reason'):
+                queryset = queryset.filter(transaction_reason=form.cleaned_data['transaction_reason'])
             if form.cleaned_data.get('user'):
                 queryset = queryset.filter(user=form.cleaned_data['user'])
             if form.cleaned_data.get('start_date'):
@@ -223,6 +234,7 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
             if form.cleaned_data.get('end_date'):
                 queryset = queryset.filter(timestamp__date__lte=form.cleaned_data['end_date'])
         return queryset.order_by('-timestamp')
+        
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['filter_form'] = TransactionFilterForm(self.request.GET)
@@ -257,6 +269,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     context_object_name = 'history_list'
     paginate_by = 20
     permission_required = 'inventory.can_view_history'
+    
     def get_queryset(self):
         queryset = super().get_queryset().select_related('history_user')
         form = ProductHistoryFilterForm(self.request.GET)
@@ -270,6 +283,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
             if form.cleaned_data.get('end_date'):
                 queryset = queryset.filter(history_date__date__lte=form.cleaned_data['end_date'])
         return queryset.order_by('-history_date')
+        
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         for record in context['history_list']:
@@ -287,11 +301,14 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
     context_object_name = 'history_list'
     paginate_by = 20
     permission_required = 'inventory.can_view_history'
+    
     def dispatch(self, request, *args, **kwargs):
         self.product = get_object_or_404(Product, slug=self.kwargs['slug'])
         return super().dispatch(request, *args, **kwargs)
+        
     def get_queryset(self):
         return self.product.history.select_related('history_user').all().order_by('-history_date')
+        
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         for record in context['history_list']:
@@ -302,16 +319,19 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'inventory/reporting.html'
     permission_required = 'inventory.can_view_reports'
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['page_title'] = "Inventory Reports"
         context['transaction_report_form'] = TransactionReportForm(self.request.GET)
         return context
+        
     def get(self, request, *args, **kwargs):
         export_type = request.GET.get('export')
         if export_type == 'inventory_csv': return self.export_inventory_csv()
         elif export_type == 'transaction_pdf': return self.export_transactions_pdf(request)
         return super().get(request, *args, **kwargs)
+        
     def export_inventory_csv(self):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="current_inventory_report.csv"'
@@ -334,7 +354,11 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
         
-        sales_transactions = transactions_base.filter(transaction_type='OUT', selling_price__isnull=False).annotate(
+        sales_transactions = transactions_base.filter(
+            transaction_type='OUT', 
+            transaction_reason=StockTransaction.TransactionReason.SALE,
+            selling_price__isnull=False
+        ).annotate(
             row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
         )
         
@@ -348,7 +372,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             'summary': summary,
             'top_sellers': top_sellers
         }
-        # OPTIMIZATION 2: Updated render_to_pdf call with request object
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         pdf['Content-Disposition'] = 'attachment; filename="general_sales_report.pdf"'
@@ -360,6 +383,7 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
     context_object_name = 'po_list'
     paginate_by = 20
     permission_required = 'inventory.view_purchaseorder'
+    
     def get_queryset(self):
         queryset = PurchaseOrder.objects.select_related('supplier').all()
         form = PurchaseOrderFilterForm(self.request.GET)
@@ -373,6 +397,7 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
             if form.cleaned_data.get('end_date'):
                 queryset = queryset.filter(order_date__date__lte=form.cleaned_data['end_date'])
         return queryset.order_by('-order_date')
+        
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['filter_form'] = PurchaseOrderFilterForm(self.request.GET)
@@ -387,8 +412,30 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
     template_name = 'inventory/purchaseorder_detail.html'
     context_object_name = 'po'
     permission_required = 'inventory.view_purchaseorder'
+    
     def get_queryset(self):
         return super().get_queryset().prefetch_related('items__product')
+
+# --- LOGIC UPDATE FOR RECEIVING ---
+@login_required
+@permission_required('inventory.change_purchaseorder', raise_exception=True)
+def receive_purchase_order(request, pk):
+    po = get_object_or_404(PurchaseOrder, pk=pk)
+    if request.method == 'POST':
+        # Check if it is in the "Arrived" state (COMPLETED)
+        if po.status == 'COMPLETED':
+             try:
+                po.complete_order(request.user)
+                clear_dashboard_cache()
+                messages.success(request, f"Stock from Purchase Order #{po.id} has been added to inventory.")
+             except Exception as e:
+                messages.error(request, f"Error receiving order: {e}")
+        elif po.status == 'RECEIVED':
+             messages.warning(request, f"Purchase Order #{po.id} has already been received.")
+        else:
+             messages.warning(request, f"Purchase Order #{po.id} must be marked as 'Arrived' (Completed) by Admin before receiving.")
+             
+    return redirect('inventory:purchaseorder_list')
 
 @login_required
 @require_POST
@@ -405,6 +452,7 @@ def sales_chart_data(request):
     thirty_days_ago = timezone.now() - timedelta(days=30)
     sales_data = StockTransaction.objects.filter(
         transaction_type='OUT',
+        transaction_reason=StockTransaction.TransactionReason.SALE,
         timestamp__gte=thirty_days_ago,
         selling_price__isnull=False
     ).annotate(day=TruncDate('timestamp')).values('day').annotate(
@@ -441,6 +489,7 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
 def analytics_dashboard(request):
     analytics_data = StockTransaction.objects.filter(
         transaction_type='OUT',
+        transaction_reason=StockTransaction.TransactionReason.SALE,
         selling_price__isnull=False
     ).values(
         'product__category__name'
