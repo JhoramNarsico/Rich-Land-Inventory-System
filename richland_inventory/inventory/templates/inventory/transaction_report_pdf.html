@@ -4,7 +4,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Sales Report</title>
+    <title>Stock Movement Report</title>
     <style>
         @page {
             size: a4 portrait;
@@ -29,28 +29,24 @@
             color: #2c3e50; 
         }
         
-        .header-table { width: 100%; border-bottom: 2px solid #2980b9; margin-bottom: 10px; }
+        .header-table { width: 100%; border-bottom: 2px solid #20c997; margin-bottom: 10px; }
         .company-name { font-size: 16px; font-weight: bold; color: #2c3e50; }
-        .report-title { font-size: 20px; font-weight: bold; color: #2980b9; text-align: right; }
+        .report-title { font-size: 20px; font-weight: bold; color: #20c997; text-align: right; }
         
-        .report-meta { 
-            font-size: 9px; 
-            color: #7f8c8d; 
-            text-align: right; 
-            line-height: 1.4;
-            margin-top: 5px;
-        }
+        .report-meta { font-size: 9px; color: #7f8c8d; text-align: right; line-height: 1.4; margin-top: 5px; }
 
         .summary-box {
             background-color: #ecf0f1;
             border: 1px solid #bdc3c7;
             padding: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             margin-top: 10px; 
         }
-        .total-label { font-size: 10px; font-weight: bold; color: #2c3e50; }
-        .total-val { font-size: 12px; font-weight: bold; color: #27ae60; }
         
+        .total-label { font-size: 10px; font-weight: bold; color: #2c3e50; }
+        .total-val { font-size: 12px; font-weight: bold; color: #20c997; }
+        
+        /* Data Tables */
         table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; -pdf-keep-with-next: false; }
         table.data-table thead { display: table-header-group; background-color: #2c3e50; color: #ffffff; }
         table.data-table th { background-color: #2c3e50; color: #ffffff; padding: 5px; font-weight: bold; border: 1px solid #2c3e50; text-transform: uppercase; font-size: 8px; }
@@ -63,30 +59,31 @@
         .text-center { text-align: center; }
         .bold { font-weight: bold; }
         
-        h3 { color: #2980b9; border-bottom: 1px solid #2980b9; padding-bottom: 3px; margin-top: 15px; font-size: 12px; }
+        h3 { color: #20c997; border-bottom: 1px solid #20c997; padding-bottom: 3px; margin-top: 15px; font-size: 12px; }
         .footer { text-align: center; font-size: 8px; color: #7f8c8d; border-top: 1px solid #bdc3c7; padding-top: 5px; }
 
-        .col-id { width: 5%; }
+        /* Adjusted Columns to fit 'Reason' */
         .col-date { width: 12%; }
-        .col-prod { width: 23%; } 
-        .col-sku { width: 12%; }
+        .col-prod { width: 20%; } 
+        .col-sku { width: 10%; }
+        .col-reason { width: 15%; } /* NEW COLUMN */
         .col-qty { width: 8%; }
-        .col-price { width: 15%; } 
-        .col-total { width: 17%; } 
+        .col-price { width: 12%; } 
+        .col-total { width: 15%; } 
         .col-user { width: 8%; }
     </style>
 </head>
 <body>
+    <!-- HEADER -->
     <div id="header_content">
         <table class="header-table">
             <tr>
                 <td style="vertical-align: bottom; width: 50%;">
-                    <!-- FIX: Added 'width: auto' to preserve aspect ratio -->
                     <img src="images/logo.png" style="height: 50px; width: auto;" alt="" />
                     <br/><span class="company-name">Rich Land Auto Supply</span>
                 </td>
                 <td style="vertical-align: bottom; text-align: right; width: 50%;">
-                    <div class="report-title">SALES REPORT</div>
+                    <div class="report-title">Inventory Report</div>
                     <div class="report-meta">
                         Generated: {% now "F d, Y h:i A" %}<br/>
                         {% if start_date and end_date %}
@@ -104,36 +101,42 @@
         Confidential Report | Page <pdf:pagenumber> of <pdf:pagecount>
     </div>
 
+    <!-- FINANCIAL SUMMARY (REVENUE) -->
     <div class="summary-box">
         <table style="width: 100%;">
             <tr>
-                <td style="border: none; width: 50%; vertical-align: top;">
-                    <strong>Summary Overview</strong>
-                </td>
+                <td style="border: none; width: 50%;"><strong>Sales Revenue</strong></td>
                 <td style="border: none; width: 50%; text-align: right;">
-                    <table style="width: 100%;">
-                        <tr>
-                            <td style="border: none; text-align: right; padding: 2px;">
-                                <span class="total-label">Total Revenue:</span>
-                            </td>
-                            <td style="border: none; text-align: right; padding: 2px;">
-                                <span class="total-val"><small>PHP</small> {{ summary.total_revenue|floatformat:2|default:"0.00"|intcomma }}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="border: none; text-align: right; padding: 2px;">
-                                <span class="total-label">Total Units:</span>
-                            </td>
-                            <td style="border: none; text-align: right; padding: 2px;">
-                                <span class="bold">{{ summary.total_items_sold|default:"0"|intcomma }}</span>
-                            </td>
-                        </tr>
-                    </table>
+                    <span class="total-label">Total Revenue:</span> 
+                    <span class="total-val"><small>PHP</small> {{ summary.total_revenue|floatformat:2|default:"0.00"|intcomma }}</span>
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    <span class="total-label">Items Sold:</span> 
+                    <span class="bold">{{ summary.total_items_sold|default:"0"|intcomma }}</span>
                 </td>
             </tr>
         </table>
     </div>
 
+    <!-- NON-REVENUE SUMMARY (DAMAGE, INTERNAL, ETC) -->
+    {% if shrinkage_summary %}
+    <div class="summary-box" style="background-color: #fff5f5; border-color: #e57373;">
+        <strong style="color: #c0392b;">Stock Loss & Internal Usage</strong>
+        <table style="width: 100%; margin-top: 5px;">
+            {% for item in shrinkage_summary %}
+            <tr>
+                <td style="border: none; font-size: 9px;">
+                    • {{ item.transaction_reason|default:"Other" }}
+                </td>
+                <td style="border: none; text-align: right; font-size: 9px; font-weight: bold;">
+                    {{ item.total_qty|intcomma }} units
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- TOP SELLERS -->
     <h3>Top 5 Best Selling Items</h3>
     <table class="data-table">
         <thead>
@@ -154,14 +157,15 @@
         </tbody>
     </table>
 
-    <h3>Detailed Transaction Log</h3>
+    <!-- DETAILED LOG -->
+    <h3>Detailed Transaction Log (All Stock Outs)</h3>
     <table class="data-table">
         <thead>
             <tr>
-                <th class="col-id">ID</th>
                 <th class="col-date">Date</th>
                 <th class="col-prod">Product</th>
                 <th class="col-sku">SKU</th>
+                <th class="col-reason">Reason</th> <!-- NEW COLUMN -->
                 <th class="col-qty text-right">Qty</th>
                 <th class="col-price text-right">Price</th>
                 <th class="col-total text-right">Total</th>
@@ -171,23 +175,42 @@
         <tbody>
             {% for transaction in transactions %}
                 <tr class="{% cycle 'odd' 'even' %}">
-                    <td>{{ transaction.id }}</td>
                     <td>
                         {{ transaction.timestamp|date:"Y-m-d" }}<br/>
                         <small style="color: #7f8c8d;">{{ transaction.timestamp|date:"H:i" }}</small>
                     </td>
                     <td>{{ transaction.product.name }}</td>
                     <td>{{ transaction.product.sku }}</td>
-                    <td class="text-right">{{ transaction.quantity }}</td>
-                    <td class="text-right">
-                        {% if transaction.selling_price is not None %}
-                            <small>PHP</small> {{ transaction.selling_price|floatformat:2|intcomma }}
-                        {% else %} - {% endif %}
+                    
+                    <!-- REASON COLUMN -->
+                    <td>
+                        {% if transaction.transaction_reason == 'SALE' %}
+                            <span style="color: #20c997; font-weight: bold;">Sale</span>
+                        {% elif transaction.transaction_reason == 'DAMAGE' %}
+                            <span style="color: #e74a3b; font-weight: bold;">Damage</span>
+                        {% else %}
+                            {{ transaction.get_transaction_reason_display }}
+                        {% endif %}
                     </td>
+                    
+                    <td class="text-right">{{ transaction.quantity }}</td>
+                    
+                    <!-- PRICE -->
+                    <td class="text-right">
+                        {% if transaction.selling_price %}
+                            <small>PHP</small> {{ transaction.selling_price|floatformat:2|intcomma }}
+                        {% else %}
+                            <span style="color: #999;">-</span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- TOTAL -->
                     <td class="text-right bold">
-                        {% if transaction.row_total is not None %}
+                        {% if transaction.row_total %}
                             <small>PHP</small> {{ transaction.row_total|floatformat:2|intcomma }}
-                        {% else %} - {% endif %}
+                        {% else %}
+                            <span style="color: #999;">-</span>
+                        {% endif %}
                     </td>
                     <td>{{ transaction.user.username|default:"-"|truncatechars:8 }}</td>
                 </tr>

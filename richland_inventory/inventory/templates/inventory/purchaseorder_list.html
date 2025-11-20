@@ -51,19 +51,18 @@
                             <td>{{ po.supplier.name }}</td>
                             <td>{{ po.order_date|date:"F d, Y" }}</td>
                             <td class="text-center">
-                                <!-- Status Badge Logic Updated -->
                                 {% if po.status == 'RECEIVED' %}
                                     <span class="badge bg-success">Received</span>
                                 {% elif po.status == 'COMPLETED' %}
                                     <span class="badge bg-primary">Arrived</span>
                                 {% elif po.status == 'PENDING' %}
-                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    <!-- REMOVED text-dark -->
+                                    <span class="badge bg-warning">Pending</span>
                                 {% else %}
                                     <span class="badge bg-secondary">{{ po.get_status_display }}</span>
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                <!-- Button Logic: Show 'Receive' ONLY if status is COMPLETED (Arrived) -->
                                 {% if po.status == 'COMPLETED' and perms.inventory.change_purchaseorder %}
                                     <form action="{% url 'inventory:purchaseorder_receive' pk=po.pk %}" method="post" class="d-inline" onsubmit="return confirm('Confirm receipt of goods? This will add stock.');">
                                         {% csrf_token %}

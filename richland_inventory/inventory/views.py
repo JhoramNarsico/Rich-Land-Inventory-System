@@ -11,7 +11,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
-from django.db.models import Q, F, Sum, ExpressionWrapper, DecimalField
+from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField
 from django.db.models.functions import TruncDate
 from django.urls import reverse_lazy
 from django.shortcuts import redirect, get_object_or_404, render
@@ -100,6 +100,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
+        # Using StockOutForm to restrict manual adjustments to OUT only
         context['transaction_form'] = StockOutForm()
         return context
     
@@ -112,6 +113,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 transaction_obj = form.save(commit=False)
                 transaction_obj.product = product_object
                 transaction_obj.user = request.user
+                # Force type to OUT for manual adjustments
                 transaction_obj.transaction_type = 'OUT'
                 
                 transaction_reason = form.cleaned_data.get('transaction_reason')
@@ -124,9 +126,11 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 product_object.quantity -= quantity
                 product_object.save()
                 
+                # Only record revenue if it is a SALE
                 if transaction_reason == StockTransaction.TransactionReason.SALE:
                     transaction_obj.selling_price = product_object.price
                 else:
+                    # Damage, Internal Use, Correction = No Revenue
                     transaction_obj.selling_price = None 
                 
                 transaction_obj.save()
@@ -345,7 +349,11 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return response
     
     def export_transactions_pdf(self, request):
-        transactions_base = StockTransaction.objects.select_related('product', 'user').all()
+        # 1. Base Filter: Get ALL Outgoing transactions within date range
+        transactions_base = StockTransaction.objects.select_related('product', 'user').filter(
+            transaction_type='OUT'
+        )
+        
         form = TransactionReportForm(request.GET)
         start_date, end_date = None, None
         if form.is_valid():
@@ -354,27 +362,45 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
         
-        sales_transactions = transactions_base.filter(
-            transaction_type='OUT', 
-            transaction_reason=StockTransaction.TransactionReason.SALE,
-            selling_price__isnull=False
-        ).annotate(
+        # 2. Annotate row totals for display
+        # Note: selling_price is NULL for Damage/Internal, so row_total will be None
+        all_out_transactions = transactions_base.annotate(
             row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
+        ).order_by('-timestamp')
+
+        # 3. Calculate Revenue (Strictly SALES)
+        revenue_summary = transactions_base.filter(
+            transaction_reason=StockTransaction.TransactionReason.SALE
+        ).aggregate(
+            total_revenue=Sum(F('selling_price') * F('quantity')), 
+            total_items_sold=Sum('quantity')
         )
-        
-        summary = sales_transactions.aggregate(total_revenue=Sum(F('selling_price') * F('quantity')), total_items_sold=Sum('quantity'))
-        top_sellers = sales_transactions.values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
+
+        # 4. Calculate Shrinkage/Usage (Damage, Internal, etc.)
+        shrinkage_summary = transactions_base.exclude(
+            transaction_reason=StockTransaction.TransactionReason.SALE
+        ).values('transaction_reason').annotate(
+            total_qty=Sum('quantity'),
+            count=Count('id')
+        ).order_by('transaction_reason')
+
+        # 5. Top Sellers (Strictly SALES)
+        top_sellers = transactions_base.filter(
+            transaction_reason=StockTransaction.TransactionReason.SALE
+        ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
         
         context = {
-            'transactions': sales_transactions.order_by('timestamp'),
+            'transactions': all_out_transactions,
             'start_date': start_date,
             'end_date': end_date,
-            'summary': summary,
-            'top_sellers': top_sellers
+            'summary': revenue_summary,
+            'shrinkage_summary': shrinkage_summary,
+            'top_sellers': top_sellers,
         }
+        
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
-        pdf['Content-Disposition'] = 'attachment; filename="general_sales_report.pdf"'
+        pdf['Content-Disposition'] = 'attachment; filename="stock_movement_report.pdf"'
         return pdf
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -416,13 +442,19 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
     def get_queryset(self):
         return super().get_queryset().prefetch_related('items__product')
 
-# --- LOGIC UPDATE FOR RECEIVING ---
 @login_required
 @permission_required('inventory.change_purchaseorder', raise_exception=True)
 def receive_purchase_order(request, pk):
+    """
+    Allows staff to mark a PO as received (Completed) from the frontend list.
+    Logic:
+    1. Admin sets to 'COMPLETED' (Arrived).
+    2. Staff clicks 'Receive'.
+    3. Status moves to 'RECEIVED' and stock is added.
+    """
     po = get_object_or_404(PurchaseOrder, pk=pk)
+    
     if request.method == 'POST':
-        # Check if it is in the "Arrived" state (COMPLETED)
         if po.status == 'COMPLETED':
              try:
                 po.complete_order(request.user)
@@ -449,6 +481,7 @@ def add_category_ajax(request):
 
 @login_required
 def sales_chart_data(request):
+    # Sales Chart restricted to Last 30 Days and strictly SALES
     thirty_days_ago = timezone.now() - timedelta(days=30)
     sales_data = StockTransaction.objects.filter(
         transaction_type='OUT',
@@ -487,10 +520,14 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
 @login_required
 @permission_required('inventory.can_view_reports', raise_exception=True)
 def analytics_dashboard(request):
+    # Analytics Dashboard restricted to Last 30 Days and strictly SALES
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    
     analytics_data = StockTransaction.objects.filter(
         transaction_type='OUT',
         transaction_reason=StockTransaction.TransactionReason.SALE,
-        selling_price__isnull=False
+        selling_price__isnull=False,
+        timestamp__gte=thirty_days_ago
     ).values(
         'product__category__name'
     ).annotate(
@@ -517,7 +554,7 @@ def analytics_dashboard(request):
         })
 
     context = {
-        'page_title': 'Business Analytics',
+        'page_title': 'Business Analytics (Last 30 Days)',
         'table_data': table_data,
         'labels_json': json.dumps(labels, cls=DjangoJSONEncoder),
         'values_json': json.dumps(values, cls=DjangoJSONEncoder),

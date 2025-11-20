@@ -11,7 +11,8 @@
         {% if product.quantity > product.reorder_level %}
             <span class="badge rounded-pill bg-success" style="font-size: 0.9rem;">In Stock ({{ product.quantity|intcomma }})</span>
         {% elif product.quantity > 0 %}
-            <span class="badge rounded-pill bg-warning text-dark" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
+            <!-- REMOVED text-dark -->
+            <span class="badge rounded-pill bg-warning" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
         {% else %}
             <span class="badge rounded-pill bg-danger" style="font-size: 0.9rem;">Out of Stock</span>
         {% endif %}

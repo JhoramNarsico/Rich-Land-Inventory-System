@@ -8,18 +8,75 @@
 
     <!-- Bootstrap CSS -->
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     
     <style>
+        :root {
+            /* The Teal color sampled from the "Rich Land" ribbon */
+            --brand-teal: #20c997; 
+            --brand-teal-dark: #1aa179;
+            /* Dark Grey from the gears */
+            --brand-dark: #2c3e50;
+        }
+
         body {
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            background-color: #f8f9fa;
+            /* Dark Industrial Gradient (Black/Grey to muted Teal) */
+            background: linear-gradient(135deg, #1c1c1c 0%, #2f4f4f 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+        
         .auth-container {
-            max-width: 450px;
             width: 100%;
+            max-width: 420px;
+            padding: 15px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            /* Stronger shadow to pop against the dark background */
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Override Bootstrap Primary Button to match Logo Ribbon */
+        .btn-primary {
+            background-color: var(--brand-teal);
+            border-color: var(--brand-teal);
+            color: #ffffff;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--brand-teal-dark);
+            border-color: var(--brand-teal-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(32, 201, 151, 0.4);
+        }
+
+        /* Input Focus Styles */
+        .form-control:focus {
+            border-color: var(--brand-teal);
+            box-shadow: 0 0 0 0.25rem rgba(32, 201, 151, 0.25);
+        }
+
+        /* Icon colors */
+        .input-group-text {
+            background-color: #f8f9fa;
+            border-right: none;
+        }
+        .input-group .form-control {
+            border-left: none;
+        }
+        .input-icon {
+            color: var(--brand-dark);
         }
     </style>
 </head>
