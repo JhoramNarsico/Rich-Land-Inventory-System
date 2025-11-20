@@ -1,31 +1,58 @@
 # inventory/utils.py
 
+import os
 from io import BytesIO
 from django.http import HttpResponse
 from django.template.loader import get_template
+from django.conf import settings
+from django.contrib.staticfiles import finders
 from xhtml2pdf import pisa
 
-def render_to_pdf(template_src, context_dict={}):
+def link_callback(uri, rel):
     """
-    Renders a Django template into a PDF file and returns it as an HttpResponse.
-    This version includes better error handling.
+    Convert HTML URIs to absolute system paths so xhtml2pdf can access those resources
     """
+    result = finders.find(uri)
+    if result:
+        if not isinstance(result, (list, tuple)):
+            result = [result]
+        result = list(os.path.normpath(path) for path in result)
+        origin = result[0]
+    else:
+        sUrl = settings.STATIC_URL        # Typically /static/
+        sRoot = settings.STATIC_ROOT      # Typically /home/userX/project/static/
+        mUrl = settings.MEDIA_URL         # Typically /media/
+        mRoot = settings.MEDIA_ROOT       # Typically /home/userX/project/media/
+
+        if uri.startswith(mUrl):
+            path = os.path.join(mRoot, uri.replace(mUrl, ""))
+        elif uri.startswith(sUrl):
+            path = os.path.join(sRoot, uri.replace(sUrl, ""))
+        else:
+            return uri
+
+        # Make sure that file exists
+        if not os.path.isfile(path):
+            raise Exception(
+                'media URI must start with %s or %s' % (sUrl, mUrl)
+            )
+        origin = path
+
+    return origin
+
+def render_to_pdf(template_src, context_dict={}, request=None):
     template = get_template(template_src)
     html  = template.render(context_dict)
     result = BytesIO()
-    
-    # The pisa.CreatePDF function is a more direct way to handle this.
-    # It returns a pisa.pisaDocument object which has an 'err' attribute.
-    pdf = pisa.CreatePDF(
-            BytesIO(html.encode("UTF-8")), # The HTML content
-            dest=result                        # The file-like object to write to
+
+    # We pass link_callback to handle static files (images/css)
+    pdf = pisa.pisaDocument(
+        BytesIO(html.encode("UTF-8")),
+        result,
+        link_callback=link_callback
     )
-    
-    # Check if PDF creation was successful
+
     if not pdf.err:
-        # If successful, return the PDF as a response.
         return HttpResponse(result.getvalue(), content_type='application/pdf')
     
-    # If there was an error, return a simple HTTP response with the error message.
-    # This prevents the view from returning None and crashing the server.
     return HttpResponse(f'We had some errors converting to PDF: {pdf.err}', status=500)

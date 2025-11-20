@@ -26,7 +26,11 @@
             </h2>
             <div id="collapseFilter" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#filterAccordion">
                 <div class="accordion-body">
-                    <form method="get" action="">
+                    <form method="get" action="" 
+                          hx-get="{% url 'inventory:product_list' %}" 
+                          hx-target="#product-table-body" 
+                          hx-trigger="change from:select, keyup delay:500ms from:input">
+                        
                         <div class="row g-3 align-items-end">
                             <div class="col-md-3">
                                 <label for="{{ filter_form.q.id_for_label }}" class="form-label">{{ filter_form.q.label }}</label>
@@ -62,7 +66,6 @@
         </div>
     </div>
 
-    <!-- Table View -->
     <div id="table-view">
         <div class="card">
             <div class="card-body">
@@ -77,29 +80,8 @@
                                 <th>Price</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for product in product_list %}
-                            <tr>
-                                <td>
-                                    <strong><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></strong>
-                                    {% if product.status == 'DEACTIVATED' %}<span class="badge bg-secondary ms-2">Deactivated</span>{% endif %}
-                                </td>
-                                <td>{{ product.sku }}</td>
-                                <td>{{ product.category.name|default:"N/A" }}</td>
-                                <td class="text-center">
-                                    {% if product.quantity > 10 %}
-                                        <span class="badge rounded-pill bg-success" style="font-size: 0.9rem;">In Stock ({{ product.quantity|intcomma }})</span>
-                                    {% elif product.quantity > 0 %}
-                                        <span class="badge rounded-pill bg-warning text-dark" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
-                                    {% else %}
-                                        <span class="badge rounded-pill bg-danger" style="font-size: 0.9rem;">Out of Stock</span>
-                                    {% endif %}
-                                </td>
-                                <td>₱{{ product.price|floatformat:2|intcomma }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="5" class="text-center py-4">No products found matching your criteria.</td></tr>
-                            {% endfor %}
+                        <tbody id="product-table-body">
+                            {% include 'inventory/partials/product_list_rows.html' %}
                         </tbody>
                     </table>
                 </div>
@@ -107,7 +89,6 @@
         </div>
     </div>
 
-    <!-- Card View -->
     <div id="card-view" style="display: none;">
         <div class="row">
             {% for product in product_list %}
@@ -119,10 +100,11 @@
                         <p class="card-text text-muted small">{{ product.category.name|default:"" }}</p>
                         <p class="card-text fs-4 fw-bold mt-2">₱{{ product.price|floatformat:2|intcomma }}</p>
                         <div class="mt-auto">
-                            {% if product.quantity > 10 %}
+                            {% if product.quantity > product.reorder_level %}
                                 <span class="badge rounded-pill bg-success" style="font-size: 0.9rem;">In Stock ({{ product.quantity|intcomma }})</span>
                             {% elif product.quantity > 0 %}
-                                <span class="badge rounded-pill bg-warning text-dark" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
+                                <!-- REMOVED text-dark -->
+                                <span class="badge rounded-pill bg-warning" style="font-size: 0.9rem;">Low Stock ({{ product.quantity|intcomma }})</span>
                             {% else %}
                                 <span class="badge rounded-pill bg-danger" style="font-size: 0.9rem;">Out of Stock</span>
                             {% endif %}
@@ -137,7 +119,6 @@
         </div>
     </div>
     
-    <!-- Pagination -->
     {% if is_paginated %}
     <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
@@ -162,7 +143,6 @@
     </nav>
     {% endif %}
 
-    <!-- Add Category Modal -->
     <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -193,7 +173,6 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // --- Part 1: View Switching Logic ---
     const tableView = document.getElementById('table-view');
     const cardView = document.getElementById('card-view');
     const tableViewBtn = document.getElementById('table-view-btn');
@@ -225,7 +204,6 @@ document.addEventListener('DOMContentLoaded', function () {
         switchView(tableView, tableViewBtn);
     }
 
-    // --- Part 2: AJAX Form Handling Logic ---
     const categoryForm = document.getElementById('addCategoryForm');
     const categorySelect = document.querySelector('[name="category"]');
     const categoryModalEl = document.getElementById('addCategoryModal');
@@ -234,8 +212,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (categoryForm) {
         categoryForm.addEventListener('submit', function(event) {
-            event.preventDefault(); // Stop the default page reload
-            
+            event.preventDefault(); 
             const formData = new FormData(categoryForm);
             
             fetch(categoryForm.action, {
@@ -246,7 +223,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    throw new Error('Session expired, redirecting to login...');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'success') {
                     const newOption = document.createElement('option');
@@ -271,7 +254,9 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An unexpected error occurred. Please try again.');
+                if (error.message !== 'Session expired, redirecting to login...') {
+                    alert('An unexpected error occurred. Please try again.');
+                }
             });
         });
     }

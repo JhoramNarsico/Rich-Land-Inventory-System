@@ -23,6 +23,9 @@ urlpatterns = [
 
     path('purchase-orders/', views.PurchaseOrderListView.as_view(), name='purchaseorder_list'),
     path('purchase-orders/<int:pk>/', views.PurchaseOrderDetailView.as_view(), name='purchaseorder_detail'),
+    
+    # NEW: URL for receiving a PO
+    path('purchase-orders/<int:pk>/receive/', views.receive_purchase_order, name='purchaseorder_receive'),
 
     path('suppliers/', views.SupplierListView.as_view(), name='supplier_list'),
     path('suppliers/<int:pk>/', views.SupplierDetailView.as_view(), name='supplier_detail'),

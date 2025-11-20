@@ -5,52 +5,183 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Rich Land Inventory{% endblock %}</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <style>
+        :root {
+            /* BRAND COLORS */
+            --brand-teal: #20c997; 
+            --brand-teal-dark: #1aa179;
+            --brand-dark: #2c3e50;
+            --brand-black: #1c1c1c;
+            --brand-warning: #f39c12;
+
+            /* BOOTSTRAP OVERRIDES */
+            --bs-primary: #20c997;
+            --bs-body-bg: #f4f6f9;
+            --bs-warning: #f39c12;
+        }
+
+        /* 1. TYPOGRAPHY UPGRADE */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            color: #343a40;
+        }
+        
+        /* Tabular numbers for data (skus, prices) align vertically */
+        .table td, .badge, .text-monospace {
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* 2. PROFESSIONAL TABLES (Compact & Clean) */
+        .table {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        .table thead th {
+            background-color: #f1f3f5;
+            color: #495057;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #dee2e6;
+            padding: 12px 10px;
+        }
+        .table tbody td {
+            vertical-align: middle;
+            padding: 8px 10px;
+            color: #212529;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(32, 201, 151, 0.05);
+        }
+        /* Card fixes for tables */
+        .card {
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden; /* Keeps table corners rounded */
+        }
+
+        /* Navbar Styling */
+        .navbar-dark.bg-dark {
+            background-color: var(--brand-black) !important;
+            border-bottom: 4px solid var(--brand-teal);
+            padding-top: 0.8rem;
+            padding-bottom: 0.8rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .navbar-nav .nav-link {
+            color: #e0e0e0 !important;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            transition: color 0.3s ease;
+        }
+        .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active {
+            color: var(--brand-teal) !important;
+        }
+
+        /* Dropdowns */
+        .dropdown-menu {
+            background-color: var(--brand-dark);
+            border-top: 3px solid var(--brand-teal);
+            margin-top: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .dropdown-item { color: #ecf0f1; padding: 8px 20px; font-size: 0.9rem; }
+        .dropdown-item:hover { background-color: #34495e; color: #fff; border-left: 3px solid var(--brand-teal); }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--brand-teal);
+            border-color: var(--brand-teal);
+            color: #fff;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background-color: var(--brand-teal-dark) !important;
+            border-color: var(--brand-teal-dark) !important;
+        }
+        
+        /* Warning Colors */
+        .bg-warning { background-color: var(--brand-warning) !important; color: #fff !important; }
+        .text-warning { color: var(--brand-warning) !important; }
+        
+        /* Link Overrides */
+        a { color: var(--brand-dark); text-decoration: none; }
+        a:hover { color: var(--brand-teal); }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'home' %}">
-                <img src="{% static 'images/logo.png' %}" alt="Rich Land Logo" height="30">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand me-4" href="{% url 'home' %}">
+                <img src="{% static 'images/logo.png' %}" alt="Rich Land Logo" height="40">
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'home' %}"><i class="fas fa-tachometer-alt me-1"></i> Dashboard</a></li>
                     
                     {% if perms.inventory.view_product %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_list' %}">Products</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-boxes me-1"></i> Inventory</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'inventory:product_list' %}">Product List</a></li>
+                            {% if perms.inventory.view_stocktransaction %}
+                            <li><a class="dropdown-item" href="{% url 'inventory:transaction_list' %}">Transaction Logs</a></li>
+                            {% endif %}
+                            {% if perms.inventory.can_view_history %}
+                            <li><a class="dropdown-item" href="{% url 'inventory:product_history_list' %}">Audit History</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
                     {% endif %}
                     
                     {% if perms.inventory.view_purchaseorder %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:supplier_list' %}">Suppliers</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:purchaseorder_list' %}">Purchase Orders</a></li>
-                    {% endif %}
-                    
-                    {% if perms.inventory.view_stocktransaction %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:transaction_list' %}">Transactions</a></li>
-                    {% endif %}
-                    
-                    {% if perms.inventory.can_view_history %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:product_history_list' %}">Edit History</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-truck me-1"></i> Procurement</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'inventory:purchaseorder_list' %}">Purchase Orders</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventory:supplier_list' %}">Suppliers</a></li>
+                        </ul>
+                    </li>
                     {% endif %}
                     
                     {% if perms.inventory.can_view_reports %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:reporting' %}">Reports</a></li>
-                        <!-- ADDED ANALYTICS LINK HERE -->
-                        <li class="nav-item"><a class="nav-link" href="{% url 'inventory:analytics' %}">Analytics</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-chart-pie me-1"></i> Insights</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'inventory:analytics' %}">Analytics</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventory:reporting' %}">Reports</a></li>
+                        </ul>
+                    </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Hello, {{ user.username }}
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i> {{ user.username }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                            <ul class="dropdown-menu dropdown-menu-end">
                                 {% if user.is_staff %}
                                     <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin Panel</a></li>
                                     <li><hr class="dropdown-divider"></li>
@@ -70,21 +201,49 @@
             </div>
         </div>
     </nav>
-    <div class="container mt-4">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
+    
+    <div class="container-fluid px-4 mt-4 mb-5">
         <main>
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <!-- 3. TOAST NOTIFICATIONS (Replaces static alerts) -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="toast align-items-center text-white bg-{{ message.tags }} border-0 show" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        {% if message.tags == 'success' %}<i class="fas fa-check-circle me-2"></i>{% endif %}
+                        {% if message.tags == 'error' %}<i class="fas fa-times-circle me-2"></i>{% endif %}
+                        {% if message.tags == 'warning' %}<i class="fas fa-exclamation-triangle me-2"></i>{% endif %}
+                        {{ message }}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // HTMX CSRF Config
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+
+        // Initialize Toasts
+        document.addEventListener("DOMContentLoaded", function() {
+            var toastElList = [].slice.call(document.querySelectorAll('.toast'))
+            var toastList = toastElList.map(function(toastEl) {
+                // Auto hide after 5 seconds
+                return new bootstrap.Toast(toastEl, { delay: 5000 });
+            });
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

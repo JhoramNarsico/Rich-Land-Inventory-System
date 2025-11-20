@@ -11,14 +11,14 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 import os
 from pathlib import Path
-from decouple import config, Csv, UndefinedValueError
-import dj_database_url
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- SECURITY CONFIGURATION ---
 SECRET_KEY = config('SECRET_KEY')
+# FIX: Default to False for security in production if .env is missing
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
@@ -31,28 +31,27 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.humanize',
+    'django.contrib.humanize',      # For template filters like 'intcomma'
 
     # Your Apps
     'inventory',
 
     # Third-Party Apps
     'rest_framework',
-    'rest_framework.authtoken',
-    'simple_history',
-    'drf_spectacular',
+    'rest_framework.authtoken',     # For API token authentication
+    'simple_history',               # For auditing model changes
+    'drf_spectacular',              # For generating API documentation
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'simple_history.middleware.HistoryRequestMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware', # For tracking user in history
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -75,29 +74,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# --- DATABASE CONFIGURATION (Production-Ready) ---
-try:
-    # Production environment (on Render)
-    # This will be used if the DATABASE_URL environment variable is set.
-    DATABASES = {
-        'default': dj_database_url.config(
-            conn_max_age=600,
-            ssl_require=True
-        )
+# --- DATABASE CONFIGURATION ---
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='3306'),
     }
-except (UndefinedValueError, dj_database_url.exceptions.ImproperlyConfigured):
-    # Local development environment
-    # This will be used if DATABASE_URL is not found, falling back to your .env file.
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': config('DB_NAME'),
-            'USER': config('DB_USER'),
-            'PASSWORD': config('DB_PASSWORD'),
-            'HOST': config('DB_HOST', default='localhost'),
-            'PORT': config('DB_PORT', default='3.306'),
-        }
-    }
+}
 
 
 # --- PASSWORD VALIDATION ---
@@ -116,11 +103,10 @@ USE_I18N = True
 USE_TZ = True
 
 
-# --- STATIC FILES CONFIGURATION (Production-Ready) ---
+# --- STATIC FILES CONFIGURATION ---
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # --- DEFAULT PRIMARY KEY FIELD TYPE ---
@@ -133,7 +119,7 @@ LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 
-# --- CACHING CONFIGURATION ---
+# --- CACHING CONFIGURATION (Development) ---
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -158,12 +144,3 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
-
-# --- EMAIL CONFIGURATION ---
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

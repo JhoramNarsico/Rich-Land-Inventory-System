@@ -1,134 +1,222 @@
+{% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>General Sales Tracking Report</title>
+    <title>Stock Movement Report</title>
     <style>
         @page {
             size: a4 portrait;
-            @frame header_frame { -pdf-frame-content: header_content; left: 50pt; top: 35pt; width: 512pt; height: 60pt; }
-            @frame content_frame { left: 50pt; top: 110pt; width: 512pt; height: 650pt; }
-            @frame footer_frame { -pdf-frame-content: footer_content; left: 50pt; top: 782pt; width: 512pt; height: 20pt; }
+            margin: 1cm;
+            margin-top: 3.5cm; 
+            margin-bottom: 2cm;
+            
+            @frame header_frame { 
+                -pdf-frame-content: header_content;
+                left: 30pt; width: 535pt; top: 20pt; height: 100pt;
+            }
+            
+            @frame footer_frame { 
+                -pdf-frame-content: footer_content;
+                left: 30pt; width: 535pt; top: 780pt; height: 20pt;
+            }
         }
-        body { font-family: "Helvetica", sans-serif; font-size: 9px; color: #333; }
-        .header-content .title { text-align: right; font-size: 20px; color: #111; font-weight: bold; }
-        .header-content .company-name { text-align: left; font-size: 16px; font-weight: bold; color: #555; }
-        .info { margin-bottom: 15px; font-size: 10px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
-        th { background-color: #f7f7f7; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-        .footer { text-align: right; font-size: 9px; color: #777; }
+        
+        body { 
+            font-family: Helvetica, sans-serif; 
+            font-size: 9px; 
+            color: #2c3e50; 
+        }
+        
+        .header-table { width: 100%; border-bottom: 2px solid #20c997; margin-bottom: 10px; }
+        .company-name { font-size: 16px; font-weight: bold; color: #2c3e50; }
+        .report-title { font-size: 20px; font-weight: bold; color: #20c997; text-align: right; }
+        
+        .report-meta { font-size: 9px; color: #7f8c8d; text-align: right; line-height: 1.4; margin-top: 5px; }
+
+        .summary-box {
+            background-color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            padding: 10px;
+            margin-bottom: 10px;
+            margin-top: 10px; 
+        }
+        
+        .total-label { font-size: 10px; font-weight: bold; color: #2c3e50; }
+        .total-val { font-size: 12px; font-weight: bold; color: #20c997; }
+        
+        /* Data Tables */
+        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; -pdf-keep-with-next: false; }
+        table.data-table thead { display: table-header-group; background-color: #2c3e50; color: #ffffff; }
+        table.data-table th { background-color: #2c3e50; color: #ffffff; padding: 5px; font-weight: bold; border: 1px solid #2c3e50; text-transform: uppercase; font-size: 8px; }
+        table.data-table td { border: 1px solid #bdc3c7; padding: 4px; vertical-align: middle; font-size: 8px; }
+        
+        tr.even { background-color: #f2f4f6; }
+        tr.odd { background-color: #ffffff; }
+        
         .text-right { text-align: right; }
-        .summary-section { margin-bottom: 20px; background-color: #f7f7f7; padding: 10px; border: 1px solid #ddd; }
-        .summary-section h3 { margin-top: 0; font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-        .summary-item { display: inline-block; width: 45%; font-size: 11px; }
-        h3 { font-size: 14px; color: #333; }
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        
+        h3 { color: #20c997; border-bottom: 1px solid #20c997; padding-bottom: 3px; margin-top: 15px; font-size: 12px; }
+        .footer { text-align: center; font-size: 8px; color: #7f8c8d; border-top: 1px solid #bdc3c7; padding-top: 5px; }
+
+        /* Adjusted Columns to fit 'Reason' */
+        .col-date { width: 12%; }
+        .col-prod { width: 20%; } 
+        .col-sku { width: 10%; }
+        .col-reason { width: 15%; } /* NEW COLUMN */
+        .col-qty { width: 8%; }
+        .col-price { width: 12%; } 
+        .col-total { width: 15%; } 
+        .col-user { width: 8%; }
     </style>
 </head>
 <body>
-    <!-- HEADER AND FOOTER -->
-    <div id="header_content" class="header-content">
-        <table>
+    <!-- HEADER -->
+    <div id="header_content">
+        <table class="header-table">
             <tr>
-                <td style="border:0;" class="company-name">Rich Land Auto Supply</td>
-                <td style="border:0;" class="title">General Sales Report</td>
+                <td style="vertical-align: bottom; width: 50%;">
+                    <img src="images/logo.png" style="height: 50px; width: auto;" alt="" />
+                    <br/><span class="company-name">Rich Land Auto Supply</span>
+                </td>
+                <td style="vertical-align: bottom; text-align: right; width: 50%;">
+                    <div class="report-title">Inventory Report</div>
+                    <div class="report-meta">
+                        Generated: {% now "F d, Y h:i A" %}<br/>
+                        {% if start_date and end_date %}
+                            Period: {{ start_date|date:"Y-m-d" }} to {{ end_date|date:"Y-m-d" }}
+                        {% else %}
+                            Period: All Time
+                        {% endif %}
+                    </div>
+                </td>
             </tr>
         </table>
     </div>
-    <div id="footer_content" class="footer">Page <pdf:pagenumber> of <pdf:pagecount></div>
 
-    <!-- REPORT METADATA -->
-    <div class="info">
-        <strong>Date Generated:</strong> {% now "F d, Y, P" %}<br/>
-        {% if start_date and end_date %}
-            <strong>Reporting Period:</strong> {{ start_date|date:"F d, Y" }} to {{ end_date|date:"F d, Y" }}
-        {% elif start_date %}
-            <strong>Reporting Period:</strong> From {{ start_date|date:"F d, Y" }} onwards
-        {% elif end_date %}
-            <strong>Reporting Period:</strong> Up to {{ end_date|date:"F d, Y" }}
-        {% else %}
-            <strong>Reporting Period:</strong> All Time
-        {% endif %}
+    <div id="footer_content" class="footer">
+        Confidential Report | Page <pdf:pagenumber> of <pdf:pagecount>
     </div>
 
-    <!-- SUMMARY SECTION -->
-    <div class="summary-section">
-        <h3>Report Summary</h3>
-        <div class="summary-item">
-            <strong>Total Sales Value:</strong> ₱{{ summary.total_revenue|floatformat:2|default:"0.00" }}
-        </div>
-        <div class="summary-item">
-            <strong>Total Items Sold:</strong> {{ summary.total_items_sold|default:"0" }}
-        </div>
+    <!-- FINANCIAL SUMMARY (REVENUE) -->
+    <div class="summary-box">
+        <table style="width: 100%;">
+            <tr>
+                <td style="border: none; width: 50%;"><strong>Sales Revenue</strong></td>
+                <td style="border: none; width: 50%; text-align: right;">
+                    <span class="total-label">Total Revenue:</span> 
+                    <span class="total-val"><small>PHP</small> {{ summary.total_revenue|floatformat:2|default:"0.00"|intcomma }}</span>
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    <span class="total-label">Items Sold:</span> 
+                    <span class="bold">{{ summary.total_items_sold|default:"0"|intcomma }}</span>
+                </td>
+            </tr>
+        </table>
     </div>
 
-    <!-- TOP 5 SELLING ITEMS -->
-    <h3>Top 5 Selling Items (by Quantity)</h3>
-    <table>
+    <!-- NON-REVENUE SUMMARY (DAMAGE, INTERNAL, ETC) -->
+    {% if shrinkage_summary %}
+    <div class="summary-box" style="background-color: #fff5f5; border-color: #e57373;">
+        <strong style="color: #c0392b;">Stock Loss & Internal Usage</strong>
+        <table style="width: 100%; margin-top: 5px;">
+            {% for item in shrinkage_summary %}
+            <tr>
+                <td style="border: none; font-size: 9px;">
+                    • {{ item.transaction_reason|default:"Other" }}
+                </td>
+                <td style="border: none; text-align: right; font-size: 9px; font-weight: bold;">
+                    {{ item.total_qty|intcomma }} units
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- TOP SELLERS -->
+    <h3>Top 5 Best Selling Items</h3>
+    <table class="data-table">
         <thead>
             <tr>
                 <th style="width: 80%;">Product Name</th>
-                <th class="text-right">Total Quantity Sold</th>
+                <th class="text-right" style="width: 20%;">Total Sold</th>
             </tr>
         </thead>
         <tbody>
             {% for item in top_sellers %}
-            <tr>
+            <tr class="{% cycle 'odd' 'even' %}">
                 <td>{{ item.product__name }}</td>
-                <td class="text-right">{{ item.total_quantity_sold }}</td>
+                <td class="text-right bold">{{ item.total_quantity_sold|intcomma }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="2" style="text-align: center;">No sales data available for this period.</td></tr>
+            <tr><td colspan="2" class="text-center">No sales data available.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <!-- DETAILED TRANSACTION LIST -->
-    <h3>Detailed Sales Transaction Log</h3>
-    <table>
+    <!-- DETAILED LOG -->
+    <h3>Detailed Transaction Log (All Stock Outs)</h3>
+    <table class="data-table">
         <thead>
             <tr>
-                <th>Trans. ID</th>
-                <th>Date</th>
-                <th>Product Name</th>
-                <th>SKU</th>
-                <th class="text-right">Qty</th>
-                <th class="text-right">Price/Unit</th>
-                <th class="text-right">Total Value</th>
-                <th>Sales Specialist</th>
+                <th class="col-date">Date</th>
+                <th class="col-prod">Product</th>
+                <th class="col-sku">SKU</th>
+                <th class="col-reason">Reason</th> <!-- NEW COLUMN -->
+                <th class="col-qty text-right">Qty</th>
+                <th class="col-price text-right">Price</th>
+                <th class="col-total text-right">Total</th>
+                <th class="col-user">User</th>
             </tr>
         </thead>
         <tbody>
             {% for transaction in transactions %}
-                {% if transaction.transaction_type == 'OUT' %}
-                <tr>
-                    <td>{{ transaction.id }}</td>
-                    <td>{{ transaction.timestamp|date:"Y-m-d H:i" }}</td>
+                <tr class="{% cycle 'odd' 'even' %}">
+                    <td>
+                        {{ transaction.timestamp|date:"Y-m-d" }}<br/>
+                        <small style="color: #7f8c8d;">{{ transaction.timestamp|date:"H:i" }}</small>
+                    </td>
                     <td>{{ transaction.product.name }}</td>
                     <td>{{ transaction.product.sku }}</td>
+                    
+                    <!-- REASON COLUMN -->
+                    <td>
+                        {% if transaction.transaction_reason == 'SALE' %}
+                            <span style="color: #20c997; font-weight: bold;">Sale</span>
+                        {% elif transaction.transaction_reason == 'DAMAGE' %}
+                            <span style="color: #e74a3b; font-weight: bold;">Damage</span>
+                        {% else %}
+                            {{ transaction.get_transaction_reason_display }}
+                        {% endif %}
+                    </td>
+                    
                     <td class="text-right">{{ transaction.quantity }}</td>
+                    
+                    <!-- PRICE -->
                     <td class="text-right">
-                        {% if transaction.selling_price is not None %}
-                            ₱{{ transaction.selling_price|floatformat:2 }}
+                        {% if transaction.selling_price %}
+                            <small>PHP</small> {{ transaction.selling_price|floatformat:2|intcomma }}
                         {% else %}
-                            N/A
+                            <span style="color: #999;">-</span>
                         {% endif %}
                     </td>
-                    <td class="text-right">
-                        {% if transaction.selling_price is not None %}
-                            {% widthratio transaction.selling_price 1 transaction.quantity as total_value %}
-                            ₱{{ total_value|floatformat:2 }}
+                    
+                    <!-- TOTAL -->
+                    <td class="text-right bold">
+                        {% if transaction.row_total %}
+                            <small>PHP</small> {{ transaction.row_total|floatformat:2|intcomma }}
                         {% else %}
-                            N/A
+                            <span style="color: #999;">-</span>
                         {% endif %}
                     </td>
-                    <td>{{ transaction.user.username|default:"N/A" }}</td>
+                    <td>{{ transaction.user.username|default:"-"|truncatechars:8 }}</td>
                 </tr>
-                {% endif %}
+            {% empty %}
+            <tr><td colspan="8" class="text-center">No transactions found.</td></tr>
             {% endfor %}
-            {% if not transactions %}
-            <tr><td colspan="8" style="text-align: center;">No transactions found for the selected period.</td></tr>
-            {% endif %}
         </tbody>
     </table>
 </body>

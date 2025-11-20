@@ -2,10 +2,9 @@
 
 from django.contrib import admin
 from django.utils import timezone
+from django.db import transaction
 from simple_history.admin import SimpleHistoryAdmin
 from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, PurchaseOrderItem
-
-# --- THIS IS THE CORRECTED IMPORT ---
 from core.cache_utils import clear_dashboard_cache
 
 @admin.register(Category)
@@ -22,14 +21,12 @@ class ProductAdmin(SimpleHistoryAdmin):
     list_editable = ('quantity', 'price', 'status')
     
     def get_actions(self, request):
-        """Remove the 'delete_selected' action for non-superusers."""
         actions = super().get_actions(request)
         if 'delete_selected' in actions and not request.user.is_superuser:
             del actions['delete_selected']
         return actions
 
     def has_delete_permission(self, request, obj=None):
-        """Prevent deletion of products by non-superusers."""
         return request.user.is_superuser
 
     @admin.display(description='Last Edited On')
@@ -48,9 +45,19 @@ class ProductAdmin(SimpleHistoryAdmin):
 
 @admin.register(StockTransaction)
 class StockTransactionAdmin(admin.ModelAdmin):
-    list_display = ('product', 'transaction_type', 'quantity', 'selling_price', 'user', 'timestamp')
-    list_filter = ('transaction_type', 'timestamp', 'user')
+    list_display = ('product', 'transaction_type', 'transaction_reason', 'quantity', 'selling_price', 'user', 'timestamp')
+    list_filter = ('transaction_type', 'transaction_reason', 'timestamp', 'user')
     search_fields = ('product__name',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        clear_dashboard_cache()
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
@@ -67,23 +74,62 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     list_filter = ('status', 'supplier', 'order_date')
     inlines = [PurchaseOrderItemInline]
     
-    def save_model(self, request, obj, form, change):
-        original_obj = self.model.objects.get(pk=obj.pk) if obj.pk else None
-        super().save_model(request, obj, form, change)
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
         
-        if obj.status == 'COMPLETED' and (original_obj is None or original_obj.status != 'COMPLETED'):
-            completed_time = timezone.now()
-            for item in obj.items.all():
-                StockTransaction.objects.create(
-                    product=item.product,
-                    transaction_type='IN',
-                    quantity=item.quantity,
-                    user=request.user,
-                    notes=f'Received from Purchase Order PO #{obj.id}'
-                )
-                product = item.product
-                product.quantity += item.quantity
-                product.last_purchase_date = completed_time
-                product.save()
+        obj = form.instance
+        
+        if not hasattr(self, '_previous_status'):
+            return
 
-            clear_dashboard_cache()
+        previous_status = self._previous_status
+        current_status = obj.status
+        
+        # LOGIC CHANGE: Only add stock if status becomes 'RECEIVED'
+        if current_status == 'RECEIVED' and previous_status != 'RECEIVED':
+            self._adjust_stock(request, obj, 'IN')
+
+        # Correction: If we revert from RECEIVED back to something else
+        elif previous_status == 'RECEIVED' and current_status != 'RECEIVED':
+             self._adjust_stock(request, obj, 'OUT')
+        
+        clear_dashboard_cache()
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            original = PurchaseOrder.objects.get(pk=obj.pk)
+            self._previous_status = original.status
+        else:
+            self._previous_status = None
+        super().save_model(request, obj, form, change)
+
+    def _adjust_stock(self, request, po, type):
+        with transaction.atomic():
+            for item in po.items.all():
+                product = item.product
+                qty = item.quantity
+                
+                if type == 'IN':
+                    StockTransaction.objects.create(
+                        product=product,
+                        transaction_type='IN',
+                        transaction_reason=StockTransaction.TransactionReason.PURCHASE_ORDER,
+                        quantity=qty,
+                        user=request.user,
+                        notes=f'Received from Purchase Order PO #{po.id}'
+                    )
+                    product.quantity += qty
+                    product.last_purchase_date = timezone.now()
+                
+                elif type == 'OUT':
+                    StockTransaction.objects.create(
+                        product=product,
+                        transaction_type='OUT',
+                        transaction_reason=StockTransaction.TransactionReason.CORRECTION,
+                        quantity=qty,
+                        user=request.user,
+                        notes=f'Correction: Reverted Purchase Order PO #{po.id} status'
+                    )
+                    product.quantity = max(0, product.quantity - qty)
+                
+                product.save()
