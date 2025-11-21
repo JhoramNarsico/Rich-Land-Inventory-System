@@ -87,7 +87,6 @@ def home(request):
         cache.set(cache_key, dashboard_data, 300) 
     
     # --- MERGE LIVE DATA INTO CONTEXT ---
-    # This ensures low_stock is always fresh, while the rest is cached
     context = dashboard_data.copy()
     context['low_stock_products'] = low_stock_products
     context['low_stock_products_count'] = low_stock_products_count
