@@ -97,7 +97,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # --- INTERNATIONALIZATION ---
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Manila'
 USE_I18N = True
 USE_TZ = True
 
@@ -148,4 +148,5 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'A comprehensive API for managing products, stock, and transactions.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+
 }
