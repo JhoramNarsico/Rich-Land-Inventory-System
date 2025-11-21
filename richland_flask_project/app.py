@@ -21,13 +21,16 @@ from flask_wtf.csrf import CSRFProtect
 # --- Project-Specific Imports ---
 from database import (
     users_collection, products_collection, sales_collection,
-    purchase_orders_collection, suppliers_collection, product_history_collection
+    purchase_orders_collection, suppliers_collection, product_history_collection,
+    categories_collection # ADDED
 )
 from models import User
 from forms import (
     LoginForm, ProductCreateForm, ProductUpdateForm, StockTransactionForm,
     ProductFilterForm, TransactionFilterForm, SupplierForm, PurchaseOrderForm,
-    ProductHistoryFilterForm, SalesReportForm, POFilterForm
+    ProductHistoryFilterForm, SalesReportForm, POFilterForm,
+    UserRegistrationForm,
+    CategoryForm # ADDED (Assuming CategoryForm is now in forms.py)
 )
 
 # ==============================================================================
@@ -37,7 +40,9 @@ from forms import (
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+
+# [FIX] Added a fallback secret key. If .env is missing/empty, it uses the default string.
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-replace-in-production')
 
 # Initialize CSRF Protection globally
 csrf = CSRFProtect(app)
@@ -154,12 +159,9 @@ def product_list():
     sort_by = request.args.get('sort_by', '-date_created')
 
     # [FIX] Better logic for default "ACTIVE" status
-    # If the user submitted the filter form (product_status is in args), use their choice.
-    # If they didn't submit the form (just loaded the page), default to ACTIVE.
     if 'product_status' in request.args:
         if form.product_status.data:
             query['status'] = form.product_status.data
-        # If form.product_status.data is empty ("All Statuses"), we leave query['status'] empty (find all)
     else:
         query['status'] = 'ACTIVE'
 
@@ -355,7 +357,7 @@ def add_purchase_order():
         new_po = {
             "order_date": datetime.now(timezone.utc), 
             "status": "PENDING", 
-            "supplier_id": ObjectId(form.supplier.data), 
+            "supplier_id": ObjectId(form.supplier.data),
             "supplier_name": supplier['name'], 
             "created_by_username": current_user.username, 
             "items": items_list
@@ -510,6 +512,112 @@ def analytics_dashboard():
     labels = [row['_id'] for row in data]
     values = [row['total_revenue'] for row in data]
     return render_template('inventory/analytics.html', labels=labels, values=values, table_data=data)
+
+# ==============================================================================
+# Admin Panel Routes
+# ==============================================================================
+
+@app.route('/admin')
+@login_required
+@role_required('Owner', 'Admin')
+def admin_panel():
+    """
+    Displays the Central Admin Dashboard (Django-style).
+    Includes model summaries and recent history.
+    """
+    # 1. Fetch Counts for the Dashboard
+    counts = {
+        'users': users_collection.count_documents({}),
+        'products': products_collection.count_documents({'status': 'ACTIVE'}),
+        'suppliers': suppliers_collection.count_documents({}),
+        'orders_pending': purchase_orders_collection.count_documents({'status': 'PENDING'}),
+        'orders_completed': purchase_orders_collection.count_documents({'status': 'COMPLETED'}),
+        'categories': categories_collection.count_documents({}), # ADDED
+    }
+
+    # 2. Fetch Recent History for the Sidebar (Limit to 10)
+    # We look up the user and product info to make the log readable
+    recent_history = list(product_history_collection.find().sort("timestamp", -1).limit(10))
+    
+    # 3. Fetch Users list (for the user management section)
+    users = list(users_collection.find({}))
+
+    return render_template('admin/panel.html', 
+                           counts=counts, 
+                           history=recent_history, 
+                           users=users)
+
+@app.route('/admin/user/add', methods=['GET', 'POST'])
+@login_required
+@role_required('Owner', 'Admin')
+def add_user():
+    """Page to register a new user."""
+    form = UserRegistrationForm()
+    if form.validate_on_submit():
+        # Check if username already exists
+        if users_collection.find_one({'username': form.username.data}):
+            flash('Username already exists. Please choose another.', 'danger')
+        else:
+            # Hash password and create user
+            hashed_pw = pwd_context.hash(form.password.data)
+            users_collection.insert_one({
+                "username": form.username.data,
+                "hashed_password": hashed_pw,
+                "group": form.group.data
+            })
+            flash(f'User {form.username.data} created successfully!', 'success')
+            return redirect(url_for('admin_panel'))
+            
+    return render_template('admin/register_user.html', form=form)
+
+@app.route('/admin/user/delete/<user_id>', methods=['POST'])
+@login_required
+@role_required('Owner') # Only Owner can delete users for safety
+def delete_user(user_id):
+    """Deletes a user account."""
+    # Prevent deleting your own account while logged in
+    user_to_delete = users_collection.find_one({'_id': ObjectId(user_id)})
+    
+    if user_to_delete and user_to_delete['username'] == current_user.username:
+        flash('You cannot delete your own account!', 'danger')
+    else:
+        # Check if user exists by ObjectId before deleting
+        if user_to_delete:
+            users_collection.delete_one({'_id': ObjectId(user_id)})
+            flash('User account deleted.', 'success')
+        else:
+            flash('User not found.', 'danger')
+        
+    return redirect(url_for('admin_panel'))
+
+# --- NEW CATEGORY ROUTES ---
+
+@app.route('/admin/categories', methods=['GET', 'POST'])
+@login_required
+@role_required('Owner', 'Admin')
+def manage_categories():
+    form = CategoryForm()
+    if form.validate_on_submit():
+        # Check if exists
+        if categories_collection.find_one({'name': form.name.data}):
+            flash('Category already exists.', 'warning')
+        else:
+            categories_collection.insert_one({'name': form.name.data})
+            flash('Category added successfully!', 'success')
+            return redirect(url_for('manage_categories'))
+            
+    categories = list(categories_collection.find().sort('name', 1))
+    return render_template('admin/category_list.html', categories=categories, form=form)
+
+@app.route('/admin/categories/delete/<cat_id>', methods=['POST'])
+@login_required
+@role_required('Owner', 'Admin')
+def delete_category(cat_id):
+    categories_collection.delete_one({'_id': ObjectId(cat_id)})
+    flash('Category deleted.', 'success')
+    return redirect(url_for('manage_categories'))
+    
+# --- END NEW CATEGORY ROUTES ---
 
 
 def create_initial_users():

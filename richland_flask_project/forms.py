@@ -3,7 +3,7 @@ from flask_wtf import FlaskForm
 from wtforms import (StringField, PasswordField, SubmitField, DecimalField, 
                      IntegerField, SelectField, TextAreaField, FieldList, 
                      FormField, HiddenField, DateField)
-from wtforms.validators import DataRequired, NumberRange, Optional, Email
+from wtforms.validators import DataRequired, NumberRange, Optional, Email, EqualTo # Added EqualTo
 
 # ==============================================================================
 # Authentication Forms
@@ -14,6 +14,23 @@ class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
+
+# ==============================================================================
+# User Management Forms # New Section
+# ==============================================================================
+
+class UserRegistrationForm(FlaskForm):
+    """Form for creating a new user account."""
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password', message='Passwords must match')])
+    group = SelectField('Role/Group', choices=[
+        ('Salesman', 'Salesman'),
+        ('Stock Manager', 'Stock Manager'),
+        ('Admin', 'Admin'),
+        ('Owner', 'Owner')
+    ], validators=[DataRequired()])
+    submit = SubmitField('Create Account')
 
 # ==============================================================================
 # Product Management Forms
@@ -113,3 +130,11 @@ class POFilterForm(FlaskForm):
     end_date = DateField('End Date', validators=[Optional()])
     status = SelectField('Status', choices=[('', 'All Statuses'), ('PENDING', 'Pending'), ('COMPLETED', 'Completed')], validators=[Optional()])
     submit = SubmitField('Apply Filters')
+
+    # --- forms.py ---
+
+# Add this new class at the bottom or with other Product forms
+class CategoryForm(FlaskForm):
+    """Form to add a new category."""
+    name = StringField('Category Name', validators=[DataRequired()])
+    submit = SubmitField('Save Category')

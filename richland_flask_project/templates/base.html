@@ -50,7 +50,8 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                                 {% if current_user.group in ['Owner', 'Admin'] %}
-                                    <li><a class="dropdown-item" href="#">Admin Panel</a></li>
+                                    <!-- [FIX] Updated href to point to the admin_panel route -->
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_panel') }}">Admin Panel</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                 {% endif %}
                                 <li>

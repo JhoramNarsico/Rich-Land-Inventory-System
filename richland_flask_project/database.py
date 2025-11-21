@@ -22,8 +22,9 @@ products_collection = db.products
 sales_collection = db.sales
 purchase_orders_collection = db.purchase_orders
 suppliers_collection = db.suppliers
-
-# THIS IS THE NEW LINE that fixes the error
 product_history_collection = db.product_history
+
+# ADD THIS LINE:
+categories_collection = db.categories
 
 print("Database collections initialized.")
