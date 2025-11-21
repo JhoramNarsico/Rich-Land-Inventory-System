@@ -18,37 +18,44 @@
 
     <style>
         :root {
-            /* BRAND COLORS */
-            --brand-teal: #20c997; 
-            --brand-teal-dark: #1aa179;
-            --brand-dark: #2c3e50;
-            --brand-black: #1c1c1c;
-            --brand-warning: #f39c12;
-
+            /* --- NEW BRAND PALETTE --- */
+            --brand-primary: #2799a5;       /* The Logo Color */
+            --brand-primary-dark: #1f7a85;  /* Darker shade for hovers */
+            
+            /* Harmonized Functional Colors */
+            --brand-success: #27a562;       /* Slightly bluish green */
+            --brand-danger: #c0392b;        /* Deep industrial red */
+            --brand-warning: #f39c12;       /* Burnt orange (Complementary) */
+            
+            /* Backgrounds */
+            --brand-dark: #2c3e50;          /* Dark Slate */
+            --brand-black: #1a1a1a;         /* Near Black */
+            
             /* BOOTSTRAP OVERRIDES */
-            --bs-primary: #20c997;
-            --bs-body-bg: #f4f6f9;
+            --bs-primary: #2799a5;
+            --bs-primary-rgb: 39, 153, 165;
+            
+            --bs-success: #27a562;
+            --bs-success-rgb: 39, 165, 98;
+            
+            --bs-danger: #c0392b;
+            --bs-danger-rgb: 192, 57, 43;
+            
             --bs-warning: #f39c12;
+            --bs-warning-rgb: 243, 156, 18;
+            
+            --bs-body-bg: #f4f6f9;
         }
 
-        /* 1. TYPOGRAPHY UPGRADE */
+        /* TYPOGRAPHY */
         body {
             font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
             color: #343a40;
         }
         
-        /* Tabular numbers for data (skus, prices) align vertically */
-        .table td, .badge, .text-monospace {
-            font-feature-settings: "tnum";
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* 2. PROFESSIONAL TABLES (Compact & Clean) */
-        .table {
-            font-size: 0.9rem;
-            margin-bottom: 0;
-        }
+        /* PROFESSIONAL TABLES */
+        .table { font-size: 0.9rem; margin-bottom: 0; }
         .table thead th {
             background-color: #f1f3f5;
             color: #495057;
@@ -56,7 +63,7 @@
             font-size: 0.75rem;
             font-weight: 700;
             letter-spacing: 0.5px;
-            border-bottom: 2px solid #dee2e6;
+            border-bottom: 2px solid #2799a5; /* Thin teal line for branding */
             padding: 12px 10px;
         }
         .table tbody td {
@@ -66,20 +73,19 @@
             border-bottom: 1px solid #e9ecef;
         }
         .table-hover tbody tr:hover {
-            background-color: rgba(32, 201, 151, 0.05);
+            background-color: rgba(39, 153, 165, 0.05); /* Subtle Brand Tint */
         }
-        /* Card fixes for tables */
         .card {
             border: none;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
             border-radius: 8px;
-            overflow: hidden; /* Keeps table corners rounded */
+            overflow: hidden;
         }
 
-        /* Navbar Styling */
+        /* NAVBAR */
         .navbar-dark.bg-dark {
             background-color: var(--brand-black) !important;
-            border-bottom: 4px solid var(--brand-teal);
+            border-bottom: 4px solid var(--brand-primary);
             padding-top: 0.8rem;
             padding-bottom: 0.8rem;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
@@ -93,38 +99,55 @@
             transition: color 0.3s ease;
         }
         .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active {
-            color: var(--brand-teal) !important;
+            color: var(--brand-primary) !important;
         }
 
-        /* Dropdowns */
+        /* DROPDOWNS */
         .dropdown-menu {
             background-color: var(--brand-dark);
-            border-top: 3px solid var(--brand-teal);
+            border-top: 3px solid var(--brand-primary);
             margin-top: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .dropdown-item { color: #ecf0f1; padding: 8px 20px; font-size: 0.9rem; }
-        .dropdown-item:hover { background-color: #34495e; color: #fff; border-left: 3px solid var(--brand-teal); }
+        .dropdown-item:hover { background-color: #34495e; color: #fff; border-left: 3px solid var(--brand-primary); }
 
-        /* Buttons */
+        /* HARMONIZED BUTTONS */
+        /* Primary (Save, Edit, Filter) */
         .btn-primary {
-            background-color: var(--brand-teal);
-            border-color: var(--brand-teal);
+            background-color: var(--brand-primary);
+            border-color: var(--brand-primary);
             color: #fff;
             font-weight: 600;
         }
         .btn-primary:hover {
-            background-color: var(--brand-teal-dark) !important;
-            border-color: var(--brand-teal-dark) !important;
+            background-color: var(--brand-primary-dark) !important;
+            border-color: var(--brand-primary-dark) !important;
         }
         
-        /* Warning Colors */
+        /* Success (Receive, Activate) - Harmonized Green */
+        .btn-success {
+            background-color: var(--brand-success);
+            border-color: var(--brand-success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background-color: #218c53; /* Darker Green */
+            border-color: #218c53;
+        }
+
+        /* Danger (Delete, Stock Out) - Industrial Red */
+        .btn-danger {
+            background-color: var(--brand-danger);
+            border-color: var(--brand-danger);
+        }
+        
+        /* Warning (Pending) - Burnt Orange */
         .bg-warning { background-color: var(--brand-warning) !important; color: #fff !important; }
         .text-warning { color: var(--brand-warning) !important; }
         
-        /* Link Overrides */
         a { color: var(--brand-dark); text-decoration: none; }
-        a:hover { color: var(--brand-teal); }
+        a:hover { color: var(--brand-primary); }
     </style>
 </head>
 <body>
@@ -208,7 +231,6 @@
         </main>
     </div>
 
-    <!-- 3. TOAST NOTIFICATIONS (Replaces static alerts) -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100">
         {% if messages %}
             {% for message in messages %}
@@ -230,16 +252,13 @@
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // HTMX CSRF Config
         document.body.addEventListener('htmx:configRequest', (event) => {
             event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
         });
 
-        // Initialize Toasts
         document.addEventListener("DOMContentLoaded", function() {
             var toastElList = [].slice.call(document.querySelectorAll('.toast'))
             var toastList = toastElList.map(function(toastEl) {
-                // Auto hide after 5 seconds
                 return new bootstrap.Toast(toastEl, { delay: 5000 });
             });
         });

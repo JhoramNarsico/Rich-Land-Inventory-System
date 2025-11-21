@@ -6,7 +6,6 @@
 {% block content %}
 <div class="container-fluid mb-5">
     
-    <!-- 1. HEADER & FILTER -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-1">Analytics Dashboard</h2>
@@ -15,7 +14,6 @@
             </p>
         </div>
         
-        <!-- Filter Form -->
         <form method="get" class="d-flex align-items-end shadow-sm p-2 bg-white rounded border">
             <div class="me-2">
                 <label class="small text-muted fw-bold">From</label>
@@ -31,7 +29,6 @@
         </form>
     </div>
 
-    <!-- 2. KPI CARDS -->
     <div class="row g-4 mb-4">
         <div class="col-md-6">
             <div class="card border-0 shadow-sm border-start border-4 border-primary">
@@ -51,9 +48,7 @@
         </div>
     </div>
 
-    <!-- 3. CHARTS ROW 1 -->
     <div class="row g-4 mb-4">
-        <!-- CATEGORY BREAKDOWN -->
         <div class="col-lg-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
@@ -65,7 +60,6 @@
             </div>
         </div>
 
-        <!-- TOP PRODUCTS -->
         <div class="col-lg-8">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
@@ -78,9 +72,7 @@
         </div>
     </div>
 
-    <!-- 4. CHARTS ROW 2 -->
     <div class="row">
-        <!-- DAILY TREND -->
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
@@ -94,16 +86,13 @@
     </div>
 </div>
 
-<!-- CHART JS CONFIGURATION -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Common Chart Defaults
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#6c757d';
 
     document.addEventListener("DOMContentLoaded", function() {
         
-        // 1. CATEGORY CHART (Doughnut)
         const catLabels = JSON.parse('{{ cat_labels|safe }}');
         const catValues = JSON.parse('{{ cat_values|safe }}');
         
@@ -114,7 +103,8 @@
                     labels: catLabels,
                     datasets: [{
                         data: catValues,
-                        backgroundColor: ['#20c997', '#2c3e50', '#f39c12', '#e74a3b', '#3498db', '#95a5a6'],
+                        // UPDATED PALETTE: Teal, Dark, Orange, Red, Grey, Lighter Teal
+                        backgroundColor: ['#2799a5', '#2c3e50', '#f39c12', '#c0392b', '#95a5a6', '#63dcb9'],
                         borderWidth: 0
                     }]
                 },
@@ -128,7 +118,6 @@
             });
         }
 
-        // 2. TOP PRODUCTS CHART (Horizontal Bar)
         const prodLabels = JSON.parse('{{ prod_labels|safe }}');
         const prodValues = JSON.parse('{{ prod_values|safe }}');
 
@@ -139,13 +128,13 @@
                 datasets: [{
                     label: 'Revenue',
                     data: prodValues,
-                    backgroundColor: '#20c997',
+                    backgroundColor: '#2799a5', // Brand Teal
                     borderRadius: 4,
                     barThickness: 20
                 }]
             },
             options: {
-                indexAxis: 'y', // Makes it horizontal
+                indexAxis: 'y',
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
@@ -155,7 +144,6 @@
             }
         });
 
-        // 3. TREND CHART (Bar)
         const dateLabels = JSON.parse('{{ date_labels|safe }}');
         const dateValues = JSON.parse('{{ date_values|safe }}');
 
@@ -166,7 +154,7 @@
                 datasets: [{
                     label: 'Daily Revenue',
                     data: dateValues,
-                    backgroundColor: '#2c3e50',
+                    backgroundColor: '#2c3e50', // Brand Dark Grey
                     borderRadius: 4,
                     barThickness: 'flex',
                     maxBarThickness: 30
