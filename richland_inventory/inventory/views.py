@@ -9,6 +9,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.views import LoginView # For Custom Login
 from django.contrib.auth.views import LoginView # Required for Custom Login
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
@@ -48,6 +49,27 @@ class CustomLoginView(LoginView):
         remember_me = self.request.POST.get('remember_me')
         
         if remember_me:
+            # Keep the session for SESSION_COOKIE_AGE (defined in settings)
+            self.request.session.set_expiry(1209600) # 2 weeks
+        else:
+            # 0 means "Expire on browser close"
+            self.request.session.set_expiry(0)
+            
+        return response
+
+# --- AUTHENTICATION ---
+
+class CustomLoginView(LoginView):
+    template_name = 'registration/login.html'
+
+    def form_valid(self, form):
+        # Call the parent class to log the user in
+        response = super().form_valid(form)
+        
+        # Check if "Remember Me" was checked
+        remember_me = self.request.POST.get('remember_me')
+        
+        if remember_me:
             # If Checked: Keep session for 2 weeks (SESSION_COOKIE_AGE)
             self.request.session.set_expiry(1209600)
         else:
@@ -69,6 +91,7 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_template_names(self):
+        # HTMX Support: Render only rows if the request comes from HTMX
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
         return ['inventory/product_list.html']
@@ -129,6 +152,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
+        # STRICT LOGIC: Use StockOutForm for manual adjustments (No Stock In allowed here)
         context['transaction_form'] = StockOutForm()
         return context
     
@@ -141,6 +165,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 transaction_obj = form.save(commit=False)
                 transaction_obj.product = product_object
                 transaction_obj.user = request.user
+                # Force type to OUT for manual adjustments
                 transaction_obj.transaction_type = 'OUT'
                 
                 transaction_reason = form.cleaned_data.get('transaction_reason')
@@ -210,6 +235,7 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
     
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
+            messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
             messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
             product = self.get_object()
             return redirect(product.get_absolute_url())
@@ -349,6 +375,7 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
 
 # --- REPORTING & ANALYTICS ---
 
+# FIX: Allow PDF preview in iframe (Fixes "127.0.0.1 refused to connect")
 @method_decorator(xframe_options_exempt, name='dispatch')
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'inventory/reporting.html'
@@ -379,6 +406,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return response
     
     def export_transactions_pdf(self, request):
+        # 1. Base Filter: Get ALL Outgoing transactions within date range
         transactions_base = StockTransaction.objects.select_related('product', 'user').filter(
             transaction_type='OUT'
         )
@@ -402,6 +430,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             total_items_sold=Sum('quantity')
         )
 
+        # 4. Calculate Shrinkage (Damage, Internal, etc.)
         shrinkage_summary = transactions_base.exclude(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('transaction_reason').annotate(
@@ -409,6 +438,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             count=Count('id')
         ).order_by('transaction_reason')
 
+        # 5. Top Sellers
         top_sellers = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
@@ -425,6 +455,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         
+        # Preview Logic: Inline vs Attachment
         if request.GET.get('preview'):
             disposition = 'inline'
         else:
@@ -454,6 +485,7 @@ def analytics_dashboard(request):
         timestamp__date__lte=end_date
     )
 
+    # 2. CHART 1: Revenue by Category (Doughnut)
     cat_data = base_query.values('product__category__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')
@@ -464,6 +496,7 @@ def analytics_dashboard(request):
         cat_labels.append(entry['product__category__name'] or "Uncategorized")
         cat_values.append(float(entry['total_revenue'] or 0))
 
+    # 3. CHART 2: Top 5 Best Selling Products (Horizontal Bar)
     prod_data = base_query.values('product__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')[:5]
@@ -471,6 +504,7 @@ def analytics_dashboard(request):
     prod_labels = [p['product__name'] for p in prod_data]
     prod_values = [float(p['total_revenue']) for p in prod_data]
 
+    # 4. CHART 3: Daily Sales Trend (Bar Chart)
     daily_data = base_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
         daily_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('day')
@@ -486,8 +520,11 @@ def analytics_dashboard(request):
         'filter_form': form,
         'start_date': start_date,
         'end_date': end_date,
+        
         'total_revenue': total_revenue,
         'total_units': total_units,
+
+        # JSON Data for Charts
         'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
         'cat_values': json.dumps(cat_values, cls=DjangoJSONEncoder),
         'prod_labels': json.dumps(prod_labels, cls=DjangoJSONEncoder),
@@ -513,6 +550,7 @@ def sales_chart_data(request):
     data = [float(sale['total_sales']) for sale in sales_data]
     return JsonResponse({'labels': labels, 'data': data})
 
+# --- PURCHASE ORDERS & SUPPLIERS ---
 # --- PURCHASE ORDER & SUPPLIER ---
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
