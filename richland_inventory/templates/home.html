@@ -16,6 +16,7 @@
         </div>
     </div>
 
+    <!-- Low Stock Alerts Section -->
     {% if low_stock_products %}
     <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
         <div class="d-flex align-items-center">
@@ -24,7 +25,8 @@
                 <h5 class="alert-heading fw-bold mb-1">Low Stock Warning</h5>
                 <p class="mb-0">
                     There are <strong>{{ low_stock_products_count }}</strong> items below reorder levels. 
-                    Please review the <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="text-white text-decoration-underline fw-bold">low stock list</a>.
+                    <!-- FIX: Changed class from 'text-white' to 'text-primary' (Teal) -->
+                    Please review the <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="text-primary fw-bold text-decoration-underline">low stock list</a>.
                 </p>
             </div>
         </div>
@@ -182,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     datasets: [{
                         label: 'Revenue',
                         data: data.data,
-                        // UPDATED: Matches Brand Color #2799a5
+                        // Updated to Brand Teal
                         backgroundColor: 'rgba(39, 153, 165, 0.1)',
                         borderColor: '#2799a5',
                         borderWidth: 2,

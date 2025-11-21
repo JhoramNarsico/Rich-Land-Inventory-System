@@ -19,6 +19,8 @@ from django.utils import timezone
 from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.decorators.http import require_POST
+from django.views.decorators.clickjacking import xframe_options_exempt
+from django.utils.decorators import method_decorator
 from rest_framework import viewsets, permissions
 
 from core.cache_utils import clear_dashboard_cache
@@ -32,6 +34,8 @@ from .models import Product, StockTransaction, Category, PurchaseOrder, Supplier
 from .serializers import ProductSerializer
 from .utils import render_to_pdf
 
+# --- PRODUCT MANAGEMENT ---
+
 class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Product
     context_object_name = 'product_list'
@@ -40,6 +44,7 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_template_names(self):
+        # HTMX Support: Render only rows if request is from HTMX
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
         return ['inventory/product_list.html']
@@ -100,7 +105,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
-        # Use StockOutForm for manual adjustments
+        # STRICT LOGIC: Use StockOutForm (No Stock In allowed here)
         context['transaction_form'] = StockOutForm()
         return context
     
@@ -113,6 +118,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 transaction_obj = form.save(commit=False)
                 transaction_obj.product = product_object
                 transaction_obj.user = request.user
+                # Force type to OUT
                 transaction_obj.transaction_type = 'OUT'
                 
                 transaction_reason = form.cleaned_data.get('transaction_reason')
@@ -184,7 +190,7 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
     
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
-            messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
+            messages.error(request, "Only administrators are allowed to permanently delete products.")
             product = self.get_object()
             return redirect(product.get_absolute_url())
         return super().dispatch(request, *args, **kwargs)
@@ -212,6 +218,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.filter(status=Product.Status.ACTIVE)
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+# --- TRANSACTION & HISTORY ---
 
 class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = StockTransaction
@@ -319,6 +327,10 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
         context['product'] = self.product
         return context
 
+# --- REPORTING & ANALYTICS ---
+
+# FIX: Add this decorator to allow the PDF preview iframe to load
+@method_decorator(xframe_options_exempt, name='dispatch')
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'inventory/reporting.html'
     permission_required = 'inventory.can_view_reports'
@@ -374,7 +386,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             total_items_sold=Sum('quantity')
         )
 
-        # 4. Calculate Shrinkage (Damage, etc.)
+        # 4. Calculate Shrinkage/Usage (Damage, Internal, etc.)
         shrinkage_summary = transactions_base.exclude(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('transaction_reason').annotate(
@@ -382,7 +394,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 5. Top Sellers
+        # 5. Top Sellers (Strictly SALES)
         top_sellers = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
@@ -398,8 +410,104 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
-        pdf['Content-Disposition'] = 'attachment; filename="stock_movement_report.pdf"'
+        
+        # Preview vs Download Logic
+        if request.GET.get('preview'):
+            disposition = 'inline'
+        else:
+            disposition = 'attachment'
+            
+        pdf['Content-Disposition'] = f'{disposition}; filename="stock_movement_report.pdf"'
         return pdf
+
+@login_required
+@permission_required('inventory.can_view_reports', raise_exception=True)
+def analytics_dashboard(request):
+    # 1. Handle Date Filtering
+    form = AnalyticsFilterForm(request.GET)
+    start_date = timezone.now() - timedelta(days=30) # Default
+    end_date = timezone.now()
+
+    if form.is_valid():
+        if form.cleaned_data.get('start_date'):
+            start_date = form.cleaned_data['start_date']
+        if form.cleaned_data.get('end_date'):
+            end_date = form.cleaned_data['end_date']
+
+    # Base Query: Sales within range
+    base_query = StockTransaction.objects.filter(
+        transaction_type='OUT',
+        transaction_reason=StockTransaction.TransactionReason.SALE,
+        selling_price__isnull=False,
+        timestamp__date__gte=start_date,
+        timestamp__date__lte=end_date
+    )
+
+    # 2. CHART 1: Revenue by Category
+    cat_data = base_query.values('product__category__name').annotate(
+        total_revenue=Sum(F('quantity') * F('selling_price'))
+    ).order_by('-total_revenue')
+
+    cat_labels = []
+    cat_values = []
+    for entry in cat_data:
+        cat_labels.append(entry['product__category__name'] or "Uncategorized")
+        cat_values.append(float(entry['total_revenue'] or 0))
+
+    # 3. CHART 2: Top 5 Best Selling Products
+    prod_data = base_query.values('product__name').annotate(
+        total_revenue=Sum(F('quantity') * F('selling_price'))
+    ).order_by('-total_revenue')[:5]
+
+    prod_labels = [p['product__name'] for p in prod_data]
+    prod_values = [float(p['total_revenue']) for p in prod_data]
+
+    # 4. CHART 3: Daily Sales Trend
+    daily_data = base_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
+        daily_revenue=Sum(F('quantity') * F('selling_price'))
+    ).order_by('day')
+
+    date_labels = [d['day'].strftime('%b %d') for d in daily_data]
+    date_values = [float(d['daily_revenue']) for d in daily_data]
+
+    # 5. Summary Metrics
+    total_revenue = sum(cat_values)
+    total_units = base_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
+    
+    context = {
+        'page_title': 'Business Analytics',
+        'filter_form': form,
+        'start_date': start_date,
+        'end_date': end_date,
+        'total_revenue': total_revenue,
+        'total_units': total_units,
+        'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
+        'cat_values': json.dumps(cat_values, cls=DjangoJSONEncoder),
+        'prod_labels': json.dumps(prod_labels, cls=DjangoJSONEncoder),
+        'prod_values': json.dumps(prod_values, cls=DjangoJSONEncoder),
+        'date_labels': json.dumps(date_labels, cls=DjangoJSONEncoder),
+        'date_values': json.dumps(date_values, cls=DjangoJSONEncoder),
+    }
+
+    return render(request, 'inventory/analytics.html', context)
+
+@login_required
+def sales_chart_data(request):
+    # Mini Chart for Dashboard (Fixed 30 Days)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    sales_data = StockTransaction.objects.filter(
+        transaction_type='OUT',
+        transaction_reason=StockTransaction.TransactionReason.SALE,
+        timestamp__gte=thirty_days_ago,
+        selling_price__isnull=False
+    ).annotate(day=TruncDate('timestamp')).values('day').annotate(
+        total_sales=Sum(F('selling_price') * F('quantity'))
+    ).order_by('day')
+    labels = [sale['day'].strftime('%b %d') for sale in sales_data]
+    data = [float(sale['total_sales']) for sale in sales_data]
+    return JsonResponse({'labels': labels, 'data': data})
+
+# --- PURCHASE ORDERS ---
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PurchaseOrder
@@ -443,6 +551,12 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
 @login_required
 @permission_required('inventory.change_purchaseorder', raise_exception=True)
 def receive_purchase_order(request, pk):
+    """
+    Allows staff to mark a PO as received (Completed) from the frontend list.
+    1. Admin sets status to 'COMPLETED' (Arrived).
+    2. Staff clicks 'Receive'.
+    3. System updates status to 'RECEIVED' and adds stock.
+    """
     po = get_object_or_404(PurchaseOrder, pk=pk)
     if request.method == 'POST':
         if po.status == 'COMPLETED':
@@ -457,31 +571,6 @@ def receive_purchase_order(request, pk):
         else:
              messages.warning(request, f"Purchase Order #{po.id} must be marked as 'Arrived' (Completed) by Admin before receiving.")
     return redirect('inventory:purchaseorder_list')
-
-@login_required
-@require_POST
-def add_category_ajax(request):
-    form = CategoryCreateForm(request.POST)
-    if form.is_valid():
-        category = form.save()
-        return JsonResponse({'status': 'success', 'category': {'id': category.id, 'name': category.name}})
-    else:
-        return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
-
-@login_required
-def sales_chart_data(request):
-    thirty_days_ago = timezone.now() - timedelta(days=30)
-    sales_data = StockTransaction.objects.filter(
-        transaction_type='OUT',
-        transaction_reason=StockTransaction.TransactionReason.SALE,
-        timestamp__gte=thirty_days_ago,
-        selling_price__isnull=False
-    ).annotate(day=TruncDate('timestamp')).values('day').annotate(
-        total_sales=Sum(F('selling_price') * F('quantity'))
-    ).order_by('day')
-    labels = [sale['day'].strftime('%b %d') for sale in sales_data]
-    data = [float(sale['total_sales']) for sale in sales_data]
-    return JsonResponse({'labels': labels, 'data': data})
 
 class SupplierListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Supplier
@@ -506,75 +595,11 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
         return context
 
 @login_required
-@permission_required('inventory.can_view_reports', raise_exception=True)
-def analytics_dashboard(request):
-    # 1. Handle Date Filtering
-    form = AnalyticsFilterForm(request.GET)
-    start_date = timezone.now() - timedelta(days=30) # Default
-    end_date = timezone.now()
-
+@require_POST
+def add_category_ajax(request):
+    form = CategoryCreateForm(request.POST)
     if form.is_valid():
-        if form.cleaned_data.get('start_date'):
-            start_date = form.cleaned_data['start_date']
-        if form.cleaned_data.get('end_date'):
-            end_date = form.cleaned_data['end_date']
-
-    # Base Query: Sales within range
-    base_query = StockTransaction.objects.filter(
-        transaction_type='OUT',
-        transaction_reason=StockTransaction.TransactionReason.SALE,
-        selling_price__isnull=False,
-        timestamp__date__gte=start_date,
-        timestamp__date__lte=end_date
-    )
-
-    # 2. CHART 1: Revenue by Category (Doughnut)
-    cat_data = base_query.values('product__category__name').annotate(
-        total_revenue=Sum(F('quantity') * F('selling_price'))
-    ).order_by('-total_revenue')
-
-    cat_labels = []
-    cat_values = []
-    for entry in cat_data:
-        cat_labels.append(entry['product__category__name'] or "Uncategorized")
-        cat_values.append(float(entry['total_revenue'] or 0))
-
-    # 3. CHART 2: Top 5 Best Selling Products (Horizontal Bar)
-    prod_data = base_query.values('product__name').annotate(
-        total_revenue=Sum(F('quantity') * F('selling_price'))
-    ).order_by('-total_revenue')[:5]
-
-    prod_labels = [p['product__name'] for p in prod_data]
-    prod_values = [float(p['total_revenue']) for p in prod_data]
-
-    # 4. CHART 3: Daily Sales Trend (Bar Chart)
-    daily_data = base_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
-        daily_revenue=Sum(F('quantity') * F('selling_price'))
-    ).order_by('day')
-
-    date_labels = [d['day'].strftime('%b %d') for d in daily_data]
-    date_values = [float(d['daily_revenue']) for d in daily_data]
-
-    # 5. Summary Metrics
-    total_revenue = sum(cat_values)
-    total_units = base_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
-    
-    context = {
-        'page_title': 'Business Analytics',
-        'filter_form': form,
-        'start_date': start_date,
-        'end_date': end_date,
-        
-        'total_revenue': total_revenue,
-        'total_units': total_units,
-
-        # JSON Data for Charts
-        'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
-        'cat_values': json.dumps(cat_values, cls=DjangoJSONEncoder),
-        'prod_labels': json.dumps(prod_labels, cls=DjangoJSONEncoder),
-        'prod_values': json.dumps(prod_values, cls=DjangoJSONEncoder),
-        'date_labels': json.dumps(date_labels, cls=DjangoJSONEncoder),
-        'date_values': json.dumps(date_values, cls=DjangoJSONEncoder),
-    }
-
-    return render(request, 'inventory/analytics.html', context)
+        category = form.save()
+        return JsonResponse({'status': 'success', 'category': {'id': category.id, 'name': category.name}})
+    else:
+        return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
