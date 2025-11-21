@@ -18,11 +18,11 @@
 
     <style>
         :root {
-            /* --- NEW BRAND PALETTE --- */
-            --brand-primary: #2799a5;       /* The Logo Color */
-            --brand-primary-dark: #1f7a85;  /* Darker shade for hovers */
+            /* --- BRAND PALETTE --- */
+            --brand-primary: #2799a5;       /* Ocean Teal */
+            --brand-primary-dark: #1f7a85;  
             
-            /* Harmonized Functional Colors */
+            /* Functional Colors */
             --brand-success: #27a562;       
             --brand-danger: #c0392b;        
             --brand-warning: #f39c12;       
@@ -34,27 +34,24 @@
             /* BOOTSTRAP OVERRIDES */
             --bs-primary: #2799a5;
             --bs-primary-rgb: 39, 153, 165;
-            
             --bs-success: #27a562;
-            --bs-success-rgb: 39, 165, 98;
-            
             --bs-danger: #c0392b;
-            --bs-danger-rgb: 192, 57, 43;
-            
             --bs-warning: #f39c12;
-            --bs-warning-rgb: 243, 156, 18;
-            
             --bs-body-bg: #f4f6f9;
         }
 
-        /* TYPOGRAPHY */
+        /* 1. TYPOGRAPHY */
         body {
             font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
             color: #343a40;
         }
-        
-        /* PROFESSIONAL TABLES */
+        .table td, .badge, .text-monospace {
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* 2. PROFESSIONAL TABLES */
         .table { font-size: 0.9rem; margin-bottom: 0; }
         .table thead th {
             background-color: #f1f3f5;
@@ -63,13 +60,12 @@
             font-size: 0.75rem;
             font-weight: 700;
             letter-spacing: 0.5px;
-            border-bottom: 2px solid #2799a5; 
+            border-bottom: 2px solid var(--brand-primary); 
             padding: 12px 10px;
         }
         .table tbody td {
             vertical-align: middle;
             padding: 8px 10px;
-            color: #212529;
             border-bottom: 1px solid #e9ecef;
         }
         .table-hover tbody tr:hover {
@@ -82,7 +78,7 @@
             overflow: hidden;
         }
 
-        /* NAVBAR */
+        /* 3. NAVBAR */
         .navbar-dark.bg-dark {
             background-color: var(--brand-black) !important;
             border-bottom: 4px solid var(--brand-primary);
@@ -102,7 +98,7 @@
             color: var(--brand-primary) !important;
         }
 
-        /* DROPDOWNS */
+        /* 4. DROPDOWNS */
         .dropdown-menu {
             background-color: var(--brand-dark);
             border-top: 3px solid var(--brand-primary);
@@ -112,7 +108,7 @@
         .dropdown-item { color: #ecf0f1; padding: 8px 20px; font-size: 0.9rem; }
         .dropdown-item:hover { background-color: #34495e; color: #fff; border-left: 3px solid var(--brand-primary); }
 
-        /* BUTTONS */
+        /* 5. BUTTONS */
         .btn-primary {
             background-color: var(--brand-primary);
             border-color: var(--brand-primary);
@@ -124,28 +120,13 @@
             border-color: var(--brand-primary-dark) !important;
         }
         
-        .btn-success {
-            background-color: var(--brand-success);
-            border-color: var(--brand-success);
-            color: #fff;
-        }
-        .btn-success:hover {
-            background-color: #218c53; 
-            border-color: #218c53;
-        }
-
-        .btn-danger {
-            background-color: var(--brand-danger);
-            border-color: var(--brand-danger);
-        }
-        
         .bg-warning { background-color: var(--brand-warning) !important; color: #fff !important; }
         .text-warning { color: var(--brand-warning) !important; }
         
         a { color: var(--brand-dark); text-decoration: none; }
         a:hover { color: var(--brand-primary); }
 
-        /* --- PAGINATION OVERRIDES (MATCH TEAL THEME) --- */
+        /* 6. PAGINATION OVERRIDES */
         .pagination {
             --bs-pagination-active-bg: var(--brand-primary);
             --bs-pagination-active-border-color: var(--brand-primary);
@@ -153,28 +134,11 @@
             --bs-pagination-hover-color: var(--brand-primary-dark);
             --bs-pagination-focus-color: var(--brand-primary-dark);
         }
-        
-        .page-link {
-            color: var(--brand-primary); /* Teal text for inactive numbers */
-            font-weight: 500;
-        }
-        
-        .page-link:hover {
-            color: var(--brand-primary-dark);
-            background-color: rgba(39, 153, 165, 0.1); /* Light teal bg on hover */
-            border-color: #dee2e6;
-        }
-        
-        /* Force Active State color */
+        .page-link { color: var(--brand-primary); font-weight: 500; }
         .page-item.active .page-link {
             background-color: var(--brand-primary) !important;
             border-color: var(--brand-primary) !important;
             color: #fff !important;
-        }
-        
-        /* Removes the blue focus ring standard in Bootstrap */
-        .page-link:focus {
-            box-shadow: 0 0 0 0.25rem rgba(39, 153, 165, 0.25);
         }
     </style>
 </head>
@@ -259,6 +223,7 @@
         </main>
     </div>
 
+    <!-- TOAST CONTAINER -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100">
         {% if messages %}
             {% for message in messages %}
@@ -290,6 +255,38 @@
                 return new bootstrap.Toast(toastEl, { delay: 5000 });
             });
         });
+
+        // --- AUTO LOGOUT SCRIPT (15 Minutes) ---
+        {% if user.is_authenticated %}
+        (function() {
+            let time;
+            const timeout = 15 * 60 * 1000; 
+
+            function logout() {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = "{% url 'logout' %}";
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = 'csrfmiddlewaretoken';
+                csrfToken.value = '{{ csrf_token }}';
+                form.appendChild(csrfToken);
+                document.body.appendChild(form);
+                form.submit();
+            }
+
+            function resetTimer() {
+                clearTimeout(time);
+                time = setTimeout(logout, timeout);
+            }
+
+            window.onload = resetTimer;
+            document.onmousemove = resetTimer;
+            document.onkeypress = resetTimer;
+            document.onclick = resetTimer;
+            document.onscroll = resetTimer;
+        })();
+        {% endif %}
     </script>
     {% block extra_js %}{% endblock %}
 </body>

@@ -14,7 +14,6 @@
             <p class="text-muted small text-uppercase fw-semibold ls-1">Authorized Access Only</p>
         </div>
 
-        <!-- Error Messages -->
         {% if form.non_field_errors %}
             <div class="alert alert-danger d-flex align-items-center small" role="alert">
                 <i class="fas fa-exclamation-circle me-2"></i>
@@ -40,13 +39,21 @@
             </div>
 
             <!-- Password Field -->
-            <div class="mb-4">
+            <div class="mb-3">
                 <label for="{{ form.password.id_for_label }}" class="form-label fw-bold text-secondary small text-uppercase">Password</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-lock"></i></span>
                     <input type="password" name="{{ form.password.name }}" class="form-control" 
                            id="{{ form.password.id_for_label }}" placeholder="Enter your password" required>
                 </div>
+            </div>
+
+            <!-- REMEMBER ME CHECKBOX -->
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
+                <label class="form-check-label small text-secondary" for="remember_me">
+                    Keep me signed in
+                </label>
             </div>
 
             <!-- Submit Button -->
