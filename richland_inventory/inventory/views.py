@@ -9,7 +9,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
-from django.contrib.auth.views import LoginView # For Custom Login
+from django.contrib.auth.views import LoginView # Required for Custom Login
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField
@@ -48,11 +48,14 @@ class CustomLoginView(LoginView):
         remember_me = self.request.POST.get('remember_me')
         
         if remember_me:
-            # Keep the session for SESSION_COOKIE_AGE (defined in settings)
-            self.request.session.set_expiry(1209600) # 2 weeks
+            # If Checked: Keep session for 2 weeks (SESSION_COOKIE_AGE)
+            self.request.session.set_expiry(1209600)
         else:
-            # 0 means "Expire on browser close"
-            self.request.session.set_expiry(0)
+            # If Unchecked: Set a hard limit of 30 minutes (1800 seconds).
+            # Since SESSION_SAVE_EVERY_REQUEST = True in settings, this timer
+            # resets every time they click a link. If they are inactive for 30m,
+            # or close the browser and return after 30m, they are logged out.
+            self.request.session.set_expiry(1800)
             
         return response
 
@@ -66,7 +69,6 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_template_names(self):
-        # HTMX Support: Render only rows if the request comes from HTMX
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
         return ['inventory/product_list.html']
@@ -127,7 +129,6 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
-        # STRICT LOGIC: Use StockOutForm for manual adjustments (No Stock In allowed here)
         context['transaction_form'] = StockOutForm()
         return context
     
@@ -140,7 +141,6 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 transaction_obj = form.save(commit=False)
                 transaction_obj.product = product_object
                 transaction_obj.user = request.user
-                # Force type to OUT for manual adjustments
                 transaction_obj.transaction_type = 'OUT'
                 
                 transaction_reason = form.cleaned_data.get('transaction_reason')
@@ -153,11 +153,9 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 product_object.quantity -= quantity
                 product_object.save()
                 
-                # Only record revenue if it is a SALE
                 if transaction_reason == StockTransaction.TransactionReason.SALE:
                     transaction_obj.selling_price = product_object.price
                 else:
-                    # Damage, Internal Use, Correction = No Revenue
                     transaction_obj.selling_price = None 
                 
                 transaction_obj.save()
@@ -351,7 +349,6 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
 
 # --- REPORTING & ANALYTICS ---
 
-# FIX: Allow PDF preview in iframe (Fixes "127.0.0.1 refused to connect")
 @method_decorator(xframe_options_exempt, name='dispatch')
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'inventory/reporting.html'
@@ -382,7 +379,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return response
     
     def export_transactions_pdf(self, request):
-        # 1. Base Filter: Get ALL Outgoing transactions within date range
         transactions_base = StockTransaction.objects.select_related('product', 'user').filter(
             transaction_type='OUT'
         )
@@ -395,12 +391,10 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
         
-        # 2. Annotate row totals
         all_out_transactions = transactions_base.annotate(
             row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
         ).order_by('-timestamp')
 
-        # 3. Calculate Revenue (Strictly SALES)
         revenue_summary = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).aggregate(
@@ -408,7 +402,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             total_items_sold=Sum('quantity')
         )
 
-        # 4. Calculate Shrinkage (Damage, Internal, etc.)
         shrinkage_summary = transactions_base.exclude(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('transaction_reason').annotate(
@@ -416,7 +409,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 5. Top Sellers
         top_sellers = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
@@ -433,7 +425,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         
-        # Preview Logic: Inline vs Attachment
         if request.GET.get('preview'):
             disposition = 'inline'
         else:
@@ -445,9 +436,8 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
 @login_required
 @permission_required('inventory.can_view_reports', raise_exception=True)
 def analytics_dashboard(request):
-    # 1. Handle Date Filtering
     form = AnalyticsFilterForm(request.GET)
-    start_date = timezone.now() - timedelta(days=30) # Default
+    start_date = timezone.now() - timedelta(days=30)
     end_date = timezone.now()
 
     if form.is_valid():
@@ -456,7 +446,6 @@ def analytics_dashboard(request):
         if form.cleaned_data.get('end_date'):
             end_date = form.cleaned_data['end_date']
 
-    # Base Query: Sales within range
     base_query = StockTransaction.objects.filter(
         transaction_type='OUT',
         transaction_reason=StockTransaction.TransactionReason.SALE,
@@ -465,7 +454,6 @@ def analytics_dashboard(request):
         timestamp__date__lte=end_date
     )
 
-    # 2. CHART 1: Revenue by Category (Doughnut)
     cat_data = base_query.values('product__category__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')
@@ -476,7 +464,6 @@ def analytics_dashboard(request):
         cat_labels.append(entry['product__category__name'] or "Uncategorized")
         cat_values.append(float(entry['total_revenue'] or 0))
 
-    # 3. CHART 2: Top 5 Best Selling Products (Horizontal Bar)
     prod_data = base_query.values('product__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')[:5]
@@ -484,7 +471,6 @@ def analytics_dashboard(request):
     prod_labels = [p['product__name'] for p in prod_data]
     prod_values = [float(p['total_revenue']) for p in prod_data]
 
-    # 4. CHART 3: Daily Sales Trend (Bar Chart)
     daily_data = base_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
         daily_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('day')
@@ -492,7 +478,6 @@ def analytics_dashboard(request):
     date_labels = [d['day'].strftime('%b %d') for d in daily_data]
     date_values = [float(d['daily_revenue']) for d in daily_data]
 
-    # 5. Summary Metrics
     total_revenue = sum(cat_values)
     total_units = base_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
     
@@ -501,11 +486,8 @@ def analytics_dashboard(request):
         'filter_form': form,
         'start_date': start_date,
         'end_date': end_date,
-        
         'total_revenue': total_revenue,
         'total_units': total_units,
-
-        # JSON Data for Charts
         'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
         'cat_values': json.dumps(cat_values, cls=DjangoJSONEncoder),
         'prod_labels': json.dumps(prod_labels, cls=DjangoJSONEncoder),
@@ -518,7 +500,6 @@ def analytics_dashboard(request):
 
 @login_required
 def sales_chart_data(request):
-    # Mini Chart for Dashboard (Fixed 30 Days)
     thirty_days_ago = timezone.now() - timedelta(days=30)
     sales_data = StockTransaction.objects.filter(
         transaction_type='OUT',
@@ -532,7 +513,7 @@ def sales_chart_data(request):
     data = [float(sale['total_sales']) for sale in sales_data]
     return JsonResponse({'labels': labels, 'data': data})
 
-# --- PURCHASE ORDERS & SUPPLIERS ---
+# --- PURCHASE ORDER & SUPPLIER ---
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PurchaseOrder
@@ -576,12 +557,6 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
 @login_required
 @permission_required('inventory.change_purchaseorder', raise_exception=True)
 def receive_purchase_order(request, pk):
-    """
-    Allows staff to mark a PO as received (Completed) from the frontend list.
-    1. Admin sets status to 'COMPLETED' (Arrived).
-    2. Staff clicks 'Receive'.
-    3. System updates status to 'RECEIVED' and adds stock.
-    """
     po = get_object_or_404(PurchaseOrder, pk=pk)
     if request.method == 'POST':
         if po.status == 'COMPLETED':
