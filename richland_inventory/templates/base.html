@@ -23,13 +23,13 @@
             --brand-primary-dark: #1f7a85;  /* Darker shade for hovers */
             
             /* Harmonized Functional Colors */
-            --brand-success: #27a562;       /* Slightly bluish green */
-            --brand-danger: #c0392b;        /* Deep industrial red */
-            --brand-warning: #f39c12;       /* Burnt orange (Complementary) */
+            --brand-success: #27a562;       
+            --brand-danger: #c0392b;        
+            --brand-warning: #f39c12;       
             
             /* Backgrounds */
-            --brand-dark: #2c3e50;          /* Dark Slate */
-            --brand-black: #1a1a1a;         /* Near Black */
+            --brand-dark: #2c3e50;          
+            --brand-black: #1a1a1a;         
             
             /* BOOTSTRAP OVERRIDES */
             --bs-primary: #2799a5;
@@ -63,7 +63,7 @@
             font-size: 0.75rem;
             font-weight: 700;
             letter-spacing: 0.5px;
-            border-bottom: 2px solid #2799a5; /* Thin teal line for branding */
+            border-bottom: 2px solid #2799a5; 
             padding: 12px 10px;
         }
         .table tbody td {
@@ -73,7 +73,7 @@
             border-bottom: 1px solid #e9ecef;
         }
         .table-hover tbody tr:hover {
-            background-color: rgba(39, 153, 165, 0.05); /* Subtle Brand Tint */
+            background-color: rgba(39, 153, 165, 0.05); 
         }
         .card {
             border: none;
@@ -112,8 +112,7 @@
         .dropdown-item { color: #ecf0f1; padding: 8px 20px; font-size: 0.9rem; }
         .dropdown-item:hover { background-color: #34495e; color: #fff; border-left: 3px solid var(--brand-primary); }
 
-        /* HARMONIZED BUTTONS */
-        /* Primary (Save, Edit, Filter) */
+        /* BUTTONS */
         .btn-primary {
             background-color: var(--brand-primary);
             border-color: var(--brand-primary);
@@ -125,29 +124,58 @@
             border-color: var(--brand-primary-dark) !important;
         }
         
-        /* Success (Receive, Activate) - Harmonized Green */
         .btn-success {
             background-color: var(--brand-success);
             border-color: var(--brand-success);
             color: #fff;
         }
         .btn-success:hover {
-            background-color: #218c53; /* Darker Green */
+            background-color: #218c53; 
             border-color: #218c53;
         }
 
-        /* Danger (Delete, Stock Out) - Industrial Red */
         .btn-danger {
             background-color: var(--brand-danger);
             border-color: var(--brand-danger);
         }
         
-        /* Warning (Pending) - Burnt Orange */
         .bg-warning { background-color: var(--brand-warning) !important; color: #fff !important; }
         .text-warning { color: var(--brand-warning) !important; }
         
         a { color: var(--brand-dark); text-decoration: none; }
         a:hover { color: var(--brand-primary); }
+
+        /* --- PAGINATION OVERRIDES (MATCH TEAL THEME) --- */
+        .pagination {
+            --bs-pagination-active-bg: var(--brand-primary);
+            --bs-pagination-active-border-color: var(--brand-primary);
+            --bs-pagination-color: var(--brand-primary);
+            --bs-pagination-hover-color: var(--brand-primary-dark);
+            --bs-pagination-focus-color: var(--brand-primary-dark);
+        }
+        
+        .page-link {
+            color: var(--brand-primary); /* Teal text for inactive numbers */
+            font-weight: 500;
+        }
+        
+        .page-link:hover {
+            color: var(--brand-primary-dark);
+            background-color: rgba(39, 153, 165, 0.1); /* Light teal bg on hover */
+            border-color: #dee2e6;
+        }
+        
+        /* Force Active State color */
+        .page-item.active .page-link {
+            background-color: var(--brand-primary) !important;
+            border-color: var(--brand-primary) !important;
+            color: #fff !important;
+        }
+        
+        /* Removes the blue focus ring standard in Bootstrap */
+        .page-link:focus {
+            box-shadow: 0 0 0 0.25rem rgba(39, 153, 165, 0.25);
+        }
     </style>
 </head>
 <body>

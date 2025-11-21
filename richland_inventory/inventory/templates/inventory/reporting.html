@@ -3,45 +3,88 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-    <h1 class="mb-4">{{ page_title }}</h1>
+    <h1 class="mb-4 fw-bold text-dark">{{ page_title }}</h1>
 
     <div class="row">
         <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header"><h4>Current Inventory Report</h4></div>
-                <div class="card-body"><p class="card-text">Generate a complete CSV snapshot of your current inventory, ideal for data analysis.</p></div>
-                <div class="card-footer"><a href="{% url 'inventory:reporting' %}?export=inventory_csv" class="btn btn-primary"><i class="fas fa-file-csv me-2"></i> Export as CSV</a></div>
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0 text-primary fw-bold">Current Inventory Report</h4>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted">Generate a complete CSV snapshot of your current inventory, ideal for data analysis and Excel imports.</p>
+                </div>
+                <div class="card-footer bg-white border-top-0 pb-3">
+                    <a href="{% url 'inventory:reporting' %}?export=inventory_csv" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-file-csv me-2"></i> Export as CSV
+                    </a>
+                </div>
             </div>
         </div>
         
         <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header"><h4>Transaction History Report</h4></div>
-                <form action="{% url 'inventory:reporting' %}" method="get">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <h4 class="mb-0 text-primary fw-bold">Transaction History Report</h4>
+                </div>
+                <!-- ID added for JS selection -->
+                <form id="reportForm" action="{% url 'inventory:reporting' %}" method="get">
                     <div class="card-body">
-                        <p class="card-text">Select a date range to generate a print-friendly PDF of all stock movements within that period.</p>
+                        <p class="card-text text-muted">Select a date range to generate a print-friendly PDF of all stock movements (Sales & Loss).</p>
                         <input type="hidden" name="export" value="transaction_pdf">
+                        
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="id_start_date" class="form-label">Start Date</label>
+                                <label for="id_start_date" class="form-label fw-bold small text-uppercase">Start Date</label>
                                 {{ transaction_report_form.start_date }}
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="id_end_date" class="form-label">End Date</label>
+                                <label for="id_end_date" class="form-label fw-bold small text-uppercase">End Date</label>
                                 {{ transaction_report_form.end_date }}
                             </div>
                         </div>
-                        <div class="btn-group btn-group-sm" role="group">
+                        
+                        <div class="btn-group btn-group-sm w-100" role="group">
                             <button type="button" class="btn btn-outline-secondary" id="set-today">Today</button>
                             <button type="button" class="btn btn-outline-secondary" id="set-week">This Week</button>
                             <button type="button" class="btn btn-outline-secondary" id="set-month">This Month</button>
-                            <button type="button" class="btn btn-outline-secondary" id="set-year">This Year</button>
                         </div>
                     </div>
-                    <div class="card-footer">
-                        <button type="submit" class="btn btn-success"><i class="fas fa-file-pdf me-2"></i> Generate PDF Report</button>
+                    <div class="card-footer bg-white border-top-0 pb-3 d-flex gap-2">
+                        <!-- PREVIEW BUTTON -->
+                        <button type="button" class="btn btn-primary flex-grow-1" onclick="openPdfPreview()">
+                            <i class="fas fa-eye me-2"></i> Preview Report
+                        </button>
+                        <!-- DIRECT DOWNLOAD BUTTON -->
+                        <button type="submit" class="btn btn-outline-dark">
+                            <i class="fas fa-download"></i>
+                        </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF PREVIEW MODAL -->
+    <div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-labelledby="pdfPreviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered"> <!-- modal-xl for wide view -->
+            <div class="modal-content" style="height: 90vh;">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title text-dark fw-bold" id="pdfPreviewModalLabel">
+                        <i class="fas fa-file-pdf me-2 text-danger"></i> Report Preview
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0 bg-secondary">
+                    <!-- Iframe to load the PDF -->
+                    <iframe id="pdfViewer" src="" width="100%" height="100%" style="border: none;"></iframe>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <a href="#" id="downloadBtn" class="btn btn-primary">
+                        <i class="fas fa-download me-2"></i> Download PDF
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -49,36 +92,57 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const startDateInput = document.getElementById('id_start_date');
-    const endDateInput = document.getElementById('id_end_date');
-    const formatDate = (date) => date.toISOString().split('T')[0];
-    const today = new Date();
-    const todayStr = formatDate(today);
+    // 1. Preview Logic
+    function openPdfPreview() {
+        // Get date values
+        const startDate = document.getElementById('id_start_date').value;
+        const endDate = document.getElementById('id_end_date').value;
+        
+        // Base URL
+        let baseUrl = "{% url 'inventory:reporting' %}?export=transaction_pdf";
+        
+        // Append params if they exist
+        if(startDate) baseUrl += `&start_date=${startDate}`;
+        if(endDate) baseUrl += `&end_date=${endDate}`;
+        
+        // Generate URLs
+        const previewUrl = baseUrl + "&preview=true"; // For Iframe (Inline)
+        const downloadUrl = baseUrl; // For Button (Attachment)
+        
+        // Update UI
+        document.getElementById('pdfViewer').src = previewUrl;
+        document.getElementById('downloadBtn').href = downloadUrl;
+        
+        // Show Modal
+        const modal = new bootstrap.Modal(document.getElementById('pdfPreviewModal'));
+        modal.show();
+    }
 
-    document.getElementById('set-today').addEventListener('click', () => {
-        startDateInput.value = todayStr;
-        endDateInput.value = todayStr;
-    });
+    // 2. Date Helper Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateInput = document.getElementById('id_start_date');
+        const endDateInput = document.getElementById('id_end_date');
+        const formatDate = (date) => date.toISOString().split('T')[0];
+        const today = new Date();
+        const todayStr = formatDate(today);
 
-    document.getElementById('set-week').addEventListener('click', () => {
-        const firstDayOfWeek = new Date(today);
-        firstDayOfWeek.setDate(today.getDate() - today.getDay());
-        startDateInput.value = formatDate(firstDayOfWeek);
-        endDateInput.value = todayStr;
-    });
-    
-    document.getElementById('set-month').addEventListener('click', () => {
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        startDateInput.value = formatDate(firstDayOfMonth);
-        endDateInput.value = todayStr;
-    });
+        document.getElementById('set-today').addEventListener('click', () => {
+            startDateInput.value = todayStr;
+            endDateInput.value = todayStr;
+        });
 
-    document.getElementById('set-year').addEventListener('click', () => {
-        const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-        startDateInput.value = formatDate(firstDayOfYear);
-        endDateInput.value = todayStr;
+        document.getElementById('set-week').addEventListener('click', () => {
+            const firstDayOfWeek = new Date(today);
+            firstDayOfWeek.setDate(today.getDate() - today.getDay()); // Adjust logic if week starts Mon/Sun
+            startDateInput.value = formatDate(firstDayOfWeek);
+            endDateInput.value = todayStr;
+        });
+        
+        document.getElementById('set-month').addEventListener('click', () => {
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            startDateInput.value = formatDate(firstDayOfMonth);
+            endDateInput.value = todayStr;
+        });
     });
-});
 </script>
 {% endblock %}
