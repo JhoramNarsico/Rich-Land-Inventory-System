@@ -16,7 +16,6 @@
         </div>
     </div>
 
-    <!-- Low Stock Alerts Section -->
     {% if low_stock_products %}
     <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
         <div class="d-flex align-items-center">
@@ -32,10 +31,7 @@
     </div>
     {% endif %}
 
-    <!-- 4. TREND INDICATORS (Metric Cards) -->
     <div class="row g-4 mb-4">
-        
-        <!-- Card 1: Total Products -->
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
@@ -56,7 +52,6 @@
             </div>
         </div>
 
-        <!-- Card 2: Stock Value -->
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
@@ -76,7 +71,6 @@
             </div>
         </div>
 
-        <!-- Card 3: Monthly Revenue (With Trend) -->
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
@@ -111,7 +105,6 @@
         </div>
     </div>
 
-    <!-- Charts and Tables -->
     <div class="row">
         <div class="col-lg-8 mb-4">
             <div class="card shadow-sm border-0 h-100">
@@ -189,8 +182,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     datasets: [{
                         label: 'Revenue',
                         data: data.data,
-                        backgroundColor: 'rgba(32, 201, 151, 0.1)',
-                        borderColor: '#20c997',
+                        // UPDATED: Matches Brand Color #2799a5
+                        backgroundColor: 'rgba(39, 153, 165, 0.1)',
+                        borderColor: '#2799a5',
                         borderWidth: 2,
                         pointBackgroundColor: '#2c3e50',
                         pointBorderColor: '#fff',

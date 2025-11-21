@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Rich Land Inventory{% endblock %}</title>
 
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Bootstrap CSS -->
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
     <!-- Font Awesome -->
@@ -13,11 +18,11 @@
     
     <style>
         :root {
-            /* The Teal color sampled from the "Rich Land" ribbon */
-            --brand-teal: #20c997; 
-            --brand-teal-dark: #1aa179;
-            /* Dark Grey from the gears */
-            --brand-dark: #2c3e50;
+            /* BRAND COLORS */
+            --brand-primary: #2799a5;       /* Logo Teal */
+            --brand-primary-dark: #1f7a85;  /* Darker Teal for Hover */
+            --brand-dark: #2c3e50;          /* Industrial Blue-Grey */
+            --brand-black: #1c1c1c;         /* Deep Black */
         }
 
         body {
@@ -25,58 +30,62 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            /* Dark Industrial Gradient (Black/Grey to muted Teal) */
-            background: linear-gradient(135deg, #1c1c1c 0%, #2f4f4f 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* Industrial Dark Gradient Background */
+            background: linear-gradient(135deg, var(--brand-black) 0%, var(--brand-dark) 100%);
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
         
         .auth-container {
             width: 100%;
-            max-width: 420px;
-            padding: 15px;
+            max-width: 400px;
+            padding: 20px;
         }
 
         .card {
             border: none;
-            border-radius: 15px;
-            /* Stronger shadow to pop against the dark background */
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            /* Soft shadow to make it pop against the dark background */
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
         }
 
-        /* Override Bootstrap Primary Button to match Logo Ribbon */
+        /* Primary Button Override (Teal) */
         .btn-primary {
-            background-color: var(--brand-teal);
-            border-color: var(--brand-teal);
+            background-color: var(--brand-primary);
+            border-color: var(--brand-primary);
             color: #ffffff;
-            transition: all 0.3s ease;
             font-weight: 600;
-            text-transform: uppercase;
+            padding: 10px;
             letter-spacing: 0.5px;
+            transition: all 0.3s ease;
         }
         
         .btn-primary:hover {
-            background-color: var(--brand-teal-dark);
-            border-color: var(--brand-teal-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(32, 201, 151, 0.4);
+            background-color: var(--brand-primary-dark);
+            border-color: var(--brand-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(39, 153, 165, 0.4);
         }
 
-        /* Input Focus Styles */
+        /* Input Fields */
+        .form-control {
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+        
         .form-control:focus {
-            border-color: var(--brand-teal);
-            box-shadow: 0 0 0 0.25rem rgba(32, 201, 151, 0.25);
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 0.25rem rgba(39, 153, 165, 0.25);
         }
 
-        /* Icon colors */
+        /* Input Group Icons */
         .input-group-text {
             background-color: #f8f9fa;
             border-right: none;
+            color: var(--brand-dark);
         }
         .input-group .form-control {
             border-left: none;
-        }
-        .input-icon {
-            color: var(--brand-dark);
         }
     </style>
 </head>
