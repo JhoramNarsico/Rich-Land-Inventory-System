@@ -112,9 +112,17 @@ if not DEBUG:
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- SESSION MANAGEMENT (Auto-Sign Out / Remember Me) ---
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Default: Logout on close
-SESSION_COOKIE_AGE = 1209600            # If "Remember Me", keep for 2 weeks
+# --- SESSION MANAGEMENT (FIX FOR BROWSER RESTORE) ---
+# 1. Default expiry is 2 weeks (used if "Remember Me" is checked)
+SESSION_COOKIE_AGE = 1209600 
+
+# 2. Try to expire when browser closes (Browsers often ignore this)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# 3. CRITICAL: Reset the session timer on every request.
+# This allows us to set a short timeout (e.g. 30 mins) that auto-renews
+# as long as the user is active.
+SESSION_SAVE_EVERY_REQUEST = True
 
 # --- PRODUCTION SECURITY ---
 if not DEBUG:
