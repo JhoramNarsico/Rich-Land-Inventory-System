@@ -193,5 +193,11 @@ python manage.py runserver
 python manage.py test inventory
 ```
 
+ ```bash
+python manage.py flush
+```
 
+ ```bash
+python manage.py seed_data
+```
 
