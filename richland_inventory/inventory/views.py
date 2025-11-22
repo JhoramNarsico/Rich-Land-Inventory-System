@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView # Required for Custom Login
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField
@@ -42,10 +43,14 @@ class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
 
     def form_valid(self, form):
+        # Call the parent class to log the user in
         response = super().form_valid(form)
+        
+        # Check if "Remember Me" was checked
         remember_me = self.request.POST.get('remember_me')
+        
         if remember_me:
-            # Keep session for 2 weeks
+            # If Checked: Keep session for 2 weeks (SESSION_COOKIE_AGE)
             self.request.session.set_expiry(1209600)
         else:
             # Rolling session: Expires in 30 mins of inactivity
@@ -62,7 +67,6 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_template_names(self):
-        # HTMX Support: Render only rows if request is from HTMX
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
         return ['inventory/product_list.html']
@@ -123,7 +127,6 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
-        # Pass both forms to the template
         context['transaction_form'] = StockOutForm()
         context['refund_form'] = RefundForm()
         return context
@@ -138,7 +141,6 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 transaction_obj = form.save(commit=False)
                 transaction_obj.product = product_object
                 transaction_obj.user = request.user
-                # Force type to OUT for manual adjustments
                 transaction_obj.transaction_type = 'OUT'
                 
                 transaction_reason = form.cleaned_data.get('transaction_reason')
@@ -244,7 +246,7 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
     
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
-            messages.error(request, "Only administrators are allowed to permanently delete products.")
+            messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
             product = self.get_object()
             return redirect(product.get_absolute_url())
         return super().dispatch(request, *args, **kwargs)
@@ -413,8 +415,9 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return response
     
     def export_transactions_pdf(self, request):
-        # 1. Base Filter: Get ALL transactions (IN and OUT)
-        transactions_base = StockTransaction.objects.select_related('product', 'user').all()
+        transactions_base = StockTransaction.objects.select_related('product', 'user').filter(
+            transaction_type='OUT'
+        )
         
         form = TransactionReportForm(request.GET)
         start_date, end_date = None, None
@@ -438,23 +441,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             total_items_sold=Sum('quantity')
         )
 
-        # 4. Refunds (Returns)
-        refunds_data = transactions_base.filter(
-            transaction_type='IN',
-            transaction_reason=StockTransaction.TransactionReason.RETURN
-        ).aggregate(
-            total_refunded=Sum(F('selling_price') * F('quantity'))
-        )
-        total_refunds = refunds_data['total_refunded'] or 0
-        
-        # Calculate Gross and Net
-        gross_sales = revenue_summary['total_revenue'] or 0
-        net_revenue = gross_sales - total_refunds
-
-        # 5. Loss/Shrinkage (Damage/Internal/Correction-OUT)
-        loss_summary = transactions_base.filter(
-            transaction_type='OUT'
-        ).exclude(
+        shrinkage_summary = transactions_base.exclude(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('transaction_reason').annotate(
             total_qty=Sum('quantity'),
@@ -471,7 +458,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 7. Top Sellers
         top_sellers = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
@@ -495,7 +481,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         
-        # Preview vs Download
         if request.GET.get('preview'):
             disposition = 'inline'
         else:
@@ -525,46 +510,25 @@ def analytics_dashboard(request):
         timestamp__date__gte=start_date,
         timestamp__date__lte=end_date
     )
-    gross_sales = sales_query.aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
-    total_units_sold = sales_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
 
-    # 2. Refunds
-    refunds_query = StockTransaction.objects.filter(
-        transaction_type='IN',
-        transaction_reason=StockTransaction.TransactionReason.RETURN,
-        timestamp__date__gte=start_date,
-        timestamp__date__lte=end_date
-    )
-    total_refunds = refunds_query.aggregate(val=Sum(F('quantity') * F('product__price')))['val'] or 0
-    
-    # 3. Loss
-    damage_query = StockTransaction.objects.filter(
-        transaction_type='OUT',
-        transaction_reason=StockTransaction.TransactionReason.DAMAGE,
-        timestamp__date__gte=start_date,
-        timestamp__date__lte=end_date
-    )
-    total_loss = damage_query.aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
-
-    # 4. Net Revenue
-    net_revenue = gross_sales - total_refunds
-
-    # Charts use Sales Data
-    cat_data = sales_query.values('product__category__name').annotate(
+    cat_data = base_query.values('product__category__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')
 
-    cat_labels = [entry['product__category__name'] or "Uncategorized" for entry in cat_data]
-    cat_values = [float(entry['total_revenue'] or 0) for entry in cat_data]
+    cat_labels = []
+    cat_values = []
+    for entry in cat_data:
+        cat_labels.append(entry['product__category__name'] or "Uncategorized")
+        cat_values.append(float(entry['total_revenue'] or 0))
 
-    prod_data = sales_query.values('product__name').annotate(
+    prod_data = base_query.values('product__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')[:5]
 
     prod_labels = [p['product__name'] for p in prod_data]
     prod_values = [float(p['total_revenue']) for p in prod_data]
 
-    daily_data = sales_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
+    daily_data = base_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
         daily_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('day')
 
@@ -576,11 +540,8 @@ def analytics_dashboard(request):
         'filter_form': form,
         'start_date': start_date,
         'end_date': end_date,
-        'total_revenue': net_revenue,
-        'gross_sales': gross_sales,
-        'total_refunds': total_refunds,
-        'total_loss': total_loss,
-        'total_units': total_units_sold,
+        'total_revenue': total_revenue,
+        'total_units': total_units,
         'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
         'cat_values': json.dumps(cat_values, cls=DjangoJSONEncoder),
         'prod_labels': json.dumps(prod_labels, cls=DjangoJSONEncoder),
@@ -606,7 +567,7 @@ def sales_chart_data(request):
     data = [float(sale['total_sales']) for sale in sales_data]
     return JsonResponse({'labels': labels, 'data': data})
 
-# --- PURCHASE ORDERS & SUPPLIERS ---
+# --- PURCHASE ORDER & SUPPLIER ---
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PurchaseOrder
