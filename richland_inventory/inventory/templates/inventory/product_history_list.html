@@ -1,86 +1,217 @@
 {% extends "base.html" %}
+{% load humanize %}
 
-{% block title %}Product Edit History Log{% endblock %}
+{% block title %}Audit History{% endblock %}
 
 {% block content %}
-    <h1 class="mb-4">Product Edit History Log</h1>
+<div class="container-fluid pb-5">
 
-    <div class="accordion mb-4" id="filterAccordion">
-        <div class="accordion-item">
-            <h2 class="accordion-header" id="headingOne">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilter" aria-expanded="false" aria-controls="collapseFilter">
-                    <i class="fas fa-filter me-2"></i> Filter History
-                </button>
-            </h2>
-            <div id="collapseFilter" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#filterAccordion">
-                <div class="accordion-body">
-                    <form method="get" action="">
-                        <div class="row g-3">
-                            <div class="col-md-4">{{ filter_form.product.label_tag }} {{ filter_form.product }}</div>
-                            <div class="col-md-4">{{ filter_form.user.label_tag }} {{ filter_form.user }}</div>
-                            <div class="col-md-2">{{ filter_form.start_date.label_tag }} {{ filter_form.start_date }}</div>
-                            <div class="col-md-2">{{ filter_form.end_date.label_tag }} {{ filter_form.end_date }}</div>
+    <!-- 1. HEADER -->
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Audit History</h2>
+            <p class="text-muted small mb-0">Track all modifications, updates, and deletions of inventory items.</p>
+        </div>
+        <div>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
+                <i class="fas fa-filter me-2"></i>Toggle Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. FILTER TOOLBAR (Collapsible with ID 'filterPanel') -->
+    <div class="collapse show" id="filterPanel">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-3 bg-white rounded-3">
+                <form method="get" action="" class="row g-3 align-items-end">
+                    
+                    <!-- Product Search -->
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Product</label>
+                        {{ filter_form.product }}
+                    </div>
+
+                    <!-- User -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted">User</label>
+                        {{ filter_form.user }}
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Date Range</label>
+                        <div class="input-group input-group-sm">
+                            {{ filter_form.start_date }}
+                            <span class="input-group-text bg-light border-start-0 border-end-0 text-muted">to</span>
+                            {{ filter_form.end_date }}
                         </div>
-                        <div class="mt-3">
-                            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Apply</button>
-                            <a href="{% url 'inventory:product_history_list' %}" class="btn btn-secondary">Reset</a>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm" title="Apply Filters">
+                            Apply
+                        </button>
+                        <a href="{% url 'inventory:product_history_list' %}" class="btn btn-light border" title="Reset">
+                            <i class="fas fa-redo-alt text-muted"></i>
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th class="text-center">Type</th>
-                            <th>User</th>
-                            <th>Timestamp</th>
-                            <th>Changes Made</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for record in history_list %}
-                        <tr>
-                            <td>
-                                <!-- THIS IS THE CORRECTED BLOCK -->
-                                {% with product_instance=record.prefetched_instance|default:record.instance %}
-                                    {% if product_instance %}
-                                        <a href="{{ product_instance.get_absolute_url }}">{{ product_instance.name }} (SKU: {{ product_instance.sku }})</a>
+    <!-- 3. AUDIT LOG TABLE -->
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 text-uppercase text-secondary small" style="width: 15%;">Timestamp</th>
+                        <th class="text-uppercase text-secondary small" style="width: 15%;">User</th>
+                        <th class="text-center text-uppercase text-secondary small" style="width: 10%;">Action</th>
+                        <th class="text-uppercase text-secondary small" style="width: 20%;">Product Context</th>
+                        <th class="text-uppercase text-secondary small" style="width: 40%;">Changes Made</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white">
+                    {% for record in history_list %}
+                    <tr>
+                        <!-- TIMESTAMP -->
+                        <td class="ps-4">
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold text-dark">{{ record.history_date|date:"M d, Y" }}</span>
+                                <small class="text-muted font-monospace">{{ record.history_date|date:"h:i:s A" }}</small>
+                            </div>
+                        </td>
+
+                        <!-- USER -->
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" 
+                                     style="width: 30px; height: 30px; font-size: 12px;">
+                                    {% if record.history_user %}
+                                        {{ record.history_user.username|slice:":1"|upper }}
                                     {% else %}
-                                        {{ record.name }} (Deleted)
+                                        <i class="fas fa-robot"></i>
                                     {% endif %}
-                                {% endwith %}
-                                <!-- END OF CORRECTION -->
-                            </td>
-                            <td class="text-center">
-                                {% if record.history_type == '+' %}<span class="badge bg-success">Created</span>
-                                {% elif record.history_type == '~' %}<span class="badge bg-warning text-dark">Updated</span>
-                                {% else %}<span class="badge bg-danger">Deleted</span>{% endif %}
-                            </td>
-                            <td>{{ record.history_user.username|default:"N/A" }}</td>
-                            <td>{{ record.history_date|date:"F d, Y, P" }}</td>
-                            <td>{{ record.change_summary|safe|default:"" }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="5" class="text-center py-4">No product history found matching your criteria.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                </div>
+                                <span class="small fw-medium text-dark">
+                                    {{ record.history_user.username|default:"System" }}
+                                </span>
+                            </div>
+                        </td>
+
+                        <!-- ACTION TYPE -->
+                        <td class="text-center">
+                            {% if record.history_type == '+' %}
+                                <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Created</span>
+                            {% elif record.history_type == '~' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-3">Updated</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-3">Deleted</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- PRODUCT CONTEXT -->
+                        <td>
+                            <!-- Logic to handle deleted product links vs active product links -->
+                            {% with product_instance=record.instance %}
+                                {% if product_instance.id and record.history_type != '-' %}
+                                    <a href="{{ product_instance.get_absolute_url }}" class="fw-bold text-primary text-decoration-none">
+                                        {{ record.history_object.name|default:record.name }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted text-decoration-line-through" title="Product Deleted">
+                                        {{ record.name }}
+                                    </span>
+                                {% endif %}
+                            {% endwith %}
+                            <div class="small text-muted mt-1 font-monospace">
+                                SKU: {{ record.sku }}
+                            </div>
+                        </td>
+
+                        <!-- CHANGES SUMMARY -->
+                        <td>
+                            <div class="text-secondary small" style="line-height: 1.5;">
+                                {{ record.change_summary|safe|default:"No specific field changes detected." }}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="text-muted mb-2"><i class="fas fa-clipboard-check fa-3x opacity-25"></i></div>
+                            <p class="text-muted fw-medium">No audit logs found matching your criteria.</p>
+                            <a href="{% url 'inventory:product_history_list' %}" class="btn btn-sm btn-outline-primary">Clear Filters</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
+    <!-- 4. PAGINATION -->
     {% if is_paginated %}
-    <nav class="mt-4"><ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}">Previous</a></li>{% else %}<li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>{% endif %}
-        {% for i in paginator.page_range %}{% if page_obj.number == i %}<li class="page-item active"><a class="page-link" href="#">{{ i }}</a></li>{% else %}<li class="page-item"><a class="page-link" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>{% endif %}{% endfor %}
-        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a></li>{% else %}<li class="page-item disabled"><a class="page-link" href="#">Next</a></li>{% endif %}
-    </ul></nav>
+    <div class="d-flex justify-content-center mt-5">
+        <nav aria-label="Page navigation">
+            <ul class="pagination shadow-sm">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}">Previous</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
+                {% endif %}
+                
+                {% for i in paginator.page_range %}
+                    {% if page_obj.number == i %}
+                        <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link border-0">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
     {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const filterPanel = document.getElementById('filterPanel');
+        const storageKey = 'audit_history_filter_state'; // Unique key for History page
+
+        // 1. Restore State on Load
+        const savedState = localStorage.getItem(storageKey);
+        if (savedState === 'hidden') {
+            filterPanel.classList.remove('show');
+        } else {
+            // Default is show, ensure it's there
+            filterPanel.classList.add('show');
+        }
+
+        // 2. Save State on Toggle
+        filterPanel.addEventListener('hidden.bs.collapse', function () {
+            localStorage.setItem(storageKey, 'hidden');
+        });
+
+        filterPanel.addEventListener('shown.bs.collapse', function () {
+            localStorage.setItem(storageKey, 'shown');
+        });
+    });
+</script>
 {% endblock %}

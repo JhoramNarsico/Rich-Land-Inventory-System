@@ -1,66 +1,222 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Purchase Order #{{ po.id }}{% endblock %}
+{% block title %}PO #{{ po.id|stringformat:"05d" }}{% endblock %}
 
 {% block content %}
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="mb-0">Purchase Order #{{ po.id }}</h2>
-            <a href="{% url 'inventory:purchaseorder_list' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Back to PO List
-            </a>
+<div class="container-fluid pb-5" style="max-width: 1200px;">
+
+    <!-- 1. HEADER & ACTIONS -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small text-uppercase fw-bold">
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:purchaseorder_list' %}" class="text-decoration-none text-muted">Procurement</a></li>
+                    <li class="breadcrumb-item active text-primary" aria-current="page">Order Details</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-3">
+                <h2 class="fw-bold text-dark mb-0">Purchase Order #{{ po.id|stringformat:"05d" }}</h2>
+                {% if po.status == 'RECEIVED' %}
+                    <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Received</span>
+                {% elif po.status == 'COMPLETED' %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary rounded-pill px-3">Arrived</span>
+                {% elif po.status == 'PENDING' %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-3">Pending</span>
+                {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary rounded-pill px-3">{{ po.get_status_display }}</span>
+                {% endif %}
+            </div>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <h4>Supplier Details</h4>
-                    <p><strong>Name:</strong> {{ po.supplier.name }}</p>
-                    <p><strong>Contact:</strong> {{ po.supplier.contact_person|default:"N/A" }}</p>
-                    <p><strong>Email:</strong> {{ po.supplier.email }}</p>
-                    <p><strong>Phone:</strong> {{ po.supplier.phone|default:"N/A" }}</p>
+        
+        <div class="btn-group">
+            <a href="{% url 'inventory:purchaseorder_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
+            <!-- Only Admin can edit via backend link, usually -->
+            {% if po.status == 'PENDING' %}
+                <a href="{% url 'admin:inventory_purchaseorder_change' po.id %}" target="_blank" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-2"></i>Edit Order
+                </a>
+            {% endif %}
+            
+            <!-- RECEIVE BUTTON (If Arrived) -->
+            {% if po.status == 'COMPLETED' and perms.inventory.change_purchaseorder %}
+                <form action="{% url 'inventory:purchaseorder_receive' pk=po.pk %}" method="post" class="d-inline" onsubmit="return confirm('Confirm receipt of goods? This will add stock to inventory.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success" style="border-radius: 0 4px 4px 0;">
+                        <i class="fas fa-box-open me-2"></i>Receive Stock
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2. PROGRESS TRACKER -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="position-relative m-4">
+                <div class="progress" style="height: 2px;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: 
+                        {% if po.status == 'PENDING' %}33%
+                        {% elif po.status == 'COMPLETED' %}66%
+                        {% elif po.status == 'RECEIVED' %}100%
+                        {% else %}0%{% endif %};" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
-                <div class="col-md-6">
-                    <h4>Order Information</h4>
-                    <p><strong>Order Date:</strong> {{ po.order_date|date:"F d, Y, P" }}</p>
-                    <p><strong>Status:</strong>
-                        {% if po.status == 'COMPLETED' %}<span class="badge bg-success">{{ po.get_status_display }}</span>
-                        {% elif po.status == 'PENDING' %}<span class="badge bg-warning text-dark">{{ po.get_status_display }}</span>
-                        {% else %}<span class="badge bg-secondary">{{ po.get_status_display }}</span>{% endif %}
-                    </p>
+                
+                <!-- Step 1: Created -->
+                <div class="position-absolute top-0 start-0 translate-middle btn btn-sm btn-primary rounded-pill" style="width: 2rem; height:2rem;">1</div>
+                <div class="position-absolute top-0 start-0 translate-middle-x mt-4 text-center">
+                    <span class="small fw-bold text-primary">Created</span><br>
+                    <span class="text-muted" style="font-size: 0.75rem;">{{ po.order_date|date:"M d" }}</span>
+                </div>
+
+                <!-- Step 2: Arrived (Completed) -->
+                <div class="position-absolute top-0 start-50 translate-middle btn btn-sm 
+                    {% if po.status == 'COMPLETED' or po.status == 'RECEIVED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-pill" style="width: 2rem; height:2rem;">2</div>
+                <div class="position-absolute top-0 start-50 translate-middle-x mt-4 text-center">
+                    <span class="small fw-bold {% if po.status == 'COMPLETED' or po.status == 'RECEIVED' %}text-primary{% else %}text-muted{% endif %}">Arrived</span>
+                </div>
+
+                <!-- Step 3: Received -->
+                <div class="position-absolute top-0 start-100 translate-middle btn btn-sm 
+                    {% if po.status == 'RECEIVED' %}btn-success{% else %}btn-secondary{% endif %} rounded-pill" style="width: 2rem; height:2rem;">3</div>
+                <div class="position-absolute top-0 start-100 translate-middle-x mt-4 text-center">
+                    <span class="small fw-bold {% if po.status == 'RECEIVED' %}text-success{% else %}text-muted{% endif %}">Stocked</span>
                 </div>
             </div>
-            <hr>
-            <h4>Items in this Order</h4>
-            <table class="table table-bordered">
-                <thead class="table-light">
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- 3. SUPPLIER INFO -->
+        <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-building me-2 text-secondary"></i>Supplier Details</h6>
+                </div>
+                <div class="card-body">
+                    <h4 class="fw-bold text-primary mb-1">{{ po.supplier.name }}</h4>
+                    <p class="text-muted small mb-3">Vendor ID: {{ po.supplier.id|stringformat:"03d" }}</p>
+                    
+                    <div class="d-flex flex-column gap-2">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-light rounded-circle p-2 me-3 text-secondary"><i class="fas fa-user"></i></div>
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Contact Person</small>
+                                <span class="fw-medium">{{ po.supplier.contact_person|default:"N/A" }}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-light rounded-circle p-2 me-3 text-secondary"><i class="fas fa-envelope"></i></div>
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Email</small>
+                                <span class="fw-medium"><a href="mailto:{{ po.supplier.email }}" class="text-decoration-none">{{ po.supplier.email }}</a></span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-light rounded-circle p-2 me-3 text-secondary"><i class="fas fa-phone"></i></div>
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Phone</small>
+                                <span class="fw-medium">{{ po.supplier.phone|default:"N/A" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. ORDER META -->
+        <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-info-circle me-2 text-secondary"></i>Order Information</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted small text-uppercase fw-bold pt-3">Order Date:</td>
+                                <td class="pt-3 text-end fw-bold">{{ po.order_date|date:"F d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted small text-uppercase fw-bold">Time:</td>
+                                <td class="text-end font-monospace">{{ po.order_date|date:"H:i A" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted small text-uppercase fw-bold">Current Status:</td>
+                                <td class="text-end">
+                                    <span class="badge bg-light text-dark border">{{ po.get_status_display }}</span>
+                                </td>
+                            </tr>
+                            <tr class="border-top">
+                                <td class="text-muted small text-uppercase fw-bold pt-3">Total Items:</td>
+                                <td class="pt-3 text-end fw-bold fs-5">{{ po.items.count }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. ITEMS TABLE -->
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">Items Ordered</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
                     <tr>
-                        <th>Product Name</th>
-                        <th>SKU</th>
-                        <th class="text-end">Quantity Ordered</th>
-                        <th class="text-end">Price per Item</th>
-                        <th class="text-end">Subtotal</th>
+                        <th class="ps-4 text-uppercase text-secondary small" style="width: 40%;">Product / SKU</th>
+                        <th class="text-center text-uppercase text-secondary small" style="width: 20%;">Quantity</th>
+                        <th class="text-end text-uppercase text-secondary small" style="width: 20%;">Unit Cost</th>
+                        <th class="text-end text-uppercase text-secondary small pe-4" style="width: 20%;">Subtotal</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="bg-white">
                     {% for item in po.items.all %}
                     <tr>
-                        <td><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></td>
-                        <td>{{ item.product.sku }}</td>
-                        <td class="text-end">{{ item.quantity|intcomma }}</td>
-                        <td class="text-end">₱{{ item.price|floatformat:2|intcomma }}</td>
-                        <td class="text-end">
+                        <td class="ps-4">
+                            <a href="{{ item.product.get_absolute_url }}" class="fw-bold text-dark text-decoration-none">{{ item.product.name }}</a>
+                            <div class="small text-muted font-monospace">{{ item.product.sku }}</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border px-3 py-2" style="font-size: 0.9rem;">{{ item.quantity|intcomma }}</span>
+                        </td>
+                        <td class="text-end font-monospace text-muted">
+                            ₱{{ item.price|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-end pe-4 font-monospace fw-bold text-dark">
                             {% widthratio item.price 1 item.quantity as subtotal %}
                             ₱{{ subtotal|floatformat:2|intcomma }}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center">No items found in this purchase order.</td>
+                        <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="fas fa-box-open fa-2x mb-2 opacity-25"></i>
+                            <p class="mb-0">No items found in this order.</p>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                <!-- Simple Footer for Totals Visual -->
+                <tfoot class="bg-light">
+                    <tr>
+                        <td colspan="3" class="text-end pe-4 py-3">
+                            <span class="text-uppercase small fw-bold text-muted">Total Estimated Cost</span>
+                        </td>
+                        <td class="text-end pe-4 py-3 fw-bold fs-5 text-primary">
+                            <!-- Note: Exact grand total calculation usually done in view/model, 
+                                 but visually this row completes the table -->
+                            ---
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
+</div>
 {% endblock %}

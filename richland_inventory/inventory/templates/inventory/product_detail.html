@@ -1,167 +1,307 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Product Details{% endblock %}
+{% block title %}{{ product.name }} - Details{% endblock %}
 
 {% block content %}
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="mb-0">Product Details: {{ product.name }}</h2>
-            <a href="{% url 'inventory:product_list' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Back to List
-            </a>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <p><strong>SKU:</strong> {{ product.sku }}</p>
-                    <p><strong>Category:</strong> {{ product.category.name|default:"N/A" }}</p>
-                    <p><strong>Price:</strong> ₱{{ product.price|floatformat:2|intcomma }}</p>
-                    <p><strong>Status:</strong> {{ product.get_status_display }}</p>
-                    <p><strong>Reorder Level:</strong> {{ product.reorder_level }} units</p>
-                    <p><strong>Last Restocked:</strong> {{ product.last_purchase_date|date:"F d, Y"|default:"N/A" }}</p>
-                    <p><strong>Date Added:</strong> {{ product.date_created|date:"F d, Y" }}</p>
-                    <p><strong>Last Updated:</strong> {{ product.date_updated|date:"F d, Y" }}</p>
-                </div>
-                <div class="col-md-4 text-center">
-                    <h5 class="text-muted">Quantity on Hand</h5>
-                    <p class="display-4 fw-bold text-primary">{{ product.quantity|intcomma }}</p>
-                </div>
+<div class="container-fluid pb-5">
+    
+    <!-- 1. HEADER & ACTIONS -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small text-uppercase fw-bold">
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:product_list' %}" class="text-decoration-none text-muted">Inventory</a></li>
+                    <li class="breadcrumb-item active text-primary" aria-current="page">Details</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-3">
+                <h2 class="fw-bold text-dark mb-0">{{ product.name }}</h2>
+                {% if product.status == 'ACTIVE' %}
+                    <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Active</span>
+                {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary rounded-pill px-3">Deactivated</span>
+                {% endif %}
             </div>
         </div>
-        <div class="card-footer text-end">
+        
+        <div class="btn-group">
+            <a href="{% url 'inventory:product_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
             {% if perms.inventory.change_product %}
-                <a href="{% url 'inventory:product_update' slug=product.slug %}" class="btn btn-info"><i class="fas fa-edit me-2"></i>Edit</a>
+                <a href="{% url 'inventory:product_update' slug=product.slug %}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-2"></i>Edit
+                </a>
                 <form action="{% url 'inventory:product_toggle_status' slug=product.slug %}" method="post" class="d-inline">
                     {% csrf_token %}
                     {% if product.status == 'ACTIVE' %}
-                        <button type="submit" class="btn btn-warning"><i class="fas fa-eye-slash me-2"></i>Deactivate</button>
+                        <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to deactivate this product?');" style="border-radius: 0 4px 4px 0;">
+                            <i class="fas fa-eye-slash"></i>
+                        </button>
                     {% else %}
-                        <button type="submit" class="btn btn-success"><i class="fas fa-eye me-2"></i>Activate</button>
+                        <button type="submit" class="btn btn-outline-success" style="border-radius: 0 4px 4px 0;">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     {% endif %}
                 </form>
             {% endif %}
         </div>
     </div>
 
-    {% if perms.inventory.can_adjust_stock %}
+    <!-- 2. KEY METRICS CARDS -->
+    <div class="row g-3 mb-4">
+        <!-- Stock Level -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 {% if product.quantity <= product.reorder_level %}border-warning{% else %}border-primary{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-bold text-uppercase">On Hand</span>
+                        <div class="icon-box bg-light text-primary rounded-circle p-2">
+                            <i class="fas fa-cubes"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0 {% if product.quantity <= product.reorder_level %}text-warning{% endif %}">
+                        {{ product.quantity|intcomma }}
+                    </h3>
+                    <small class="text-muted">Reorder Level: {{ product.reorder_level }}</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unit Price -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-bold text-uppercase">Unit Price</span>
+                        <div class="icon-box bg-light text-secondary rounded-circle p-2">
+                            <i class="fas fa-tag"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0">₱{{ product.price|floatformat:2|intcomma }}</h3>
+                    <small class="text-muted">PHP</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Asset Value -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-bold text-uppercase">Total Value</span>
+                        <div class="icon-box bg-light text-success rounded-circle p-2">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0">
+                        {% widthratio product.price 1 product.quantity as total_val %}
+                        ₱{{ total_val|intcomma }}
+                    </h3>
+                    <small class="text-muted">Inventory Asset</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Info -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-bold text-uppercase">Information</span>
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted small">SKU:</span>
+                        <span class="fw-bold font-monospace ms-1">{{ product.sku }}</span>
+                    </div>
+                    <div class="mb-1">
+                        <span class="text-muted small">Category:</span>
+                        <span class="fw-bold ms-1">{{ product.category.name|default:"-" }}</span>
+                    </div>
+                    <div>
+                        <span class="text-muted small">Added:</span>
+                        <span class="fw-bold ms-1">{{ product.date_created|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
-        <!-- 1. STOCK OUT FORM (Sales/Damage) -->
-        <div class="col-md-8">
-            <div class="card mb-4 border-danger h-100 shadow-sm">
-                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-minus-circle me-2"></i>Record Stock Out</h5>
-                    <small>Sales & Damage</small>
+        <!-- 3. LEFT COLUMN: TRANSACTION HISTORY -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-history me-2 text-secondary"></i>Recent Movement Log</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4 text-uppercase text-secondary small" style="width:10%">Type</th>
+                                    <th class="text-uppercase text-secondary small" style="width:20%">Reason</th>
+                                    <th class="text-center text-uppercase text-secondary small" style="width:10%">Qty</th>
+                                    <th class="text-uppercase text-secondary small" style="width:15%">User</th>
+                                    <th class="text-uppercase text-secondary small" style="width:20%">Date</th>
+                                    <th class="text-uppercase text-secondary small" style="width:25%">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in transactions %}
+                                <tr>
+                                    <td class="ps-4">
+                                        {% if t.transaction_type == 'IN' %}
+                                            <span class="badge bg-success-subtle text-success border border-success rounded-pill">IN</span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill">OUT</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if t.transaction_reason == 'SALE' %}
+                                            <span class="fw-bold text-success"><i class="fas fa-cash-register me-1"></i> Sale</span>
+                                        {% elif t.transaction_reason == 'RETURN' %}
+                                            <span class="fw-bold text-primary"><i class="fas fa-undo me-1"></i> Return</span>
+                                        {% elif t.transaction_reason == 'DAMAGE' %}
+                                            <span class="fw-bold text-danger"><i class="fas fa-dumpster-fire me-1"></i> Damage</span>
+                                        {% elif t.transaction_reason == 'PO' or t.transaction_reason == 'PURCHASE_ORDER' %}
+                                            <span class="fw-bold text-dark"><i class="fas fa-truck me-1"></i> Restock</span>
+                                        {% elif t.transaction_reason == 'INITIAL' %}
+                                            <span class="fw-bold text-secondary"><i class="fas fa-star me-1"></i> Initial</span>
+                                        {% else %}
+                                            {{ t.get_transaction_reason_display }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center fw-bold font-monospace">{{ t.quantity|intcomma }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle bg-light text-secondary d-flex justify-content-center align-items-center me-2" style="width:24px; height:24px; font-size: 10px;">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            {{ t.user.username }}
+                                        </div>
+                                    </td>
+                                    <td class="text-muted small">{{ t.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td class="text-muted small text-truncate" style="max-width: 150px;" title="{{ t.notes }}">
+                                        {{ t.notes|default:"-" }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
+                                        <p class="mb-0">No transactions recorded yet.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-white text-center border-top-0 py-3">
+                    <a href="{% url 'inventory:transaction_list' %}?product={{ product.id }}" class="btn btn-sm btn-link text-decoration-none">View All Transactions →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. RIGHT COLUMN: ACTIONS & INFO -->
+        <div class="col-lg-4">
+            
+            {% if perms.inventory.can_adjust_stock %}
+            
+            <!-- CARD: RECORD SALE / OUT -->
+            <div class="card border-0 shadow-sm mb-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                    <h6 class="fw-bold text-danger mb-0"><i class="fas fa-minus-circle me-2"></i>Record Stock Out</h6>
                 </div>
                 <div class="card-body">
                     <form method="post" action="">
                         {% csrf_token %}
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label small fw-bold text-uppercase text-muted">Reason</label>
-                                {{ transaction_form.transaction_reason }}
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label small fw-bold text-uppercase text-muted">Quantity</label>
-                                {{ transaction_form.quantity }}
-                            </div>
-                            <div class="col-md-5 mb-3">
-                                <label class="form-label small fw-bold text-uppercase text-muted">Notes</label>
-                                {{ transaction_form.notes }}
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-uppercase fw-bold text-muted">Reason</label>
+                            {{ transaction_form.transaction_reason }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-uppercase fw-bold text-muted">Quantity</label>
+                            {{ transaction_form.quantity }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-uppercase fw-bold text-muted">Notes (Optional)</label>
+                            {{ transaction_form.notes }}
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-danger fw-bold">
-                                <i class="fas fa-trash-alt me-2"></i> Remove from Inventory
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-check me-2"></i> Confirm Removal
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
-        </div>
 
-        <!-- 2. REFUND FORM (Stock Return) -->
-        <div class="col-md-4">
-            <div class="card mb-4 border-primary h-100 shadow-sm">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-undo-alt me-2"></i>Process Refund</h5>
-                    <small>Returns</small>
+            <!-- CARD: PROCESS RETURN -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                    <h6 class="fw-bold text-primary mb-0"><i class="fas fa-undo me-2"></i>Process Return</h6>
                 </div>
                 <div class="card-body">
                     <form method="post" action="{% url 'inventory:product_refund' slug=product.slug %}">
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-muted">Return Quantity</label>
-                            {{ refund_form.quantity }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-muted">Reason / Notes</label>
-                            {{ refund_form.notes }}
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label small text-uppercase fw-bold text-muted">Qty</label>
+                                {{ refund_form.quantity }}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label small text-uppercase fw-bold text-muted">Reason</label>
+                                {{ refund_form.notes }}
+                            </div>
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-outline-primary fw-bold">
+                            <button type="submit" class="btn btn-outline-primary">
                                 <i class="fas fa-box-open me-2"></i> Restock Item
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
-        </div>
-    </div>
-    {% endif %}
+            {% endif %}
 
-    <!-- Transactions List -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-white">
-            <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-history me-2"></i>Recent Transactions</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Type</th>
-                            <th>Reason</th>
-                            <th>Qty</th>
-                            <th>User</th>
-                            <th>Date</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for t in transactions %}
-                        <tr>
-                            <td>
-                                {% if t.transaction_type == 'IN' %}
-                                    <span class="badge bg-success rounded-pill">IN</span>
-                                {% else %}
-                                    <span class="badge bg-danger rounded-pill">OUT</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if t.transaction_reason == 'SALE' %}
-                                    <span class="text-success fw-bold">Sale</span>
-                                {% elif t.transaction_reason == 'RETURN' %}
-                                    <span class="text-primary fw-bold">Return</span>
-                                {% elif t.transaction_reason == 'DAMAGE' %}
-                                    <span class="text-danger fw-bold">Damage</span>
-                                {% elif t.transaction_reason == 'INITIAL' %}
-                                    <span class="text-secondary fw-bold">Initial</span>
-                                {% else %}
-                                    {{ t.get_transaction_reason_display }}
-                                {% endif %}
-                            </td>
-                            <td class="fw-bold">{{ t.quantity|intcomma }}</td>
-                            <td>{{ t.user.username }}</td>
-                            <td>{{ t.timestamp|date:"M d, Y H:i" }}</td>
-                            <td class="text-muted small">{{ t.notes|default:"-" }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="6" class="text-center py-4 text-muted">No transactions recorded for this product.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <!-- INFO: RESTOCK DETAILS -->
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h6 class="fw-bold text-dark mb-3">Restock Information</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Last Restocked:</span>
+                            <span class="fw-bold">{{ product.last_purchase_date|date:"M d, Y"|default:"Never" }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Reorder Level:</span>
+                            <span class="fw-bold">{{ product.reorder_level }} units</span>
+                        </li>
+                        <li class="mt-3">
+                            <span class="text-muted d-block mb-1">Stock Health:</span>
+                            <div class="progress" style="height: 6px;">
+                                {% widthratio product.quantity product.reorder_level 100 as pct %}
+                                <div class="progress-bar {% if product.quantity <= product.reorder_level %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ pct|default:100 }}%" 
+                                     aria-valuenow="{{ product.quantity }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="{{ product.reorder_level }}"></div>
+                            </div>
+                            {% if product.quantity <= product.reorder_level %}
+                                <small class="text-warning fw-bold mt-1 d-block"><i class="fas fa-exclamation-triangle me-1"></i> Low Stock</small>
+                            {% else %}
+                                <small class="text-success fw-bold mt-1 d-block"><i class="fas fa-check-circle me-1"></i> Healthy</small>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
             </div>
+
         </div>
     </div>
+</div>
 {% endblock %}

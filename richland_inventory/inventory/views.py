@@ -45,9 +45,11 @@ class CustomLoginView(LoginView):
         response = super().form_valid(form)
         remember_me = self.request.POST.get('remember_me')
         if remember_me:
-            self.request.session.set_expiry(1209600) # 2 weeks
+            # Keep session for 2 weeks
+            self.request.session.set_expiry(1209600)
         else:
-            self.request.session.set_expiry(0)
+            # Rolling session: Expires in 30 mins of inactivity
+            self.request.session.set_expiry(1800)
         return response
 
 # --- PRODUCT MANAGEMENT ---
@@ -60,7 +62,7 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_template_names(self):
-        # HTMX Support
+        # HTMX Support: Render only rows if request is from HTMX
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
         return ['inventory/product_list.html']
@@ -136,6 +138,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 transaction_obj = form.save(commit=False)
                 transaction_obj.product = product_object
                 transaction_obj.user = request.user
+                # Force type to OUT for manual adjustments
                 transaction_obj.transaction_type = 'OUT'
                 
                 transaction_reason = form.cleaned_data.get('transaction_reason')
@@ -148,7 +151,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 product_object.quantity -= quantity
                 product_object.save()
                 
-                # Record price only for Sales/Damage
+                # Record price only for Sales and Damage (to track value lost)
                 if transaction_reason in [StockTransaction.TransactionReason.SALE, StockTransaction.TransactionReason.DAMAGE]:
                     transaction_obj.selling_price = product_object.price
                 else:
@@ -410,7 +413,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return response
     
     def export_transactions_pdf(self, request):
-        # 1. Fetch ALL transactions (IN and OUT)
+        # 1. Base Filter: Get ALL transactions (IN and OUT)
         transactions_base = StockTransaction.objects.select_related('product', 'user').all()
         
         form = TransactionReportForm(request.GET)
@@ -421,7 +424,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
         
-        # 2. Annotate
+        # 2. Annotate row totals
         all_transactions = transactions_base.annotate(
             row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
         ).order_by('-timestamp')
@@ -435,17 +438,32 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             total_items_sold=Sum('quantity')
         )
 
-        # 4. Loss Summary (Damage/Internal/Correction-OUT)
+        # 4. Refunds (Returns)
+        refunds_data = transactions_base.filter(
+            transaction_type='IN',
+            transaction_reason=StockTransaction.TransactionReason.RETURN
+        ).aggregate(
+            total_refunded=Sum(F('selling_price') * F('quantity'))
+        )
+        total_refunds = refunds_data['total_refunded'] or 0
+        
+        # Calculate Gross and Net
+        gross_sales = revenue_summary['total_revenue'] or 0
+        net_revenue = gross_sales - total_refunds
+
+        # 5. Loss/Shrinkage (Damage/Internal/Correction-OUT)
         loss_summary = transactions_base.filter(
             transaction_type='OUT'
         ).exclude(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('transaction_reason').annotate(
             total_qty=Sum('quantity'),
+            # Calculate Money Lost
+            total_val=Sum(F('selling_price') * F('quantity')), 
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 5. Inflow Summary (Initial/PO/Returns)
+        # 6. Inflow Summary (Initial/PO/Returns)
         inflow_summary = transactions_base.filter(
             transaction_type='IN'
         ).values('transaction_reason').annotate(
@@ -453,7 +471,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 6. Top Sellers
+        # 7. Top Sellers
         top_sellers = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
@@ -462,7 +480,13 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             'transactions': all_transactions,
             'start_date': start_date,
             'end_date': end_date,
-            'summary': revenue_summary,
+            
+            # Financials
+            'gross_sales': gross_sales,
+            'total_refunds': total_refunds,
+            'net_revenue': net_revenue,
+            'total_items_sold': revenue_summary['total_items_sold'] or 0,
+            
             'loss_summary': loss_summary,
             'inflow_summary': inflow_summary,
             'top_sellers': top_sellers,
@@ -471,6 +495,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         
+        # Preview vs Download
         if request.GET.get('preview'):
             disposition = 'inline'
         else:
@@ -581,7 +606,7 @@ def sales_chart_data(request):
     data = [float(sale['total_sales']) for sale in sales_data]
     return JsonResponse({'labels': labels, 'data': data})
 
-# --- PURCHASE ORDER & SUPPLIER ---
+# --- PURCHASE ORDERS & SUPPLIERS ---
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PurchaseOrder

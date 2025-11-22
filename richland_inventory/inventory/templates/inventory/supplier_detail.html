@@ -4,53 +4,135 @@
 {% block title %}{{ supplier.name }} Details{% endblock %}
 
 {% block content %}
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="mb-0">Supplier Details: {{ supplier.name }}</h2>
-            <a href="{% url 'inventory:supplier_list' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Back to Suppliers List
-            </a>
+<div class="container-fluid pb-5">
+
+    <!-- 1. HEADER & BREADCRUMB -->
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small text-uppercase fw-bold">
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:supplier_list' %}" class="text-decoration-none text-muted">Suppliers</a></li>
+                    <li class="breadcrumb-item active text-primary">Profile</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-dark mb-0">{{ supplier.name }}</h2>
         </div>
-        <div class="card-body">
-            <p><strong>Contact Person:</strong> {{ supplier.contact_person|default:"N/A" }}</p>
-            <p><strong>Email:</strong> <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a></p>
-            <p><strong>Phone:</strong> {{ supplier.phone|default:"N/A" }}</p>
+        <div class="col-auto">
+            <!-- Removed Edit Profile Button, only Back button remains -->
+            <a href="{% url 'inventory:supplier_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <h4><i class="fas fa-receipt me-2"></i>Purchase Orders from this Supplier</h4>
+    <div class="row g-4">
+        <!-- 2. SUPPLIER PROFILE CARD -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-5">
+                    <!-- Large Avatar -->
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow mb-4" 
+                         style="width: 80px; height: 80px; font-size: 2rem; font-weight: bold;">
+                        {{ supplier.name|slice:":1"|upper }}
+                    </div>
+                    
+                    <h4 class="fw-bold text-dark mb-1">{{ supplier.name }}</h4>
+                    <p class="text-muted small mb-4">Vendor ID: {{ supplier.id|stringformat:"05d" }}</p>
+
+                    <div class="text-start px-3">
+                        <div class="d-flex align-items-center mb-3 p-3 bg-light rounded">
+                            <i class="fas fa-user fa-lg text-secondary me-3"></i>
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Contact Person</small>
+                                <span class="fw-medium text-dark">{{ supplier.contact_person|default:"N/A" }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center mb-3 p-3 bg-light rounded">
+                            <i class="fas fa-envelope fa-lg text-secondary me-3"></i>
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Email Address</small>
+                                <a href="mailto:{{ supplier.email }}" class="text-decoration-none fw-medium">{{ supplier.email }}</a>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center p-3 bg-light rounded">
+                            <i class="fas fa-phone fa-lg text-secondary me-3"></i>
+                            <div>
+                                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Phone Number</small>
+                                <span class="font-monospace fw-medium text-dark">{{ supplier.phone|default:"N/A" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top-0 pb-4 text-center">
+                    <small class="text-muted">Total Orders: <strong>{{ purchase_orders.count }}</strong></small>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>PO #</th>
-                            <th>Order Date</th>
-                            <th class="text-center">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for po in purchase_orders %}
-                        <tr>
-                            <td><strong><a href="{{ po.get_absolute_url }}">PO #{{ po.id }}</a></strong></td>
-                            <td>{{ po.order_date|date:"F d, Y" }}</td>
-                            <td class="text-center">
-                                {% if po.status == 'COMPLETED' %}<span class="badge bg-success">{{ po.get_status_display }}</span>
-                                {% elif po.status == 'PENDING' %}<span class="badge bg-warning text-dark">{{ po.get_status_display }}</span>
-                                {% else %}<span class="badge bg-secondary">{{ po.get_status_display }}</span>{% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="3" class="text-center">No purchase orders found for this supplier.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+
+        <!-- 3. ORDER HISTORY -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-history me-2 text-secondary"></i>Order History</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 text-uppercase text-secondary small">PO Number</th>
+                                <th class="text-uppercase text-secondary small">Date</th>
+                                <th class="text-uppercase text-secondary small text-center">Items</th>
+                                <th class="text-uppercase text-secondary small text-center">Status</th>
+                                <th class="text-end text-uppercase text-secondary small pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            {% for po in purchase_orders %}
+                            <tr>
+                                <td class="ps-4">
+                                    <a href="{{ po.get_absolute_url }}" class="fw-bold text-primary text-decoration-none font-monospace">
+                                        #{{ po.id|stringformat:"05d" }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="d-block fw-medium">{{ po.order_date|date:"M d, Y" }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border rounded-pill px-2">{{ po.items.count }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {% if po.status == 'RECEIVED' %}
+                                        <span class="badge bg-success-subtle text-success border border-success rounded-pill px-2">Received</span>
+                                    {% elif po.status == 'COMPLETED' %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary rounded-pill px-2">Arrived</span>
+                                    {% elif po.status == 'PENDING' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-2">Pending</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary rounded-pill px-2">{{ po.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{{ po.get_absolute_url }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fas fa-clipboard-check fa-2x mb-2 opacity-25"></i>
+                                    <p class="mb-0">No purchase orders recorded for this supplier.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
+
+</div>
 {% endblock %}

@@ -1,60 +1,140 @@
 {% extends "base.html" %}
+{% load humanize %}
 
 {% block title %}Suppliers{% endblock %}
 
 {% block content %}
-    <h1 class="mb-4">Suppliers</h1>
+<div class="container-fluid pb-5">
 
-    <div class="card">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Supplier Name</th>
-                            <th>Contact Person</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for supplier in supplier_list %}
-                        <tr>
-                            <td><strong><a href="{{ supplier.get_absolute_url }}">{{ supplier.name }}</a></strong></td>
-                            <td>{{ supplier.contact_person|default:"N/A" }}</td>
-                            <td>{{ supplier.email }}</td>
-                            <td>{{ supplier.phone|default:"N/A" }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="4" class="text-center py-4">No suppliers found. Add them via the Admin panel.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <!-- 1. HEADER -->
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Supplier Directory</h2>
+            <p class="text-muted small mb-0">Manage vendor relationships and contact information.</p>
+        </div>
+        <!-- Removed Add Supplier Button -->
+    </div>
+
+    <!-- 2. SUPPLIER TABLE -->
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 text-uppercase text-secondary small" style="width: 30%;">Supplier Name</th>
+                        <th class="text-uppercase text-secondary small" style="width: 20%;">Contact Person</th>
+                        <th class="text-uppercase text-secondary small" style="width: 25%;">Contact Details</th>
+                        <th class="text-uppercase text-secondary small" style="width: 15%;">Active Orders</th>
+                        <th class="text-end text-uppercase text-secondary small pe-4" style="width: 10%;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white">
+                    {% for supplier in supplier_list %}
+                    <tr>
+                        <!-- NAME & AVATAR -->
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3 shadow-sm" 
+                                     style="width: 40px; height: 40px; font-size: 1.2rem; font-weight: bold;">
+                                    {{ supplier.name|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <a href="{{ supplier.get_absolute_url }}" class="fw-bold text-dark text-decoration-none d-block">
+                                        {{ supplier.name }}
+                                    </a>
+                                    <small class="text-muted">ID: {{ supplier.id|stringformat:"03d" }}</small>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- CONTACT PERSON -->
+                        <td>
+                            {% if supplier.contact_person %}
+                                <span class="fw-medium text-dark">{{ supplier.contact_person }}</span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- CONTACT INFO (Stacked) -->
+                        <td>
+                            <div class="d-flex flex-column">
+                                <a href="mailto:{{ supplier.email }}" class="text-decoration-none text-muted small mb-1">
+                                    <i class="fas fa-envelope me-2 text-secondary"></i>{{ supplier.email }}
+                                </a>
+                                {% if supplier.phone %}
+                                    <span class="text-muted small font-monospace">
+                                        <i class="fas fa-phone me-2 text-secondary"></i>{{ supplier.phone }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- ACTIVE ORDERS COUNT -->
+                        <td>
+                            {% with pending_count=supplier.purchase_orders.count %}
+                                {% if pending_count > 0 %}
+                                    <span class="badge bg-light text-dark border">
+                                        {{ pending_count }} Total Orders
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted small">No history</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+
+                        <!-- ACTIONS -->
+                        <td class="text-end pe-4">
+                            <a href="{{ supplier.get_absolute_url }}" class="btn btn-sm btn-light border" title="View Profile">
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="text-muted mb-2"><i class="fas fa-users-slash fa-3x opacity-25"></i></div>
+                            <p class="text-muted fw-medium">No suppliers found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
+    <!-- 3. PAGINATION -->
     {% if is_paginated %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
-            {% else %}
-                <li class="page-item disabled"><a class="page-link" href="#" tabindex="-1">Previous</a></li>
-            {% endif %}
-            {% for i in paginator.page_range %}
-                {% if page_obj.number == i %}
-                    <li class="page-item active"><a class="page-link" href="#">{{ i }}</a></li>
+    <div class="d-flex justify-content-center mt-5">
+        <nav aria-label="Page navigation">
+            <ul class="pagination shadow-sm">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
                 {% else %}
-                    <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                    <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
                 {% endif %}
-            {% endfor %}
-            {% if page_obj.has_next %}
-                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
-            {% else %}
-                <li class="page-item disabled"><a class="page-link" href="#" tabindex="-1">Next</a></li>
-            {% endif %}
-        </ul>
-    </nav>
+                
+                {% for i in paginator.page_range %}
+                    {% if page_obj.number == i %}
+                        <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link border-0" href="?page={{ i }}">{{ i }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link border-0">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
     {% endif %}
+
+</div>
 {% endblock %}

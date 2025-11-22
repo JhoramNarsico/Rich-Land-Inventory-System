@@ -35,16 +35,25 @@
         
         .report-meta { font-size: 9px; color: #7f8c8d; text-align: right; line-height: 1.4; margin-top: 5px; }
 
+        /* Financial Summary Box */
         .summary-box {
             background-color: #ecf0f1;
             border: 1px solid #bdc3c7;
             padding: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             margin-top: 10px; 
         }
         
-        .total-label { font-size: 10px; font-weight: bold; color: #2c3e50; }
-        .total-val { font-size: 12px; font-weight: bold; color: #2799a5; }
+        .fin-row td { padding: 2px 5px; font-size: 10px; }
+        .fin-label { color: #2c3e50; }
+        .fin-val { text-align: right; font-family: monospace; }
+        .net-row td { 
+            border-top: 1px solid #2c3e50; 
+            padding-top: 5px; 
+            font-weight: bold; 
+            font-size: 11px; 
+            color: #2799a5; 
+        }
         
         /* Data Tables */
         table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; -pdf-keep-with-next: false; }
@@ -66,7 +75,7 @@
         .col-date { width: 12%; }
         .col-prod { width: 20%; } 
         .col-sku { width: 10%; }
-        .col-type { width: 5%; } /* NEW */
+        .col-type { width: 5%; } 
         .col-reason { width: 15%; } 
         .col-qty { width: 8%; }
         .col-price { width: 12%; } 
@@ -83,7 +92,7 @@
                     <br/><span class="company-name">Rich Land Auto Supply</span>
                 </td>
                 <td style="vertical-align: bottom; text-align: right; width: 50%;">
-                    <div class="report-title">STOCK MOVEMENT REPORT</div>
+                    <div class="report-title">FINANCIAL STOCK REPORT</div>
                     <div class="report-meta">
                         Generated: {% now "F d, Y h:i A" %}<br/>
                         {% if start_date and end_date %}
@@ -101,17 +110,32 @@
         Confidential Report | Page <pdf:pagenumber> of <pdf:pagecount>
     </div>
 
-    <!-- REVENUE SUMMARY -->
+    <!-- REVENUE & FINANCIAL SUMMARY -->
     <div class="summary-box">
         <table style="width: 100%;">
             <tr>
-                <td style="border: none; width: 50%;"><strong>Sales Revenue</strong></td>
-                <td style="border: none; width: 50%; text-align: right;">
-                    <span class="total-label">Total Revenue:</span> 
-                    <span class="total-val"><small>PHP</small> {{ summary.total_revenue|floatformat:2|default:"0.00"|intcomma }}</span>
-                    &nbsp;&nbsp;|&nbsp;&nbsp;
-                    <span class="total-label">Sold:</span> 
-                    <span class="bold">{{ summary.total_items_sold|default:"0"|intcomma }}</span>
+                <!-- Left: Units Sold -->
+                <td style="width: 50%; vertical-align: top;">
+                    <strong>Activity Summary</strong><br/>
+                    Total Units Sold: <span class="bold">{{ total_items_sold|intcomma }}</span>
+                </td>
+                
+                <!-- Right: Financial Breakdown -->
+                <td style="width: 50%;">
+                    <table style="width: 100%;">
+                        <tr class="fin-row">
+                            <td class="fin-label">Gross Sales Revenue:</td>
+                            <td class="fin-val">PHP {{ gross_sales|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr class="fin-row">
+                            <td class="fin-label" style="color: #e74a3b;">Less: Refunds Given:</td>
+                            <td class="fin-val" style="color: #e74a3b;">( {{ total_refunds|floatformat:2|intcomma }} )</td>
+                        </tr>
+                        <tr class="fin-row net-row">
+                            <td>NET REVENUE:</td>
+                            <td class="fin-val">PHP {{ net_revenue|floatformat:2|intcomma }}</td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
         </table>
@@ -120,7 +144,7 @@
     <!-- INFLOW & OUTFLOW DETAILS -->
     <table style="width: 100%; margin-bottom: 10px;">
         <tr>
-            <!-- STOCK ADDED SUMMARY -->
+            <!-- STOCK ADDED -->
             <td style="width: 49%; vertical-align: top; padding-right: 5px; border: none;">
                 {% if inflow_summary %}
                 <div class="summary-box" style="background-color: #f0fdf4; border-color: #27a562; margin-top: 0;">
@@ -147,15 +171,25 @@
             <td style="width: 49%; vertical-align: top; padding-left: 5px; border: none;">
                 {% if loss_summary %}
                 <div class="summary-box" style="background-color: #fff5f5; border-color: #c0392b; margin-top: 0;">
-                    <strong style="color: #c0392b;">Stock Loss/Usage (OUT)</strong>
+                    <strong style="color: #c0392b;">Loss & Damages (Value)</strong>
                     <table style="width: 100%; margin-top: 5px; border: none;">
+                        <tr>
+                            <td style="border-bottom: 1px solid #e57373; font-size: 8px; font-weight: bold;">Reason</td>
+                            <td style="border-bottom: 1px solid #e57373; font-size: 8px; font-weight: bold; text-align: right;">Qty</td>
+                            <td style="border-bottom: 1px solid #e57373; font-size: 8px; font-weight: bold; text-align: right;">Lost Val</td>
+                        </tr>
                         {% for item in loss_summary %}
                         <tr>
-                            <td style="border: none; font-size: 9px;">
-                                • {{ item.transaction_reason }}
+                            <td style="border: none; font-size: 9px; padding-top: 4px;">
+                                {{ item.transaction_reason }}
                             </td>
-                            <td style="border: none; text-align: right; font-size: 9px; font-weight: bold;">
+                            <td style="border: none; text-align: right; font-size: 9px; padding-top: 4px;">
                                 {{ item.total_qty|intcomma }}
+                            </td>
+                            <td style="border: none; text-align: right; font-size: 9px; font-weight: bold; color: #c0392b; padding-top: 4px;">
+                                {% if item.total_val %}
+                                    {{ item.total_val|floatformat:2|intcomma }}
+                                {% else %} - {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
