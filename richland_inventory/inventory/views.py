@@ -9,8 +9,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.decorators import login_required, permission_required
-from django.contrib.auth.views import LoginView # For Custom Login
-from django.contrib.auth.views import LoginView # Required for Custom Login
+from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField
@@ -30,7 +29,8 @@ from core.cache_utils import clear_dashboard_cache
 from .forms import (
     ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm,
     TransactionFilterForm, TransactionReportForm, ProductHistoryFilterForm,
-    CategoryCreateForm, PurchaseOrderFilterForm, StockOutForm, AnalyticsFilterForm
+    CategoryCreateForm, PurchaseOrderFilterForm, StockOutForm, AnalyticsFilterForm,
+    RefundForm
 )
 from .models import Product, StockTransaction, Category, PurchaseOrder, Supplier
 from .serializers import ProductSerializer
@@ -42,43 +42,14 @@ class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
 
     def form_valid(self, form):
-        # Call the parent class to log the user in
         response = super().form_valid(form)
-        
-        # Check if "Remember Me" was checked
         remember_me = self.request.POST.get('remember_me')
-        
         if remember_me:
-            # Keep the session for SESSION_COOKIE_AGE (defined in settings)
-            self.request.session.set_expiry(1209600) # 2 weeks
-        else:
-            # 0 means "Expire on browser close"
-            self.request.session.set_expiry(0)
-            
-        return response
-
-# --- AUTHENTICATION ---
-
-class CustomLoginView(LoginView):
-    template_name = 'registration/login.html'
-
-    def form_valid(self, form):
-        # Call the parent class to log the user in
-        response = super().form_valid(form)
-        
-        # Check if "Remember Me" was checked
-        remember_me = self.request.POST.get('remember_me')
-        
-        if remember_me:
-            # If Checked: Keep session for 2 weeks (SESSION_COOKIE_AGE)
+            # Keep session for 2 weeks
             self.request.session.set_expiry(1209600)
         else:
-            # If Unchecked: Set a hard limit of 30 minutes (1800 seconds).
-            # Since SESSION_SAVE_EVERY_REQUEST = True in settings, this timer
-            # resets every time they click a link. If they are inactive for 30m,
-            # or close the browser and return after 30m, they are logged out.
+            # Rolling session: Expires in 30 mins of inactivity
             self.request.session.set_expiry(1800)
-            
         return response
 
 # --- PRODUCT MANAGEMENT ---
@@ -91,7 +62,7 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_template_names(self):
-        # HTMX Support: Render only rows if the request comes from HTMX
+        # HTMX Support: Render only rows if request is from HTMX
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
         return ['inventory/product_list.html']
@@ -152,11 +123,13 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
-        # STRICT LOGIC: Use StockOutForm for manual adjustments (No Stock In allowed here)
+        # Pass both forms to the template
         context['transaction_form'] = StockOutForm()
+        context['refund_form'] = RefundForm()
         return context
     
     def post(self, request, *args, **kwargs):
+        # This POST handles StockOutForm (Sales/Damage)
         with transaction.atomic():
             product_object = Product.objects.select_for_update().get(pk=self.get_object().pk)
             form = StockOutForm(request.POST)
@@ -172,13 +145,14 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 quantity = form.cleaned_data.get('quantity')
                 
                 if product_object.quantity < quantity:
-                    messages.error(request, f'Cannot stock out more than the available quantity ({product_object.quantity}).')
+                    messages.error(request, f'Cannot stock out more than available ({product_object.quantity}).')
                     return redirect(product_object.get_absolute_url())
                 
                 product_object.quantity -= quantity
                 product_object.save()
                 
-                if transaction_reason == StockTransaction.TransactionReason.SALE:
+                # Record price only for Sales and Damage (to track value lost)
+                if transaction_reason in [StockTransaction.TransactionReason.SALE, StockTransaction.TransactionReason.DAMAGE]:
                     transaction_obj.selling_price = product_object.price
                 else:
                     transaction_obj.selling_price = None 
@@ -187,8 +161,42 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 clear_dashboard_cache()
                 messages.success(request, "Stock Out recorded successfully.")
             else:
-                messages.error(request, "There was an error with your submission.")
+                messages.error(request, "Error recording transaction.")
         return redirect(product_object.get_absolute_url())
+
+@login_required
+@require_POST
+@permission_required('inventory.can_adjust_stock', raise_exception=True)
+def product_refund(request, slug):
+    product = get_object_or_404(Product, slug=slug)
+    form = RefundForm(request.POST)
+    
+    if form.is_valid():
+        with transaction.atomic():
+            quantity = form.cleaned_data['quantity']
+            
+            # 1. Create Transaction (IN)
+            StockTransaction.objects.create(
+                product=product,
+                transaction_type='IN',
+                transaction_reason=StockTransaction.TransactionReason.RETURN,
+                quantity=quantity,
+                user=request.user,
+                # Record selling price so we can calculate Negative Revenue
+                selling_price=product.price, 
+                notes=f"Refund/Return: {form.cleaned_data.get('notes')}"
+            )
+            
+            # 2. Add Stock Back
+            product.quantity += quantity
+            product.save()
+            
+            clear_dashboard_cache()
+            messages.success(request, f"Refund processed. {quantity} items returned to stock.")
+    else:
+        messages.error(request, "Invalid refund data.")
+        
+    return redirect(product.get_absolute_url())
 
 class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
     model = Product
@@ -205,7 +213,8 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
             StockTransaction.objects.create(
                 product=self.object,
                 transaction_type='IN',
-                transaction_reason=StockTransaction.TransactionReason.CORRECTION,
+                # Use INITIAL instead of CORRECTION
+                transaction_reason=StockTransaction.TransactionReason.INITIAL,
                 quantity=initial_quantity,
                 user=self.request.user,
                 notes='Initial stock on product creation.'
@@ -235,8 +244,7 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
     
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
-            messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
-            messages.error(request, "Only administrators are allowed to permanently delete products. Consider deactivating it instead.")
+            messages.error(request, "Only administrators are allowed to permanently delete products.")
             product = self.get_object()
             return redirect(product.get_absolute_url())
         return super().dispatch(request, *args, **kwargs)
@@ -375,7 +383,6 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
 
 # --- REPORTING & ANALYTICS ---
 
-# FIX: Allow PDF preview in iframe (Fixes "127.0.0.1 refused to connect")
 @method_decorator(xframe_options_exempt, name='dispatch')
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'inventory/reporting.html'
@@ -406,10 +413,8 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return response
     
     def export_transactions_pdf(self, request):
-        # 1. Base Filter: Get ALL Outgoing transactions within date range
-        transactions_base = StockTransaction.objects.select_related('product', 'user').filter(
-            transaction_type='OUT'
-        )
+        # 1. Base Filter: Get ALL transactions (IN and OUT)
+        transactions_base = StockTransaction.objects.select_related('product', 'user').all()
         
         form = TransactionReportForm(request.GET)
         start_date, end_date = None, None
@@ -419,43 +424,78 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
         
-        all_out_transactions = transactions_base.annotate(
+        # 2. Annotate row totals
+        all_transactions = transactions_base.annotate(
             row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
         ).order_by('-timestamp')
 
+        # 3. Revenue (Sales)
         revenue_summary = transactions_base.filter(
+            transaction_type='OUT',
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).aggregate(
             total_revenue=Sum(F('selling_price') * F('quantity')), 
             total_items_sold=Sum('quantity')
         )
 
-        # 4. Calculate Shrinkage (Damage, Internal, etc.)
-        shrinkage_summary = transactions_base.exclude(
+        # 4. Refunds (Returns)
+        refunds_data = transactions_base.filter(
+            transaction_type='IN',
+            transaction_reason=StockTransaction.TransactionReason.RETURN
+        ).aggregate(
+            total_refunded=Sum(F('selling_price') * F('quantity'))
+        )
+        total_refunds = refunds_data['total_refunded'] or 0
+        
+        # Calculate Gross and Net
+        gross_sales = revenue_summary['total_revenue'] or 0
+        net_revenue = gross_sales - total_refunds
+
+        # 5. Loss/Shrinkage (Damage/Internal/Correction-OUT)
+        loss_summary = transactions_base.filter(
+            transaction_type='OUT'
+        ).exclude(
             transaction_reason=StockTransaction.TransactionReason.SALE
+        ).values('transaction_reason').annotate(
+            total_qty=Sum('quantity'),
+            # Calculate Money Lost
+            total_val=Sum(F('selling_price') * F('quantity')), 
+            count=Count('id')
+        ).order_by('transaction_reason')
+
+        # 6. Inflow Summary (Initial/PO/Returns)
+        inflow_summary = transactions_base.filter(
+            transaction_type='IN'
         ).values('transaction_reason').annotate(
             total_qty=Sum('quantity'),
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 5. Top Sellers
+        # 7. Top Sellers
         top_sellers = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
         
         context = {
-            'transactions': all_out_transactions,
+            'transactions': all_transactions,
             'start_date': start_date,
             'end_date': end_date,
-            'summary': revenue_summary,
-            'shrinkage_summary': shrinkage_summary,
+            
+            # Financials
+            'gross_sales': gross_sales,
+            'total_refunds': total_refunds,
+            'net_revenue': net_revenue,
+            'total_items_sold': revenue_summary['total_items_sold'] or 0,
+            
+            'loss_summary': loss_summary,
+            'inflow_summary': inflow_summary,
             'top_sellers': top_sellers,
         }
         
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         
-        # Preview Logic: Inline vs Attachment
+        # Preview vs Download
         if request.GET.get('preview'):
             disposition = 'inline'
         else:
@@ -477,54 +517,70 @@ def analytics_dashboard(request):
         if form.cleaned_data.get('end_date'):
             end_date = form.cleaned_data['end_date']
 
-    base_query = StockTransaction.objects.filter(
+    # 1. Gross Sales
+    sales_query = StockTransaction.objects.filter(
         transaction_type='OUT',
         transaction_reason=StockTransaction.TransactionReason.SALE,
         selling_price__isnull=False,
         timestamp__date__gte=start_date,
         timestamp__date__lte=end_date
     )
+    gross_sales = sales_query.aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
+    total_units_sold = sales_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
 
-    # 2. CHART 1: Revenue by Category (Doughnut)
-    cat_data = base_query.values('product__category__name').annotate(
+    # 2. Refunds
+    refunds_query = StockTransaction.objects.filter(
+        transaction_type='IN',
+        transaction_reason=StockTransaction.TransactionReason.RETURN,
+        timestamp__date__gte=start_date,
+        timestamp__date__lte=end_date
+    )
+    total_refunds = refunds_query.aggregate(val=Sum(F('quantity') * F('product__price')))['val'] or 0
+    
+    # 3. Loss
+    damage_query = StockTransaction.objects.filter(
+        transaction_type='OUT',
+        transaction_reason=StockTransaction.TransactionReason.DAMAGE,
+        timestamp__date__gte=start_date,
+        timestamp__date__lte=end_date
+    )
+    total_loss = damage_query.aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
+
+    # 4. Net Revenue
+    net_revenue = gross_sales - total_refunds
+
+    # Charts use Sales Data
+    cat_data = sales_query.values('product__category__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')
 
-    cat_labels = []
-    cat_values = []
-    for entry in cat_data:
-        cat_labels.append(entry['product__category__name'] or "Uncategorized")
-        cat_values.append(float(entry['total_revenue'] or 0))
+    cat_labels = [entry['product__category__name'] or "Uncategorized" for entry in cat_data]
+    cat_values = [float(entry['total_revenue'] or 0) for entry in cat_data]
 
-    # 3. CHART 2: Top 5 Best Selling Products (Horizontal Bar)
-    prod_data = base_query.values('product__name').annotate(
+    prod_data = sales_query.values('product__name').annotate(
         total_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('-total_revenue')[:5]
 
     prod_labels = [p['product__name'] for p in prod_data]
     prod_values = [float(p['total_revenue']) for p in prod_data]
 
-    # 4. CHART 3: Daily Sales Trend (Bar Chart)
-    daily_data = base_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
+    daily_data = sales_query.annotate(day=TruncDay('timestamp')).values('day').annotate(
         daily_revenue=Sum(F('quantity') * F('selling_price'))
     ).order_by('day')
 
     date_labels = [d['day'].strftime('%b %d') for d in daily_data]
     date_values = [float(d['daily_revenue']) for d in daily_data]
 
-    total_revenue = sum(cat_values)
-    total_units = base_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
-    
     context = {
         'page_title': 'Business Analytics',
         'filter_form': form,
         'start_date': start_date,
         'end_date': end_date,
-        
-        'total_revenue': total_revenue,
-        'total_units': total_units,
-
-        # JSON Data for Charts
+        'total_revenue': net_revenue,
+        'gross_sales': gross_sales,
+        'total_refunds': total_refunds,
+        'total_loss': total_loss,
+        'total_units': total_units_sold,
         'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
         'cat_values': json.dumps(cat_values, cls=DjangoJSONEncoder),
         'prod_labels': json.dumps(prod_labels, cls=DjangoJSONEncoder),
@@ -551,7 +607,6 @@ def sales_chart_data(request):
     return JsonResponse({'labels': labels, 'data': data})
 
 # --- PURCHASE ORDERS & SUPPLIERS ---
-# --- PURCHASE ORDER & SUPPLIER ---
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PurchaseOrder

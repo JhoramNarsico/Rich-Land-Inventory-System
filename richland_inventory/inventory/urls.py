@@ -8,6 +8,10 @@ urlpatterns = [
     path('', views.ProductListView.as_view(), name='product_list'),
     path('product/create/', views.ProductCreateView.as_view(), name='product_create'),
     path('product/<slug:slug>/', views.ProductDetailView.as_view(), name='product_detail'),
+    
+    # NEW: Refund URL
+    path('product/<slug:slug>/refund/', views.product_refund, name='product_refund'),
+    
     path('product/<slug:slug>/update/', views.ProductUpdateView.as_view(), name='product_update'),
     path('product/<slug:slug>/delete/', views.ProductDeleteView.as_view(), name='product_delete'),
     path('product/<slug:slug>/toggle_status/', views.product_toggle_status, name='product_toggle_status'),
@@ -23,8 +27,6 @@ urlpatterns = [
 
     path('purchase-orders/', views.PurchaseOrderListView.as_view(), name='purchaseorder_list'),
     path('purchase-orders/<int:pk>/', views.PurchaseOrderDetailView.as_view(), name='purchaseorder_detail'),
-    
-    # NEW: URL for receiving a PO
     path('purchase-orders/<int:pk>/receive/', views.receive_purchase_order, name='purchaseorder_receive'),
 
     path('suppliers/', views.SupplierListView.as_view(), name='supplier_list'),
