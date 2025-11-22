@@ -30,7 +30,6 @@ class ProductUpdateForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
         }
 
-# Standard form for Admin use or history editing
 class StockTransactionForm(forms.ModelForm):
     class Meta:
         model = StockTransaction
@@ -42,11 +41,11 @@ class StockTransactionForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
-# Strictly for Manual Stock Out (Sales/Damage)
+# --- STOCK OUT FORM (Sales/Damage) ---
 class StockOutForm(forms.ModelForm):
     class Meta:
         model = StockTransaction
-        fields = ['transaction_reason', 'quantity', 'notes'] # No transaction_type field
+        fields = ['transaction_reason', 'quantity', 'notes']
         widgets = {
             'transaction_reason': forms.Select(attrs={'class': 'form-select'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
@@ -55,18 +54,29 @@ class StockOutForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filter reasons: Remove 'Purchase Order' (handled by PO system) and 'Return'
+        # Only show reasons related to removing stock
         excluded_reasons = [
             StockTransaction.TransactionReason.PURCHASE_ORDER,
-            StockTransaction.TransactionReason.RETURN, # Returns usually imply Stock In
+            StockTransaction.TransactionReason.RETURN,
+            StockTransaction.TransactionReason.CORRECTION,
+             StockTransaction.TransactionReason.INITIAL
         ]
         
-        # Get valid choices for OUT transactions
         valid_choices = [
             c for c in StockTransaction.TransactionReason.choices 
             if c[0] not in excluded_reasons
         ]
         self.fields['transaction_reason'].choices = valid_choices
+
+# --- NEW: REFUND FORM (Returns) ---
+class RefundForm(forms.ModelForm):
+    class Meta:
+        model = StockTransaction
+        fields = ['quantity', 'notes']
+        widgets = {
+            'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for return (e.g. Defective, Wrong Item)'}),
+        }
 
 class ProductFilterForm(forms.Form):
     STOCK_STATUS_CHOICES = (
@@ -139,7 +149,6 @@ class PurchaseOrderFilterForm(forms.Form):
     start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
     end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
 
-# NEW: Analytics Date Filter
 class AnalyticsFilterForm(forms.Form):
     start_date = forms.DateField(
         required=False,

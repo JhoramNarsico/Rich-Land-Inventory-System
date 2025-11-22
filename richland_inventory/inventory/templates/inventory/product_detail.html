@@ -25,13 +25,13 @@
                 </div>
                 <div class="col-md-4 text-center">
                     <h5 class="text-muted">Quantity on Hand</h5>
-                    <p class="display-4 fw-bold">{{ product.quantity|intcomma }}</p>
+                    <p class="display-4 fw-bold text-primary">{{ product.quantity|intcomma }}</p>
                 </div>
             </div>
         </div>
         <div class="card-footer text-end">
             {% if perms.inventory.change_product %}
-                <a href="{% url 'inventory:product_update' slug=product.slug %}" class="btn btn-info"><i class="fas fa-edit me-2"></i>Edit Details</a>
+                <a href="{% url 'inventory:product_update' slug=product.slug %}" class="btn btn-info"><i class="fas fa-edit me-2"></i>Edit</a>
                 <form action="{% url 'inventory:product_toggle_status' slug=product.slug %}" method="post" class="d-inline">
                     {% csrf_token %}
                     {% if product.status == 'ACTIVE' %}
@@ -44,84 +44,124 @@
         </div>
     </div>
 
-    <!-- Adjust Stock Form (UPDATED: ONLY ALLOWS STOCK OUT) -->
     {% if perms.inventory.can_adjust_stock %}
-    <div class="card mb-4 border-danger">
-        <div class="card-header bg-danger text-white">
-            <h4 class="mb-0"><i class="fas fa-minus-circle me-2"></i>Record Stock Out / Sale</h4>
+    <div class="row g-4">
+        <!-- 1. STOCK OUT FORM (Sales/Damage) -->
+        <div class="col-md-8">
+            <div class="card mb-4 border-danger h-100 shadow-sm">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-minus-circle me-2"></i>Record Stock Out</h5>
+                    <small>Sales & Damage</small>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small fw-bold text-uppercase text-muted">Reason</label>
+                                {{ transaction_form.transaction_reason }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label small fw-bold text-uppercase text-muted">Quantity</label>
+                                {{ transaction_form.quantity }}
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label class="form-label small fw-bold text-uppercase text-muted">Notes</label>
+                                {{ transaction_form.notes }}
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger fw-bold">
+                                <i class="fas fa-trash-alt me-2"></i> Remove from Inventory
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <form method="post" action="">
-                {% csrf_token %}
-                <div class="row align-items-end">
-                    <!-- No Transaction Type field (Hardcoded to OUT in backend) -->
-                    
-                    <div class="col-md-3 mb-3">
-                        <label for="{{ transaction_form.transaction_reason.id_for_label }}" class="form-label">Reason</label>
-                         {{ transaction_form.transaction_reason }}
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="{{ transaction_form.quantity.id_for_label }}" class="form-label">Quantity</label>
-                        {{ transaction_form.quantity }}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ transaction_form.notes.id_for_label }}" class="form-label">Notes</label>
-                        {{ transaction_form.notes }}
-                    </div>
-                    <div class="col-md-2 mb-3 d-grid">
-                        <button type="submit" class="btn btn-danger">Remove Stock</button>
-                    </div>
+
+        <!-- 2. REFUND FORM (Stock Return) -->
+        <div class="col-md-4">
+            <div class="card mb-4 border-primary h-100 shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-undo-alt me-2"></i>Process Refund</h5>
+                    <small>Returns</small>
                 </div>
-                <div class="form-text">
-                    To add stock, please create and receive a Purchase Order.
+                <div class="card-body">
+                    <form method="post" action="{% url 'inventory:product_refund' slug=product.slug %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Return Quantity</label>
+                            {{ refund_form.quantity }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Reason / Notes</label>
+                            {{ refund_form.notes }}
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-primary fw-bold">
+                                <i class="fas fa-box-open me-2"></i> Restock Item
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Transaction History Section -->
-    <div class="card">
-        <div class="card-header"><h4><i class="fas fa-history me-2"></i>Recent Transactions</h4></div>
-        <div class="card-body">
+    <!-- Transactions List -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-history me-2"></i>Recent Transactions</h5>
+        </div>
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm table-striped">
-                    <thead>
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light">
                         <tr>
                             <th>Type</th>
                             <th>Reason</th>
-                            <th>Quantity</th>
+                            <th>Qty</th>
                             <th>User</th>
-                            <th>Timestamp</th>
+                            <th>Date</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for transaction in transactions %}
+                        {% for t in transactions %}
                         <tr>
                             <td>
-                                {% if transaction.transaction_type == 'IN' %}
-                                    <span class="badge bg-success">Stock In</span>
+                                {% if t.transaction_type == 'IN' %}
+                                    <span class="badge bg-success rounded-pill">IN</span>
                                 {% else %}
-                                    <span class="badge bg-danger">Stock Out</span>
+                                    <span class="badge bg-danger rounded-pill">OUT</span>
                                 {% endif %}
                             </td>
-                            <td>{{ transaction.get_transaction_reason_display }}</td>
-                            <td>{{ transaction.quantity|intcomma }}</td>
-                            <td>{{ transaction.user.username|default:"N/A" }}</td>
-                            <td>{{ transaction.timestamp|date:"F d, Y, P" }}</td>
-                            <td>{{ transaction.notes|default:"" }}</td>
+                            <td>
+                                {% if t.transaction_reason == 'SALE' %}
+                                    <span class="text-success fw-bold">Sale</span>
+                                {% elif t.transaction_reason == 'RETURN' %}
+                                    <span class="text-primary fw-bold">Return</span>
+                                {% elif t.transaction_reason == 'DAMAGE' %}
+                                    <span class="text-danger fw-bold">Damage</span>
+                                {% elif t.transaction_reason == 'INITIAL' %}
+                                    <span class="text-secondary fw-bold">Initial</span>
+                                {% else %}
+                                    {{ t.get_transaction_reason_display }}
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold">{{ t.quantity|intcomma }}</td>
+                            <td>{{ t.user.username }}</td>
+                            <td>{{ t.timestamp|date:"M d, Y H:i" }}</td>
+                            <td class="text-muted small">{{ t.notes|default:"-" }}</td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="6" class="text-center">No transactions recorded for this product.</td></tr>
+                        <tr><td colspan="6" class="text-center py-4 text-muted">No transactions recorded for this product.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-{% endblock %}
-
-{% block extra_js %}
-<!-- No JS needed for filtering dropdowns anymore since there's only one transaction type allowed. -->
 {% endblock %}

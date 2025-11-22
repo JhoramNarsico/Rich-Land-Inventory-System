@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Business Analytics{% endblock %}
+{% block title %}Analytics{% endblock %}
 
 {% block content %}
 <div class="container-fluid mb-5">
@@ -29,25 +29,54 @@
         </form>
     </div>
 
+    <!-- KPI CARDS -->
     <div class="row g-4 mb-4">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm border-start border-4 border-primary">
+        <!-- Net Revenue -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-primary h-100">
                 <div class="card-body">
-                    <div class="text-muted text-uppercase small fw-bold">Total Revenue (Selected Period)</div>
-                    <div class="fs-2 fw-bold text-dark">₱{{ total_revenue|floatformat:2|intcomma }}</div>
+                    <div class="text-muted small fw-bold text-uppercase">Net Revenue</div>
+                    <div class="fs-3 fw-bold text-primary">₱{{ total_revenue|floatformat:2|intcomma }}</div>
+                    <small class="text-muted d-block mt-1">Gross Sales: ₱{{ gross_sales|floatformat:2|intcomma }}</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm border-start border-4 border-warning">
+        
+        <!-- Units Sold -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-success h-100">
                 <div class="card-body">
-                    <div class="text-muted text-uppercase small fw-bold">Units Sold (Selected Period)</div>
-                    <div class="fs-2 fw-bold text-dark">{{ total_units|intcomma }}</div>
+                    <div class="text-muted small fw-bold text-uppercase">Units Sold</div>
+                    <div class="fs-3 fw-bold text-dark">{{ total_units|intcomma }}</div>
+                    <small class="text-muted d-block mt-1">Items moved</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Refunds -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-warning h-100">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase">Refunds Given</div>
+                    <div class="fs-3 fw-bold text-warning">₱{{ total_refunds|floatformat:2|intcomma }}</div>
+                    <small class="text-muted d-block mt-1">Deducted from Gross</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Damages/Loss -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm border-start border-4 border-danger h-100">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase">Loss / Damage</div>
+                    <div class="fs-3 fw-bold text-danger">₱{{ total_loss|floatformat:2|intcomma }}</div>
+                    <small class="text-muted d-block mt-1">Total value lost</small>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Charts Section -->
     <div class="row g-4 mb-4">
         <div class="col-lg-4">
             <div class="card h-100 border-0 shadow-sm">
@@ -72,27 +101,27 @@
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 fw-bold text-dark">Daily Sales Trend</h6>
-                </div>
-                <div class="card-body" style="height: 350px;">
-                    <canvas id="trendChart"></canvas>
-                </div>
-            </div>
+    <!-- Trend Chart -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 fw-bold text-dark">Daily Sales Trend</h6>
+        </div>
+        <div class="card-body" style="height: 350px;">
+            <canvas id="trendChart"></canvas>
         </div>
     </div>
 </div>
 
+<!-- Chart JS Logic -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Global Chart Font
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#6c757d';
 
     document.addEventListener("DOMContentLoaded", function() {
         
+        // 1. Category
         const catLabels = JSON.parse('{{ cat_labels|safe }}');
         const catValues = JSON.parse('{{ cat_values|safe }}');
         
@@ -103,21 +132,19 @@
                     labels: catLabels,
                     datasets: [{
                         data: catValues,
-                        // UPDATED PALETTE: Teal, Dark, Orange, Red, Grey, Lighter Teal
                         backgroundColor: ['#2799a5', '#2c3e50', '#f39c12', '#c0392b', '#95a5a6', '#63dcb9'],
                         borderWidth: 0
                     }]
                 },
                 options: {
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right' }
-                    },
-                    cutout: '75%'
+                    plugins: { legend: { position: 'right' } },
+                    cutout: '70%'
                 }
             });
         }
 
+        // 2. Top Products
         const prodLabels = JSON.parse('{{ prod_labels|safe }}');
         const prodValues = JSON.parse('{{ prod_values|safe }}');
 
@@ -128,9 +155,9 @@
                 datasets: [{
                     label: 'Revenue',
                     data: prodValues,
-                    backgroundColor: '#2799a5', // Brand Teal
+                    backgroundColor: '#2799a5',
                     borderRadius: 4,
-                    barThickness: 20
+                    barThickness: 25
                 }]
             },
             options: {
@@ -144,6 +171,7 @@
             }
         });
 
+        // 3. Trend
         const dateLabels = JSON.parse('{{ date_labels|safe }}');
         const dateValues = JSON.parse('{{ date_values|safe }}');
 
@@ -154,10 +182,10 @@
                 datasets: [{
                     label: 'Daily Revenue',
                     data: dateValues,
-                    backgroundColor: '#2c3e50', // Brand Dark Grey
+                    backgroundColor: '#2c3e50',
                     borderRadius: 4,
                     barThickness: 'flex',
-                    maxBarThickness: 30
+                    maxBarThickness: 40
                 }]
             },
             options: {

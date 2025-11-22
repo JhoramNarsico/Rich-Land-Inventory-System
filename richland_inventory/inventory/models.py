@@ -66,6 +66,7 @@ class StockTransaction(models.Model):
         DAMAGE = 'DAMAGE', 'Damaged / Expired (Loss)'
         INTERNAL = 'INTERNAL', 'Internal Use / Demo'
         CORRECTION = 'CORRECTION', 'Inventory Correction / Mistake'
+        INITIAL = 'INITIAL', 'Initial Stock'
         RETURN = 'RETURN', 'Customer Return'
         OTHER = 'OTHER', 'Other'
 
