@@ -1,5 +1,5 @@
 # Core Framework
-Django>=5.0
+Django
 
 # Configuration
 python-decouple
@@ -24,3 +24,4 @@ xhtml2pdf
 # Utilities & Auditing
 django-simple-history
 cryptography
+
