@@ -33,12 +33,6 @@
             <a href="{% url 'inventory:purchaseorder_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Back
             </a>
-            <!-- Only Admin can edit via backend link, usually -->
-            {% if po.status == 'PENDING' %}
-                <a href="{% url 'admin:inventory_purchaseorder_change' po.id %}" target="_blank" class="btn btn-outline-primary">
-                    <i class="fas fa-edit me-2"></i>Edit Order
-                </a>
-            {% endif %}
             
             <!-- RECEIVE BUTTON (If Arrived) -->
             {% if po.status == 'COMPLETED' and perms.inventory.change_purchaseorder %}
@@ -202,19 +196,6 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                <!-- Simple Footer for Totals Visual -->
-                <tfoot class="bg-light">
-                    <tr>
-                        <td colspan="3" class="text-end pe-4 py-3">
-                            <span class="text-uppercase small fw-bold text-muted">Total Estimated Cost</span>
-                        </td>
-                        <td class="text-end pe-4 py-3 fw-bold fs-5 text-primary">
-                            <!-- Note: Exact grand total calculation usually done in view/model, 
-                                 but visually this row completes the table -->
-                            ---
-                        </td>
-                    </tr>
-                </tfoot>
             </table>
         </div>
     </div>
