@@ -2,7 +2,7 @@
 
 import csv
 import json
-from datetime import timedelta
+from datetime import timedelta, datetime
 from decimal import Decimal
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse, JsonResponse
@@ -13,7 +13,7 @@ from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField
-from django.db.models.functions import TruncDate, TruncDay
+from django.db.models.functions import TruncDate, TruncDay, TruncHour, TruncMinute
 from django.urls import reverse_lazy
 from django.shortcuts import redirect, get_object_or_404, render
 from django.utils import timezone
@@ -359,13 +359,11 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="current_inventory_report.csv"'
         writer = csv.writer(response)
-        writer.writerow(['Product Name', 'SKU', 'Category', 'Status', 'Quantity', 'Price per Item', 'Current Stock Value', 'Last Restocked'])
-        products = Product.objects.select_related('category').all()
-        for product in products:
-            category_name = product.category.name if product.category else 'N/A'
-            stock_value = product.quantity * product.price
-            writer.writerow([product.name, product.sku, category_name, product.get_status_display(), product.quantity, product.price, stock_value, product.last_purchase_date])
+        writer.writerow(['Product Name', 'SKU', 'Category', 'Status', 'Quantity', 'Price', 'Stock Value', 'Last Restocked'])
+        for product in Product.objects.select_related('category').all():
+            writer.writerow([product.name, product.sku, product.category.name if product.category else 'N/A', product.get_status_display(), product.quantity, product.price, product.quantity*product.price, product.last_purchase_date])
         return response
+    
     def export_transactions_pdf(self, request):
         transactions_base = StockTransaction.objects.select_related('product', 'user').all()
         form = TransactionReportForm(request.GET)
@@ -398,7 +396,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return pdf
 
 # --- ANALYTICS ---
-
 @login_required
 @permission_required('inventory.can_view_reports', raise_exception=True)
 def analytics_dashboard(request):
@@ -417,6 +414,7 @@ def analytics_dashboard(request):
         timestamp__date__gte=start_date,
         timestamp__date__lte=end_date
     )
+    
     gross_sales = sales_query.aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
     total_units_sold = sales_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
 
@@ -438,7 +436,6 @@ def analytics_dashboard(request):
 
     net_revenue = gross_sales - total_refunds
 
-    # FIX: Use sales_query for charts, NOT base_query
     cat_data = sales_query.values('product__category__name').annotate(total_revenue=Sum(F('quantity') * F('selling_price'))).order_by('-total_revenue')
     cat_labels = [entry['product__category__name'] or "Uncategorized" for entry in cat_data]
     cat_values = [float(entry['total_revenue'] or 0) for entry in cat_data]
@@ -472,15 +469,34 @@ def analytics_dashboard(request):
 
 @login_required
 def sales_chart_data(request):
-    thirty_days_ago = timezone.now() - timedelta(days=30)
+    # Updated Sales Chart Data with Period Filter
+    period = request.GET.get('period', 'hour')
+    now = timezone.now()
+
+    if period == 'minute':
+        start_time = now - timedelta(hours=1)
+        trunc_func = TruncMinute('timestamp')
+        date_format = '%H:%M'
+    elif period == 'hour':
+        start_time = now - timedelta(hours=24)
+        trunc_func = TruncHour('timestamp')
+        date_format = '%I %p'
+    else: # Day (Default)
+        start_time = now - timedelta(days=30)
+        trunc_func = TruncDate('timestamp')
+        date_format = '%b %d'
+
     sales_data = StockTransaction.objects.filter(
         transaction_type='OUT',
         transaction_reason=StockTransaction.TransactionReason.SALE,
-        timestamp__gte=thirty_days_ago,
+        timestamp__gte=start_time,
         selling_price__isnull=False
-    ).annotate(day=TruncDate('timestamp')).values('day').annotate(total_sales=Sum(F('selling_price') * F('quantity'))).order_by('day')
-    labels = [sale['day'].strftime('%b %d') for sale in sales_data]
-    data = [float(sale['total_sales']) for sale in sales_data]
+    ).annotate(period_group=trunc_func).values('period_group').annotate(
+        total_sales=Sum(F('selling_price') * F('quantity'))
+    ).order_by('period_group')
+    
+    labels = [entry['period_group'].strftime(date_format) for entry in sales_data]
+    data = [float(entry['total_sales']) for entry in sales_data]
     return JsonResponse({'labels': labels, 'data': data})
 
 # --- PURCHASE ORDER & SUPPLIER ---
