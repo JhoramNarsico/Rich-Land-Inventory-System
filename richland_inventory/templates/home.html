@@ -59,7 +59,7 @@
     <!-- 3. KPI METRICS -->
     <div class="row g-4 mb-4">
         
-        <!-- Card 1: Total Products (Updated with Inactive Count) -->
+        <!-- Card 1: Total Products -->
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body">
@@ -141,11 +141,18 @@
 
     <!-- 4. CHARTS & TABLES -->
     <div class="row">
-        <!-- Sales Chart -->
+        <!-- Sales Chart (UPDATED) -->
         <div class="col-lg-8 mb-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white py-3 border-bottom-0">
+                <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center">
                     <h5 class="m-0 fw-bold text-dark">Sales Performance</h5>
+                    
+                    <!-- TIME FRAME TOGGLE BUTTONS -->
+                    <div class="btn-group" role="group" aria-label="Time frame">
+                        <button type="button" class="btn btn-sm btn-secondary active" onclick="updateChart('day', this)">Day</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateChart('hour', this)">Hour</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateChart('minute', this)">Minute</button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div style="height: 300px;">
@@ -200,35 +207,75 @@
 
 {% block extra_js %}
 <script>
+let salesChartInstance = null; // Store the chart instance globally
+
 document.addEventListener('DOMContentLoaded', function () {
+    // Load default view (Day) on page load
+    const defaultButton = document.querySelector("button[onclick*='day']");
+    updateChart('day', defaultButton);
+});
+
+function updateChart(period, btnElement) {
     const ctx = document.getElementById('salesChart');
     if (!ctx) return;
 
-    fetch("{% url 'inventory-api:sales-chart-data' %}")
+    // 1. Update Button Styling
+    if (btnElement) {
+        document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active', 'btn-secondary'));
+        document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.add('btn-outline-secondary'));
+        
+        btnElement.classList.remove('btn-outline-secondary');
+        btnElement.classList.add('active', 'btn-secondary');
+    }
+
+    // 2. Fetch Data
+    const baseUrl = "{% url 'inventory-api:sales-chart-data' %}";
+    const url = `${baseUrl}?period=${period}`;
+
+    fetch(url)
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
+            if (!response.ok) throw new Error('Network response was not ok');
             return response.json();
         })
         .then(data => {
-            new Chart(ctx.getContext('2d'), {
+            if (salesChartInstance) {
+                salesChartInstance.destroy();
+            }
+
+            // --- COLOR CONFIGURATION ---
+            const colorUp = '#27a562';      // Green (Success)
+            const colorDown = '#c0392b';    // Red (Danger)
+            const colorDefault = '#2799a5'; // Brand Teal
+
+            // 3. Create New Chart
+            salesChartInstance = new Chart(ctx.getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: data.labels,
                     datasets: [{
                         label: 'Revenue',
                         data: data.data,
-                        // Brand Colors (#2799a5)
                         backgroundColor: 'rgba(39, 153, 165, 0.1)',
-                        borderColor: '#2799a5',
+                        borderColor: colorDefault,
                         borderWidth: 2,
-                        pointBackgroundColor: '#2c3e50',
-                        pointBorderColor: '#fff',
                         pointRadius: 4,
                         pointHoverRadius: 6,
+                        pointBackgroundColor: '#2c3e50',
+                        pointBorderColor: '#fff',
                         fill: true,
-                        tension: 0.3
+                        tension: 0.3,
+
+                        // DYNAMIC LINE COLOR
+                        segment: {
+                            borderColor: ctx => {
+                                if (!ctx.p0 || !ctx.p1) return colorDefault;
+                                const start = ctx.p0.parsed.y;
+                                const end = ctx.p1.parsed.y;
+                                if (end > start) return colorUp;
+                                if (end < start) return colorDown;
+                                return colorDefault;
+                            }
+                        }
                     }]
                 },
                 options: {
@@ -249,7 +296,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     },
                     scales: {
-                        x: { grid: { display: false } },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 10 }
+                        },
                         y: { 
                             beginAtZero: true,
                             border: { display: false },
@@ -264,6 +314,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         })
         .catch(error => console.error('Error fetching sales chart data:', error));
-});
+}
 </script>
 {% endblock %}
