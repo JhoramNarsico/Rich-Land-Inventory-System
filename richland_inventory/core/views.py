@@ -14,26 +14,29 @@ def home(request):
     """View for the homepage dashboard with trends and caching."""
     
     # --- PART 1: LIVE DATA (Critical Alerts) ---
-    # We query this EVERY time so alerts are never stale.
+    # Calculated every request for accuracy
     active_products = Product.objects.filter(status=Product.Status.ACTIVE)
     
-    low_stock_products = active_products.filter(
-        Q(quantity=0) | Q(quantity__lte=F('reorder_level'))
-    ).order_by('quantity')
-    
-    low_stock_products_count = low_stock_products.count()
+    # 1. Out of Stock (Quantity is 0)
+    out_of_stock_products = active_products.filter(quantity=0).order_by('name')
+    out_of_stock_count = out_of_stock_products.count()
 
-    # --- PART 2: CACHED DATA (Heavy Math/Charts) ---
+    # 2. Low Stock (Quantity > 0 but <= Reorder Level)
+    low_stock_products = active_products.filter(
+        quantity__gt=0, 
+        quantity__lte=F('reorder_level')
+    ).order_by('quantity')
+    low_stock_count = low_stock_products.count()
+
+    # --- PART 2: CACHED DATA (Charts & Historicals) ---
     cache_key = 'dashboard_data_v2' 
     dashboard_data = cache.get(cache_key)
 
     if not dashboard_data:
-        # --- Dates for Trends ---
         now = timezone.now()
         thirty_days_ago = now - timedelta(days=30)
         sixty_days_ago = now - timedelta(days=60)
 
-        # --- Totals ---
         total_products = active_products.count()
         
         total_stock_value_agg = active_products.aggregate(
@@ -41,9 +44,7 @@ def home(request):
         )
         total_stock_value = total_stock_value_agg['total_value'] or 0
         
-        # --- TREND INDICATORS ---
-        
-        # A. SALES REVENUE TREND
+        # Trend Logic
         revenue_current = StockTransaction.objects.filter(
             transaction_type='OUT',
             transaction_reason=StockTransaction.TransactionReason.SALE,
@@ -62,7 +63,6 @@ def home(request):
         else:
             revenue_trend = 100 if revenue_current > 0 else 0
 
-        # --- Lists for Tables ---
         recent_products = Product.objects.order_by('-date_created')[:5]
         
         top_stocked_in = StockTransaction.objects.filter(
@@ -73,7 +73,6 @@ def home(request):
             transaction_type='OUT', timestamp__gte=thirty_days_ago
         ).values('product__name', 'product__slug').annotate(total_out=Sum('quantity')).order_by('-total_out')[:5]
 
-        # Pack cached data
         dashboard_data = {
             'total_products': total_products,
             'total_stock_value': total_stock_value,
@@ -83,12 +82,18 @@ def home(request):
             'monthly_revenue': revenue_current,
             'revenue_trend': revenue_trend,
         }
-        # Cache for 5 minutes
         cache.set(cache_key, dashboard_data, 300) 
     
-    # --- MERGE LIVE DATA INTO CONTEXT ---
+    # --- MERGE CONTEXT ---
     context = dashboard_data.copy()
+    
+    # Pass the specific lists and counts
+    context['out_of_stock_products'] = out_of_stock_products
+    context['out_of_stock_count'] = out_of_stock_count
     context['low_stock_products'] = low_stock_products
-    context['low_stock_products_count'] = low_stock_products_count
+    context['low_stock_count'] = low_stock_count
+    
+    # Calculate total issues for the badge
+    context['total_alerts_count'] = out_of_stock_count + low_stock_count
     
     return render(request, 'home.html', context)

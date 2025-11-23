@@ -16,17 +16,29 @@
         <span class="badge bg-light text-secondary border">{{ product.category.name|default:"Uncategorized" }}</span>
     </td>
     <td>
+        <!-- Stock Text & Icon -->
         <div class="d-flex align-items-center justify-content-between mb-1" style="max-width: 120px;">
-            <span class="fw-bold text-dark">{{ product.quantity|intcomma }}</span>
-            {% if product.quantity <= product.reorder_level %}
-                <i class="fas fa-exclamation-circle text-warning" title="Low Stock"></i>
+            <span class="fw-bold {% if product.quantity == 0 %}text-danger{% elif product.quantity <= product.reorder_level %}text-dark{% else %}text-dark{% endif %}">
+                {{ product.quantity|intcomma }}
+            </span>
+            
+            {% if product.quantity == 0 %}
+                <i class="fas fa-times-circle text-danger" title="Out of Stock"></i>
+            {% elif product.quantity <= product.reorder_level %}
+                <i class="fas fa-exclamation-triangle text-warning" title="Low Stock"></i>
             {% endif %}
         </div>
+
+        <!-- Progress Bar -->
         <div class="progress" style="height: 4px; max-width: 120px;">
             {% widthratio product.quantity product.reorder_level 100 as pct %}
-            <div class="progress-bar {% if product.quantity <= product.reorder_level %}bg-warning{% else %}bg-success{% endif %}" 
+            <div class="progress-bar 
+                {% if product.quantity == 0 %}bg-danger
+                {% elif product.quantity <= product.reorder_level %}bg-warning
+                {% else %}bg-success{% endif %}" 
                  role="progressbar" 
-                 style="width: {{ pct|default:100 }}%"></div>
+                 style="width: {% if product.quantity == 0 %}100%{% else %}{{ pct|default:100 }}%{% endif %}"></div> 
+                 <!-- Note: If 0, we set width 100% but make it Red so it's visible as a 'critical' bar -->
         </div>
     </td>
     <td class="text-end font-monospace fw-bold text-dark">

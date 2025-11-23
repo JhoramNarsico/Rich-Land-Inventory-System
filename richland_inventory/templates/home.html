@@ -16,23 +16,39 @@
         </div>
     </div>
 
-    <!-- Low Stock Alerts Section -->
-    {% if low_stock_products %}
-    <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
+    <!-- 1. CRITICAL ALERTS (OUT OF STOCK) - RED -->
+    {% if out_of_stock_products %}
+    <div class="alert alert-danger border-0 shadow-sm mb-3" role="alert">
         <div class="d-flex align-items-center">
-            <div class="fs-1 me-3"><i class="fas fa-exclamation-circle"></i></div>
+            <div class="fs-2 me-3"><i class="fas fa-times-circle"></i></div>
             <div>
-                <h5 class="alert-heading fw-bold mb-1">Low Stock Warning</h5>
+                <h5 class="alert-heading fw-bold mb-1">Out of Stock Alert!</h5>
                 <p class="mb-0">
-                    There are <strong>{{ low_stock_products_count }}</strong> items below reorder levels. 
-                    <!-- FIX: Changed class from 'text-white' to 'text-primary' (Teal) -->
-                    Please review the <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="text-primary fw-bold text-decoration-underline">low stock list</a>.
+                    <strong>{{ out_of_stock_count }}</strong> item(s) have hit 0 quantity. Immediate action required.
+                    <a href="{% url 'inventory:product_list' %}?stock_status=out_of_stock" class="text-danger fw-bold text-decoration-underline ms-2">View Out of Stock List</a>.
                 </p>
             </div>
         </div>
     </div>
     {% endif %}
 
+    <!-- 2. WARNING ALERTS (LOW STOCK) - ORANGE/YELLOW -->
+    {% if low_stock_products %}
+    <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
+        <div class="d-flex align-items-center">
+            <div class="fs-2 me-3"><i class="fas fa-exclamation-triangle"></i></div>
+            <div>
+                <h5 class="alert-heading fw-bold mb-1">Low Stock Warning</h5>
+                <p class="mb-0">
+                    <strong>{{ low_stock_count }}</strong> item(s) are running low (below reorder level).
+                    <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="text-warning-emphasis fw-bold text-decoration-underline ms-2" style="color: #d35400 !important;">View Low Stock List</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Metric Cards (Unchanged from previous modern design) -->
     <div class="row g-4 mb-4">
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
@@ -107,6 +123,7 @@
         </div>
     </div>
 
+    <!-- Charts and Tables (Unchanged) -->
     <div class="row">
         <div class="col-lg-8 mb-4">
             <div class="card shadow-sm border-0 h-100">
@@ -184,7 +201,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     datasets: [{
                         label: 'Revenue',
                         data: data.data,
-                        // Updated to Brand Teal
                         backgroundColor: 'rgba(39, 153, 165, 0.1)',
                         borderColor: '#2799a5',
                         borderWidth: 2,
