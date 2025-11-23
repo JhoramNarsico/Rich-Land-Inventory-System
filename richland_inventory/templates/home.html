@@ -4,54 +4,64 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
+    <!-- 1. DASHBOARD HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-0">Dashboard Overview</h2>
             <p class="text-muted small mb-0">Real-time insights and inventory status</p>
         </div>
         <div class="text-end">
-            <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
+            <span class="badge bg-light text-dark border px-3 py-2 fw-normal shadow-sm">
                 <i class="far fa-calendar-alt me-2"></i> {% now "F d, Y" %}
             </span>
         </div>
     </div>
 
-    <!-- 1. CRITICAL ALERTS (OUT OF STOCK) - RED -->
-    {% if out_of_stock_products %}
-    <div class="alert alert-danger border-0 shadow-sm mb-3" role="alert">
-        <div class="d-flex align-items-center">
-            <div class="fs-2 me-3"><i class="fas fa-times-circle"></i></div>
-            <div>
-                <h5 class="alert-heading fw-bold mb-1">Out of Stock Alert!</h5>
-                <p class="mb-0">
-                    <strong>{{ out_of_stock_count }}</strong> item(s) have hit 0 quantity. Immediate action required.
-                    <a href="{% url 'inventory:product_list' %}?stock_status=out_of_stock" class="text-danger fw-bold text-decoration-underline ms-2">View Out of Stock List</a>.
-                </p>
+    <!-- 2. COMPACT ALERTS SECTION -->
+    {% if out_of_stock_products or low_stock_products %}
+    <div class="row g-3 mb-4">
+        
+        <!-- A. OUT OF STOCK ALERT (RED) -->
+        {% if out_of_stock_products %}
+        <div class="col-md-{% if low_stock_products %}6{% else %}12{% endif %}">
+            <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100">
+                <div class="fs-3 me-3 text-danger"><i class="fas fa-times-circle"></i></div>
+                <div>
+                    <div class="fw-bold text-danger">Out of Stock Alert</div>
+                    <div class="small text-dark">
+                        <strong>{{ out_of_stock_count }}</strong> item(s) have hit 0 quantity.
+                        <a href="{% url 'inventory:product_list' %}?stock_status=out_of_stock" class="text-danger fw-bold text-decoration-underline ms-1">View List</a>.
+                    </div>
+                </div>
             </div>
         </div>
+        {% endif %}
+
+        <!-- B. LOW STOCK WARNING (AMBER) -->
+        {% if low_stock_products %}
+        <div class="col-md-{% if out_of_stock_products %}6{% else %}12{% endif %}">
+            <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100">
+                <div class="fs-3 me-3 text-warning"><i class="fas fa-exclamation-triangle"></i></div>
+                <div>
+                    <div class="fw-bold text-warning-emphasis" style="color: #d35400 !important;">Low Stock Warning</div>
+                    <div class="small text-dark">
+                        <strong>{{ low_stock_count }}</strong> item(s) are running low.
+                        <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="fw-bold text-decoration-underline ms-1" style="color: #d35400 !important;">View List</a>.
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
     </div>
     {% endif %}
 
-    <!-- 2. WARNING ALERTS (LOW STOCK) - ORANGE/YELLOW -->
-    {% if low_stock_products %}
-    <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
-        <div class="d-flex align-items-center">
-            <div class="fs-2 me-3"><i class="fas fa-exclamation-triangle"></i></div>
-            <div>
-                <h5 class="alert-heading fw-bold mb-1">Low Stock Warning</h5>
-                <p class="mb-0">
-                    <strong>{{ low_stock_count }}</strong> item(s) are running low (below reorder level).
-                    <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="text-warning-emphasis fw-bold text-decoration-underline ms-2" style="color: #d35400 !important;">View Low Stock List</a>.
-                </p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Metric Cards (Unchanged from previous modern design) -->
+    <!-- 3. KPI METRICS -->
     <div class="row g-4 mb-4">
+        
+        <!-- Card 1: Total Products (Updated with Inactive Count) -->
         <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
+            <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
@@ -62,16 +72,21 @@
                             <i class="fas fa-cubes fa-lg"></i>
                         </div>
                     </div>
-                    <div class="mt-3">
-                        <span class="badge bg-success-subtle text-success rounded-pill px-2">Active</span>
-                        <span class="text-muted small ms-2">Catalog items</span>
+                    <div class="mt-3 d-flex gap-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
+                            Active Catalog
+                        </span>
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2">
+                            {{ total_inactive }} Inactive
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Card 2: Inventory Value -->
         <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
+            <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
@@ -89,8 +104,9 @@
             </div>
         </div>
 
+        <!-- Card 3: 30-Day Revenue -->
         <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
+            <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
@@ -123,11 +139,12 @@
         </div>
     </div>
 
-    <!-- Charts and Tables (Unchanged) -->
+    <!-- 4. CHARTS & TABLES -->
     <div class="row">
+        <!-- Sales Chart -->
         <div class="col-lg-8 mb-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white py-3">
+                <div class="card-header bg-white py-3 border-bottom-0">
                     <h5 class="m-0 fw-bold text-dark">Sales Performance</h5>
                 </div>
                 <div class="card-body">
@@ -138,9 +155,10 @@
             </div>
         </div>
         
+        <!-- Recent Products List -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white py-3">
+                <div class="card-header bg-white py-3 border-bottom-0">
                     <h5 class="m-0 fw-bold text-dark">Recently Added</h5>
                 </div>
                 <div class="card-body p-0">
@@ -156,10 +174,10 @@
                                 {% for product in recent_products %}
                                 <tr>
                                     <td class="ps-4">
-                                        <a href="{{ product.get_absolute_url }}" class="fw-semibold text-dark d-block text-truncate" style="max-width: 150px;">
+                                        <a href="{{ product.get_absolute_url }}" class="fw-semibold text-dark d-block text-truncate text-decoration-none" style="max-width: 150px;">
                                             {{ product.name }}
                                         </a>
-                                        <small class="text-muted">{{ product.sku }}</small>
+                                        <small class="text-muted font-monospace">{{ product.sku }}</small>
                                     </td>
                                     <td class="text-end pe-4">
                                         <span class="badge bg-light text-dark border">{{ product.quantity }}</span>
@@ -201,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     datasets: [{
                         label: 'Revenue',
                         data: data.data,
+                        // Brand Colors (#2799a5)
                         backgroundColor: 'rgba(39, 153, 165, 0.1)',
                         borderColor: '#2799a5',
                         borderWidth: 2,
