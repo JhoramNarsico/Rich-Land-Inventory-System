@@ -13,7 +13,6 @@
             <p class="text-muted small mb-0">Manage catalog, track stock levels, and pricing.</p>
         </div>
         <div class="d-flex gap-2">
-            <!-- TOGGLE FILTER BUTTON -->
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
                 <i class="fas fa-filter me-2"></i>Filters
             </button>
@@ -29,15 +28,13 @@
         </div>
     </div>
 
-    <!-- 2. FILTER TOOLBAR (Collapsible) -->
+    <!-- 2. FILTER TOOLBAR -->
     <div class="collapse show" id="filterPanel">
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body p-3 bg-white rounded-3">
-                <form method="get" action="" 
-                      class="row g-2 align-items-center"
-                      hx-get="{% url 'inventory:product_list' %}" 
-                      hx-target="#product-table-body" 
-                      hx-trigger="change from:select, keyup delay:500ms from:input">
+                <!-- FIX: Removed hx-get, hx-target, hx-trigger to force full page reload -->
+                <!-- This ensures both Grid and Table views receive filtered data -->
+                <form method="get" action="" class="row g-2 align-items-center">
                     
                     <!-- Search -->
                     <div class="col-md-4">
@@ -58,12 +55,21 @@
                         {{ filter_form.product_status }}
                     </div>
                     
-                    <!-- Sort & Reset -->
-                    <div class="col-md-2 d-flex gap-2">
-                        {{ filter_form.sort_by }}
-                        <a href="{% url 'inventory:product_list' %}" class="btn btn-light border" title="Reset Filters">
-                            <i class="fas fa-redo-alt text-muted"></i>
-                        </a>
+                    <!-- Sort & Actions -->
+                    <div class="col-md-2">
+                        <div class="d-flex gap-1">
+                            {{ filter_form.sort_by }}
+                            
+                            <!-- Added Explicit Submit Button -->
+                            <button type="submit" class="btn btn-primary" title="Apply Filters">
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                            
+                            <!-- Reset Button -->
+                            <a href="{% url 'inventory:product_list' %}" class="btn btn-light border" title="Reset Filters">
+                                <i class="fas fa-redo-alt text-muted"></i>
+                            </a>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -101,19 +107,20 @@
         </div>
     </div>
 
-    <!-- CARD VIEW (Grid) -->
+    <!-- CARD VIEW (GRID) -->
     <div id="card-view" style="display: none;">
         <div class="row g-4">
             {% for product in product_list %}
             <div class="col-md-6 col-lg-4 col-xl-3">
+                <!-- ADDED GRID VIEW HOVER ANIMS   -->
                 <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <span class="badge bg-light text-secondary border">{{ product.category.name|default:"Uncategorized" }}</span>
                             {% if product.status == 'ACTIVE' %}
-                                <i class="fas fa-check-circle text-success" title="Active"></i>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2" style="font-size: 0.7rem;">Active</span>
                             {% else %}
-                                <i class="fas fa-ban text-muted" title="Deactivated"></i>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2" style="font-size: 0.7rem;">Inactive</span>
                             {% endif %}
                         </div>
                         
@@ -126,15 +133,27 @@
                             <h4 class="fw-bold text-primary mb-3">₱{{ product.price|floatformat:2|intcomma }}</h4>
                             
                             <div class="d-flex justify-content-between align-items-end small mb-1">
-                                <span class="text-muted">Stock: {{ product.quantity|intcomma }}</span>
-                                {% if product.quantity <= product.reorder_level %}
-                                    <span class="text-warning fw-bold">Low Stock</span>
+                                <span class="{% if product.quantity == 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                    Stock: {{ product.quantity|intcomma }}
+                                </span>
+                                
+                                {% if product.quantity == 0 %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger">Out of Stock</span>
+                                {% elif product.quantity <= product.reorder_level %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning">Low Stock</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success">Healthy Stock</span>
                                 {% endif %}
                             </div>
+
                             <div class="progress" style="height: 4px;">
-                                {% widthratio product.quantity product.reorder_level 100 as pct %}
-                                <div class="progress-bar {% if product.quantity <= product.reorder_level %}bg-warning{% else %}bg-success{% endif %}" 
-                                     style="width: {{ pct|default:100 }}%"></div>
+                                {% widthratio product.quantity product.reorder_level|default:1 100 as pct %}
+                                <div class="progress-bar 
+                                    {% if product.quantity == 0 %}bg-danger
+                                    {% elif product.quantity <= product.reorder_level|default:0 %}bg-warning
+                                    {% else %}bg-success{% endif %}" 
+                                     style="width: {% if product.quantity == 0 %}100%{% else %}{{ pct|default:100 }}%{% endif %}">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -142,7 +161,9 @@
             </div>
             {% empty %}
             <div class="col-12 text-center py-5">
-                <div class="text-muted">No products found.</div>
+                <div class="text-muted mb-3"><i class="fas fa-box-open fa-3x opacity-25"></i></div>
+                <p class="text-muted fw-medium">No products found matching your criteria.</p>
+                <a href="{% url 'inventory:product_list' %}" class="btn btn-sm btn-outline-primary">Clear Filters</a>
             </div>
             {% endfor %}
         </div>
@@ -160,7 +181,6 @@
                 {% else %}
                     <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
                 {% endif %}
-                
                 {% for i in paginator.page_range %}
                     {% if page_obj.number == i %}
                         <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
@@ -168,11 +188,8 @@
                         <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
                     {% endif %}
                 {% endfor %}
-                
                 {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a>
-                    </li>
+                    <li class="page-item"><a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a></li>
                 {% else %}
                     <li class="page-item disabled"><span class="page-link border-0">Next</span></li>
                 {% endif %}
@@ -213,21 +230,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- 1. FILTER TOGGLE PERSISTENCE ---
     const filterPanel = document.getElementById('filterPanel');
     const storageKey = 'product_list_filter_state'; 
-
     if (filterPanel) {
         const savedState = localStorage.getItem(storageKey);
-        if (savedState === 'hidden') {
-            filterPanel.classList.remove('show');
-        } else {
-            filterPanel.classList.add('show');
-        }
-
-        filterPanel.addEventListener('hidden.bs.collapse', function () {
-            localStorage.setItem(storageKey, 'hidden');
-        });
-        filterPanel.addEventListener('shown.bs.collapse', function () {
-            localStorage.setItem(storageKey, 'shown');
-        });
+        if (savedState === 'hidden') filterPanel.classList.remove('show');
+        else filterPanel.classList.add('show');
+        filterPanel.addEventListener('hidden.bs.collapse', () => localStorage.setItem(storageKey, 'hidden'));
+        filterPanel.addEventListener('shown.bs.collapse', () => localStorage.setItem(storageKey, 'shown'));
     }
 
     // --- 2. VIEW TOGGLE LOGIC ---
@@ -239,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function switchView(viewType) {
         if (viewType === 'card') {
             tableView.style.display = 'none';
-            cardView.style.display = 'flex'; // Flex for grid system
+            cardView.style.display = 'block'; // Fixed Grid Layout
             tableViewBtn.classList.remove('active');
             cardViewBtn.classList.add('active');
             localStorage.setItem('product_view_preference', 'card-view');
@@ -254,49 +262,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (tableViewBtn) tableViewBtn.addEventListener('click', () => switchView('table'));
     if (cardViewBtn) cardViewBtn.addEventListener('click', () => switchView('card'));
-
     const savedPreference = localStorage.getItem('product_view_preference');
     if (savedPreference === 'card-view') switchView('card');
 
     // --- 3. CATEGORY AJAX ---
     const categoryForm = document.getElementById('addCategoryForm');
-    const categorySelect = document.querySelector('[name="category"]'); // In filter form
+    const categorySelect = document.querySelector('[name="category"]'); 
     const categoryModalEl = document.getElementById('addCategoryModal');
-    const categoryModal = bootstrap.Modal.getOrCreateInstance(categoryModalEl);
-    const errorDiv = document.getElementById('category-form-errors');
-
     if (categoryForm) {
+        const categoryModal = bootstrap.Modal.getOrCreateInstance(categoryModalEl);
+        const errorDiv = document.getElementById('category-form-errors');
         categoryForm.addEventListener('submit', function(event) {
             event.preventDefault(); 
             const formData = new FormData(categoryForm);
-            
             fetch(categoryForm.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                method: 'POST', body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken'), 'X-Requested-With': 'XMLHttpRequest' }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     if(categorySelect) {
                         const newOption = document.createElement('option');
-                        newOption.value = data.category.id;
-                        newOption.textContent = data.category.name;
+                        newOption.value = data.category.id; newOption.textContent = data.category.name;
                         categorySelect.appendChild(newOption);
                     }
-                    categoryForm.reset();
-                    errorDiv.classList.add('d-none');
-                    categoryModal.hide();
+                    categoryForm.reset(); errorDiv.classList.add('d-none'); categoryModal.hide();
                     alert('Category added successfully!');
                 } else {
-                    errorDiv.textContent = data.errors.name[0];
-                    errorDiv.classList.remove('d-none');
+                    errorDiv.textContent = data.errors.name[0]; errorDiv.classList.remove('d-none');
                 }
-            })
-            .catch(error => console.error('Error:', error));
+            });
         });
     }
 });
