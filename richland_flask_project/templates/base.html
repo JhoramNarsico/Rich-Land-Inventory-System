@@ -6,82 +6,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Rich Land Inventory{% endblock %}</title>
     
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 -->
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('home') }}">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Rich Land Logo" height="30">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="35" class="me-2 bg-white rounded p-1">
+                <span>Rich Land <span class="text-warning">Auto</span></span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('home') }}">Home</a></li>
+                <!-- LEFT SIDE: Management Links -->
+                <ul class="navbar-nav me-auto ms-3">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('home') }}">Dashboard</a></li>
+                    
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('product_list') }}">Products</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('product_list') }}">Inventory</a></li>
                         
-                        <!-- UPDATED NAVIGATION BLOCK WITH GROUPS -->
                         {% if current_user.group in ['Owner', 'Admin', 'Stock Manager'] %}
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('purchase_order_list') }}">Orders</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('supplier_list') }}">Suppliers</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('purchase_order_list') }}">Purchase Orders</a></li>
+                            
+                            <!-- RESTOCK REPORT LINK -->
+                            <li class="nav-item">
+                                <a class="nav-link text-danger fw-bold" href="{{ url_for('restock_report') }}">
+                                    <i class="fas fa-bell me-1"></i>Alerts
+                                </a>
+                            </li>
                         {% endif %}
                         
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('transaction_list') }}">Transactions</a></li>
-                        
-                        {% if current_user.group in ['Owner', 'Admin'] %}
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('product_history_list') }}">Edit History</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('reporting_hub') }}">Reports</a></li>
-                            <!-- ADDED ANALYTICS LINK HERE -->
+                        <!-- GRANULAR PERMISSION LINKS -->
+                        {% if current_user.group in ['Owner', 'Admin'] or current_user.has_permission('view_history') %}
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('product_history_list') }}">History</a></li>
+                        {% endif %}
+
+                        {% if current_user.group in ['Owner', 'Admin'] or current_user.has_permission('view_analytics') %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('analytics_dashboard') }}">Analytics</a></li>
                         {% endif %}
-                        <!-- END OF UPDATED BLOCK -->
+                        
+                        {% if current_user.group in ['Owner', 'Admin'] %}
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('reporting_hub') }}">Reports</a></li>
+                        {% endif %}
 
                     {% endif %}
                 </ul>
-                <ul class="navbar-nav">
+
+                <!-- RIGHT SIDE: POS Button & User Dropdown -->
+                <div class="d-flex align-items-center">
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Hello, {{ current_user.username }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                {% if current_user.group in ['Owner', 'Admin'] %}
-                                    <!-- [FIX] Updated href to point to the admin_panel route -->
-                                    <li><a class="dropdown-item" href="{{ url_for('admin_panel') }}">Admin Panel</a></li>
+                        <!-- POS BUTTON (Styled via CSS) -->
+                        <a class="btn btn-pos-nav me-4 rounded-pill px-4" href="{{ url_for('pos_interface') }}">
+                            <i class="fas fa-cash-register me-2"></i>POS TERMINAL
+                        </a>
+                        
+                        <!-- USER DROPDOWN -->
+                        <ul class="navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                    <div class="bg-secondary text-white rounded-circle d-flex justify-content-center align-items-center me-2" style="width: 35px; height: 35px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <span class="d-none d-lg-inline">{{ current_user.username }}</span>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-2">
+                                    <li><a class="dropdown-item py-2" href="{{ url_for('user_profile') }}"><i class="fas fa-id-card me-2 text-muted"></i>My Profile</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                {% endif %}
-                                <li>
-                                    <a href="{{ url_for('logout') }}" class="dropdown-item">Logout</a>
-                                </li>
-                            </ul>
-                        </li>
+
+                                    <!-- ADMIN PANEL LINK -->
+                                    {% if current_user.group in ['Owner', 'Admin'] or current_user.has_permission('view_admin') %}
+                                        <li><a class="dropdown-item py-2" href="{{ url_for('admin_panel') }}"><i class="fas fa-cogs me-2 text-muted"></i>Admin Panel</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                    {% endif %}
+                                    <li>
+                                        <a href="{{ url_for('logout') }}" class="dropdown-item py-2 text-danger"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
                     {% else %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+                        <ul class="navbar-nav">
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+                        </ul>
                     {% endif %}
-                </ul>
+                </div>
             </div>
         </div>
     </nav>
-    <div class="container mt-4">
+    
+    <div class="container mt-5 mb-5">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mb-4" role="alert">
+                        <div class="d-flex align-items-center">
+                            {% if category == 'success' %}<i class="fas fa-check-circle me-2 fs-4"></i>
+                            {% elif category == 'danger' %}<i class="fas fa-exclamation-circle me-2 fs-4"></i>
+                            {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle me-2 fs-4"></i>
+                            {% else %}<i class="fas fa-info-circle me-2 fs-4"></i>{% endif %}
+                            <div>{{ message }}</div>
+                        </div>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <main>
+        <main class="fade-in">
             {% block content %}{% endblock %}
         </main>
     </div>
+    
+    <footer class="text-center text-muted py-4 mt-auto small">
+        &copy; 2025 Rich Land Auto Supply. System v2.0 (Capstone Edition)
+    </footer>
+
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% block extra_js %}{% endblock %}

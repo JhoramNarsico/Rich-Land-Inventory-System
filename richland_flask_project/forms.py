@@ -1,9 +1,13 @@
 # forms.py
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed, FileRequired # <--- Added for File Upload
 from wtforms import (StringField, PasswordField, SubmitField, DecimalField, 
                      IntegerField, SelectField, TextAreaField, FieldList, 
-                     FormField, HiddenField, DateField)
-from wtforms.validators import DataRequired, NumberRange, Optional, Email, EqualTo # Added EqualTo
+                     FormField, HiddenField, DateField, BooleanField)
+from wtforms.validators import DataRequired, NumberRange, Optional, Email, EqualTo
+from database import categories_collection 
+from wtforms import SelectField 
+
 
 # ==============================================================================
 # Authentication Forms
@@ -15,8 +19,15 @@ class LoginForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
+class ChangePasswordForm(FlaskForm):
+    """Form for users to change their own password."""
+    current_password = PasswordField('Current Password', validators=[DataRequired()])
+    new_password = PasswordField('New Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password', message='Passwords must match')])
+    submit = SubmitField('Update Password')
+
 # ==============================================================================
-# User Management Forms # New Section
+# User Management Forms
 # ==============================================================================
 
 class UserRegistrationForm(FlaskForm):
@@ -32,6 +43,25 @@ class UserRegistrationForm(FlaskForm):
     ], validators=[DataRequired()])
     submit = SubmitField('Create Account')
 
+class UserEditForm(FlaskForm):
+    """Form for the Owner to edit other users (Promote/Demote/Reset Password)."""
+    username = StringField('Username', validators=[DataRequired()])
+    group = SelectField('Role/Group', choices=[
+        ('Salesman', 'Salesman'),
+        ('Stock Manager', 'Stock Manager'),
+        ('Admin', 'Admin'),
+        ('Owner', 'Owner')
+    ], validators=[DataRequired()])
+    
+    # Specific Permission Overrides
+    perm_analytics = BooleanField('Grant Access to Analytics')
+    perm_admin = BooleanField('Grant Access to Admin Panel')
+    perm_history = BooleanField('Grant Access to Edit History')
+    
+    # Password is optional here
+    password = PasswordField('New Password (Leave blank to keep current)', validators=[Optional()])
+    submit = SubmitField('Update User')
+
 # ==============================================================================
 # Product Management Forms
 # ==============================================================================
@@ -40,7 +70,7 @@ class ProductCreateForm(FlaskForm):
     """Form for creating a new product."""
     sku = StringField('SKU (Unique Identifier)', validators=[DataRequired()])
     name = StringField('Product Name', validators=[DataRequired()])
-    category = StringField('Category')
+    category = SelectField('Category', coerce=str, validators=[Optional()]) 
     price = DecimalField('Price (PHP)', validators=[DataRequired(), NumberRange(min=0)])
     quantity = IntegerField('Initial Quantity', validators=[DataRequired(), NumberRange(min=0)])
     reorder_level = IntegerField('Reorder Level', validators=[DataRequired(), NumberRange(min=1)])
@@ -49,11 +79,19 @@ class ProductCreateForm(FlaskForm):
 class ProductUpdateForm(FlaskForm):
     """Form for updating an existing product's details."""
     name = StringField('Product Name', validators=[DataRequired()])
-    category = StringField('Category')
+    category = SelectField('Category', coerce=str, validators=[Optional()]) 
     price = DecimalField('Price (PHP)', validators=[DataRequired(), NumberRange(min=0)])
     reorder_level = IntegerField('Reorder Level', validators=[DataRequired(), NumberRange(min=1)])
     status = SelectField('Status', choices=[('ACTIVE', 'Active'), ('DEACTIVATED', 'Deactivated')], validators=[DataRequired()])
     submit = SubmitField('Update Product')
+
+class ProductImportForm(FlaskForm):
+    """Form to upload a CSV file for bulk product import."""
+    csv_file = FileField('Upload CSV File', validators=[
+        FileRequired(),
+        FileAllowed(['csv'], 'CSV Files Only!')
+    ])
+    submit = SubmitField('Upload and Process')
 
 class StockTransactionForm(FlaskForm):
     """Form for adjusting stock (IN or OUT)."""
@@ -80,11 +118,8 @@ class SupplierForm(FlaskForm):
 
 class PurchaseOrderItemForm(FlaskForm):
     """Sub-form for a single item within a purchase order."""
-    
-    # Meta configuration to allow this form to be used dynamically in a list without strict CSRF per row
     class Meta:
         csrf = False
-
     product_sku = StringField('Product SKU', validators=[DataRequired()])
     quantity = IntegerField('Quantity', validators=[DataRequired(), NumberRange(min=1)])
 
@@ -101,7 +136,7 @@ class PurchaseOrderForm(FlaskForm):
 class ProductFilterForm(FlaskForm):
     """Form for filtering the product list view."""
     q = StringField('Search by Name/SKU', validators=[Optional()])
-    category = StringField('Filter by Category', validators=[Optional()])
+    category = StringField('Filter by Category', validators=[Optional()]) 
     product_status = SelectField('Product Status', choices=[('', 'All Statuses'), ('ACTIVE', 'Active'), ('DEACTIVATED', 'Deactivated')], validators=[Optional()])
     sort_by = SelectField('Sort By', choices=[('-date_created', 'Newest First'), ('date_created', 'Oldest First'), ('name', 'Name (A-Z)'), ('-name', 'Name (Z-A)')], validators=[Optional()])
     submit = SubmitField('Apply')
@@ -131,9 +166,6 @@ class POFilterForm(FlaskForm):
     status = SelectField('Status', choices=[('', 'All Statuses'), ('PENDING', 'Pending'), ('COMPLETED', 'Completed')], validators=[Optional()])
     submit = SubmitField('Apply Filters')
 
-    # --- forms.py ---
-
-# Add this new class at the bottom or with other Product forms
 class CategoryForm(FlaskForm):
     """Form to add a new category."""
     name = StringField('Category Name', validators=[DataRequired()])

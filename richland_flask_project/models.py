@@ -8,7 +8,18 @@ class User(UserMixin):
         self.id = str(user_data['_id'])
         self.username = user_data['username']
         self.hashed_password = user_data['hashed_password']
-        self.group = user_data['group'] # <-- The change is on this line
+        self.group = user_data['group']
+        # Load custom permissions list (defaults to empty if not found)
+        self.permissions = user_data.get('permissions', [])
+
+    def has_permission(self, perm_name):
+        """
+        Checks if the user has a specific permission.
+        Owners ALWAYS return True (God Mode).
+        """
+        if self.group == 'Owner':
+            return True
+        return perm_name in self.permissions
 
     @staticmethod
     def find_by_username(username):

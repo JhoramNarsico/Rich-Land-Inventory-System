@@ -1,0 +1,261 @@
+<!-- /templates/inventory/pos.html -->
+{% extends "base.html" %}
+
+{% block title %}Point of Sale{% endblock %}
+
+{% block content %}
+<div class="row h-100 no-print">
+    <!-- LEFT: Product Selector -->
+    <div class="col-md-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Product Catalog</h5>
+                <input type="text" id="productSearch" class="form-control form-control-sm w-50" placeholder="Scan SKU or Search Name..." autofocus>
+            </div>
+            <div class="card-body overflow-auto" style="max-height: 70vh;">
+                <div class="row g-2" id="productList">
+                    {% for product in products %}
+                    <div class="col-md-4 product-card-wrapper" data-name="{{ product.name|lower }}" data-sku="{{ product._id|lower }}">
+                        <div class="card product-card h-100 pointer" onclick="addToCart('{{ product._id }}', '{{ product.name }}', {{ product.price }}, {{ product.quantity }})">
+                            <div class="card-body p-2 text-center">
+                                <h6 class="card-title text-truncate" title="{{ product.name }}">{{ product.name }}</h6>
+                                <p class="card-text mb-1 text-primary fw-bold">₱{{ "%.2f"|format(product.price) }}</p>
+                                <small class="text-muted stock-display">Stock: {{ product.quantity }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Cart & Checkout -->
+    <div class="col-md-5">
+        <div class="card shadow h-100 border-0">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Current Cart</h5>
+            </div>
+            <div class="card-body p-0 d-flex flex-column">
+                <div class="table-responsive flex-grow-1" style="height: 50vh; overflow-y: auto;">
+                    <table class="table table-striped mb-0">
+                        <thead class="sticky-top bg-light">
+                            <tr>
+                                <th>Item</th>
+                                <th width="20%">Qty</th>
+                                <th width="25%" class="text-end">Total</th>
+                                <th width="10%"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartTableBody">
+                            <!-- Cart Items injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Totals Section -->
+                <div class="p-3 bg-light border-top">
+                    <div class="d-flex justify-content-between h4">
+                        <span>Grand Total:</span>
+                        <span class="fw-bold text-success" id="grandTotal">₱0.00</span>
+                    </div>
+                    <button class="btn btn-success w-100 btn-lg mt-3" onclick="processCheckout()" id="btnCheckout" disabled>
+                        <i class="fas fa-cash-register me-2"></i>COMPLETE SALE
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RECEIPT MODAL -->
+<div class="modal fade" id="receiptModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm"> <!-- Small modal for receipt look -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Transaction Success</h5>
+                <button type="button" class="btn-close" onclick="location.reload()"></button>
+            </div>
+            <div class="modal-body" id="receiptBody">
+                <!-- Receipt Content Injected Here -->
+                <div class="text-center font-monospace">
+                    <h5 class="fw-bold">RICH LAND AUTO SUPPLY</h5>
+                    <p class="small mb-2">123 Main St, Manila<br>Tel: 123-456-789</p>
+                    <hr class="border-dark">
+                    <div class="text-start small">
+                        <strong>Receipt #:</strong> <span id="rec-id"></span><br>
+                        <strong>Date:</strong> <span id="rec-date"></span><br>
+                        <strong>Cashier:</strong> {{ current_user.username }}
+                    </div>
+                    <hr class="border-dark border-2 border-dotted">
+                    <div id="rec-items" class="text-start small">
+                        <!-- Items go here -->
+                    </div>
+                    <hr class="border-dark border-2">
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span>TOTAL:</span>
+                        <span id="rec-total"></span>
+                    </div>
+                    <hr class="border-dark">
+                    <p class="small mt-3">Thank you for your business!</p>
+                </div>
+            </div>
+            <div class="modal-footer no-print">
+                <button type="button" class="btn btn-primary w-100" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>Print Receipt
+                </button>
+                <button type="button" class="btn btn-secondary w-100 mt-2" onclick="location.reload()">New Sale</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .pointer { cursor: pointer; transition: transform 0.1s; }
+    .pointer:active { transform: scale(0.95); }
+    .product-card:hover { border-color: #0d6efd; background-color: #f8f9fa; }
+    
+    /* Print Logic: Hide everything except the receipt modal content */
+    @media print {
+        body * { visibility: hidden; }
+        .no-print { display: none !important; }
+        #receiptModal, #receiptModal * { visibility: visible; }
+        #receiptModal { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+        .modal-dialog { margin: 0; width: 100%; max-width: 100%; }
+        .modal-content { border: none; box-shadow: none; }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let cart = [];
+    var receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
+    
+    // 1. Filter Products
+    document.getElementById('productSearch').addEventListener('keyup', function(e) {
+        let term = e.target.value.toLowerCase();
+        let cards = document.querySelectorAll('.product-card-wrapper');
+        cards.forEach(card => {
+            let name = card.getAttribute('data-name');
+            let sku = card.getAttribute('data-sku');
+            if(name.includes(term) || sku.includes(term)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+
+    // 2. Add to Cart Logic
+    function addToCart(sku, name, price, maxStock) {
+        let existing = cart.find(item => item.sku === sku);
+        if(existing) {
+            if(existing.qty < maxStock) {
+                existing.qty++;
+            } else {
+                alert("Cannot add more. Stock limit reached!");
+            }
+        } else {
+            if(maxStock > 0) {
+                cart.push({sku, name, price, qty: 1, max: maxStock});
+            } else {
+                alert("Item is out of stock!");
+            }
+        }
+        renderCart();
+    }
+
+    // 3. Render Cart Table
+    function renderCart() {
+        let tbody = document.getElementById('cartTableBody');
+        tbody.innerHTML = '';
+        let total = 0;
+
+        cart.forEach((item, index) => {
+            let itemTotal = item.price * item.qty;
+            total += itemTotal;
+            
+            let row = `
+                <tr>
+                    <td><small class="fw-bold">${item.name}</small><br><small class="text-muted">₱${item.price}</small></td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm" value="${item.qty}" min="1" max="${item.max}" onchange="updateQty(${index}, this.value)">
+                    </td>
+                    <td class="text-end">₱${itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                    <td><button class="btn btn-sm btn-outline-danger border-0" onclick="removeFromCart(${index})"><i class="fas fa-times"></i></button></td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+        document.getElementById('grandTotal').innerText = '₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2});
+        document.getElementById('btnCheckout').disabled = cart.length === 0;
+    }
+
+    function updateQty(index, newQty) {
+        newQty = parseInt(newQty);
+        if(newQty > 0 && newQty <= cart[index].max) {
+            cart[index].qty = newQty;
+        } else {
+            alert(`Invalid Quantity. Max stock is ${cart[index].max}`);
+            renderCart();
+        }
+        renderCart();
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    // 4. Checkout Logic
+    function processCheckout() {
+        if(!confirm("Complete this transaction?")) return;
+
+        const csrfToken = "{{ csrf_token() }}"; 
+
+        fetch("{{ url_for('pos_checkout') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            body: JSON.stringify({ items: cart })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                // Populate Receipt Data
+                document.getElementById('rec-id').innerText = data.sale_id.substring(18); // Show last few chars for brevity
+                document.getElementById('rec-date').innerText = data.date;
+                
+                let itemsHtml = '<table class="w-100">';
+                let total = 0;
+                cart.forEach(item => {
+                    let sub = item.qty * item.price;
+                    total += sub;
+                    itemsHtml += `
+                        <tr>
+                            <td>${item.name}</td>
+                            <td class="text-end">x${item.qty}</td>
+                            <td class="text-end">₱${sub.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+                itemsHtml += '</table>';
+                
+                document.getElementById('rec-items').innerHTML = itemsHtml;
+                document.getElementById('rec-total').innerText = '₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+                // Show Modal
+                receiptModal.show();
+                
+            } else {
+                alert("Error: " + data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
+{% endblock %}

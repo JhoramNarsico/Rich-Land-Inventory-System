@@ -32,7 +32,7 @@
                         </tbody>
                     </table>
                     
-                    <!-- Collapsible User Table (To keep the UI clean) -->
+                    <!-- Collapsible User Table -->
                     <div class="collapse p-3 bg-light" id="userTable">
                         <h6 class="border-bottom pb-2">System Users ({{ counts.users }})</h6>
                         <table class="table table-sm table-bordered bg-white">
@@ -40,14 +40,37 @@
                             <tbody>
                                 {% for user in users %}
                                 <tr>
-                                    <td>{{ user.username }}</td>
-                                    <td>{{ user.group }}</td>
-                                    <td>
-                                        {% if current_user.group == 'Owner' and user.username != current_user.username %}
-                                        <form action="{{ url_for('delete_user', user_id=user._id) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this user?');">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                            <button type="submit" class="btn btn-xs btn-danger" style="padding: 0px 5px; font-size: 10px;">Delete</button>
-                                        </form>
+                                    <td class="align-middle">{{ user.username }}</td>
+                                    <td class="align-middle">
+                                        {% if user.group == 'Owner' %}
+                                            <span class="badge bg-dark">Owner</span>
+                                        {% elif user.group == 'Admin' %}
+                                            <span class="badge bg-danger">Admin</span>
+                                        {% elif user.group == 'Stock Manager' %}
+                                            <span class="badge bg-primary">Manager</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Salesman</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle">
+                                        <!-- Only Owner can see actions -->
+                                        {% if current_user.group == 'Owner' %}
+                                            <!-- EDIT BUTTON (NEW) -->
+                                            <a href="{{ url_for('edit_user', user_id=user._id) }}" class="btn btn-xs btn-warning text-dark me-1" style="padding: 0px 5px; font-size: 10px;">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            
+                                            <!-- DELETE BUTTON -->
+                                            {% if user.username != current_user.username %}
+                                            <form action="{{ url_for('delete_user', user_id=user._id) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this user?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-xs btn-danger" style="padding: 0px 5px; font-size: 10px;">
+                                                    <i class="fas fa-trash"></i> Del
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        {% else %}
+                                            <small class="text-muted">Restricted</small>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -66,11 +89,10 @@
                 <div class="card-body p-0">
                     <table class="table table-hover mb-0">
                         <tbody>
-                            <!-- NEW CATEGORIES ROW -->
+                            <!-- CATEGORIES -->
                             <tr>
                                 <td class="ps-4 w-50">
                                     <a href="{{ url_for('manage_categories') }}" class="fw-bold text-decoration-none">Categories</a>
-                                    <!-- Uses the count we added in app.py -->
                                     <span class="badge bg-secondary ms-2">{{ counts.categories }}</span> 
                                 </td>
                                 <td class="text-end pe-4">
@@ -78,7 +100,6 @@
                                     <a href="{{ url_for('manage_categories') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-list"></i> Change</a>
                                 </td>
                             </tr>
-                            <!-- END NEW ROW -->
 
                             <!-- Products -->
                             <tr>
@@ -141,7 +162,7 @@
 
         </div>
 
-        <!-- RIGHT COLUMN: RECENT ACTIONS (Django Sidebar Style) -->
+        <!-- RIGHT COLUMN: RECENT ACTIONS -->
         <div class="col-lg-3">
             <div class="card bg-light shadow-sm">
                 <div class="card-header fw-bold text-uppercase small">Recent Actions</div>

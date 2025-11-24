@@ -1,0 +1,62 @@
+<!-- /templates/admin/edit_user.html -->
+{% extends "base.html" %}
+
+{% block title %}Edit User{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="fas fa-user-cog me-2"></i>Edit User: {{ user.username }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.group.label(class="form-label fw-bold") }}
+                        <div class="form-text mb-2">Primary Role</div>
+                        {{ form.group(class="form-select") }}
+                    </div>
+
+                    <hr>
+                    <h6 class="text-primary fw-bold">Special Permissions (Overrides)</h6>
+                    <p class="small text-muted">Check these to give a user access <em>outside</em> their normal group.</p>
+                    
+                    <div class="form-check form-switch mb-2">
+                        {{ form.perm_analytics(class="form-check-input") }}
+                        {{ form.perm_analytics.label(class="form-check-label") }}
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        {{ form.perm_admin(class="form-check-input") }}
+                        {{ form.perm_admin.label(class="form-check-label") }}
+                    </div>
+                     <div class="form-check form-switch mb-2">
+                        {{ form.perm_history(class="form-check-input") }}
+                        {{ form.perm_history.label(class="form-check-label") }}
+                    </div>
+
+                    <hr>
+                    <h6 class="text-danger">Reset Password</h6>
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control", placeholder="Leave empty to keep existing password") }}
+                    </div>
+
+                    <hr>
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('admin_panel') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

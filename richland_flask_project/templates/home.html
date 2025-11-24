@@ -4,91 +4,219 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Dashboard</h1>
-        <p class="lead mb-0">Welcome back, {{ current_user.username }}!</p>
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h2 class="fw-bold text-dark">Dashboard Overview</h2>
+            <p class="text-muted mb-0">Welcome back, <strong>{{ current_user.username }}</strong>! Here's what's happening today.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-secondary p-2 px-3 rounded-pill"><i class="far fa-clock me-2"></i>{{ now }}</span>
+        </div>
     </div>
 
     <!-- Low Stock Alerts Section -->
     {% if low_stock_products %}
-    <div class="alert alert-danger" role="alert">
-        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Low Stock Alert!</h4>
-        <p>The following {{ low_stock_products_count }} item(s) are at or below their reorder level:</p>
-        <hr>
-        <ul class="mb-0">
-            {% for product in low_stock_products %}
-            <li>
-                <a href="{{ url_for('product_detail', sku=product._id) }}" class="alert-link fw-bold">{{ product.name }}</a> -
-                Current Stock: <strong>{{ product.quantity|intcomma }}</strong> (Reorder Level is {{ product.reorder_level|intcomma }})
-            </li>
-            {% endfor %}
-        </ul>
+    <div class="alert alert-danger border-start border-danger border-5" role="alert">
+        <div class="d-flex align-items-start">
+            <div class="fs-2 me-3"><i class="fas fa-exclamation-triangle"></i></div>
+            <div>
+                <h4 class="alert-heading fw-bold mb-1">Low Stock Alert</h4>
+                <p class="mb-2">You have <strong>{{ low_stock_products_count }}</strong> items below their reorder level.</p>
+                <a href="{{ url_for('restock_report') }}" class="btn btn-sm btn-outline-danger fw-bold">View Restock Report <i class="fas fa-arrow-right ms-1"></i></a>
+            </div>
+        </div>
     </div>
     {% endif %}
 
     <!-- Metric Cards -->
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card text-white bg-primary h-100">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-box-open me-2"></i>Total Active Products</h5>
-                    <p class="card-text fs-2 fw-bold">{{ total_products|intcomma }}</p>
+    <div class="row g-4 mb-5">
+        <!-- Total Products -->
+        <div class="col-md-4">
+            <div class="card h-100 metric-card bg-primary text-white border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase opacity-75 mb-1">Active Products</h6>
+                            <h2 class="display-5 fw-bold mb-0">{{ total_products|intcomma }}</h2>
+                        </div>
+                        <div class="fs-1 opacity-50"><i class="fas fa-cubes"></i></div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <div class="card text-white bg-success h-100">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-dollar-sign me-2"></i>Total Stock Value</h5>
-                    <p class="card-text fs-2 fw-bold">₱{{ "%.2f"|format(total_stock_value|float) }}</p>
+        <!-- Stock Value -->
+        <div class="col-md-4">
+            <div class="card h-100 metric-card bg-success text-white border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase opacity-75 mb-1">Total Inventory Value</h6>
+                            <h2 class="display-5 fw-bold mb-0">₱{{ "%.0f"|format(total_stock_value|float) }}</h2>
+                        </div>
+                        <div class="fs-1 opacity-50"><i class="fas fa-wallet"></i></div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
-            <div class="card text-white bg-warning h-100">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-chart-pie me-2"></i>Items with Low Stock</h5>
-                    <p class="card-text fs-2 fw-bold">{{ low_stock_products_count|intcomma }}</p>
+        <!-- Low Stock Count -->
+        <div class="col-md-4">
+            <div class="card h-100 metric-card bg-warning text-dark border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase opacity-75 mb-1 fw-bold">Items Needs Restock</h6>
+                            <h2 class="display-5 fw-bold mb-0">{{ low_stock_products_count|intcomma }}</h2>
+                        </div>
+                        <div class="fs-1 opacity-50"><i class="fas fa-clipboard-list"></i></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Recently Added & Top Sellers -->
-    <div class="row">
-        <div class="col-lg-6 mb-4">
+    <!-- Charts & Lists Row -->
+    <div class="row g-4">
+        <!-- Sales Chart -->
+        <div class="col-lg-8">
             <div class="card h-100">
-                <div class="card-header"><h4><i class="fas fa-history me-2"></i>Recently Added Products</h4></div>
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-chart-line me-2"></i>Sales Trend</h5>
+                    <small class="text-muted">Last 30 Days</small>
+                </div>
                 <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        {% for product in recent_products %}
-                        <li class="list-group-item">
-                            <a href="{{ url_for('product_detail', sku=product._id) }}">{{ product.name }}</a>
-                            <small class="text-muted d-block">Added on {{ product.date_created.strftime('%b %d, %Y') }}</small>
-                        </li>
-                        {% else %}
-                        <li class="list-group-item text-muted">No products have been added recently.</li>
-                        {% endfor %}
-                    </ul>
+                    <canvas id="salesTrendChart" width="100%" height="40"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-lg-6 mb-4">
+
+        <!-- Top Sellers -->
+        <div class="col-lg-4">
             <div class="card h-100">
-                <div class="card-header"><h4><i class="fas fa-fire-alt me-2 text-danger"></i>Top 5 Selling Items (By Quantity)</h4></div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        {% for item in top_selling_items %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <a href="{{ url_for('product_detail', sku=item._id) }}">{{ item.product_name }}</a>
-                                <span class="badge bg-danger rounded-pill">{{ item.total_quantity_sold|intcomma }} units sold</span>
-                            </li>
-                        {% else %}
-                            <li class="list-group-item text-muted">No sales data available.</li>
-                        {% endfor %}
-                    </ul>
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 text-dark fw-bold"><i class="fas fa-crown me-2 text-warning"></i>Top Sellers</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for item in top_selling_items %}
+                        <a href="{{ url_for('product_detail', sku=item._id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
+                            <div>
+                                <div class="fw-bold text-truncate" style="max-width: 180px;">{{ item.product_name }}</div>
+                                <small class="text-muted">SKU: {{ item._id }}</small>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">{{ item.total_quantity_sold|intcomma }} sold</span>
+                        </a>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">No sales data yet.</div>
+                    {% endfor %}
+                </div>
+                <div class="card-footer bg-light text-center">
+                    <a href="{{ url_for('analytics_dashboard') }}" class="text-decoration-none small fw-bold">View All Analytics &rarr;</a>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Recently Added -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Recently Added Products</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product Name</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Added Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in recent_products %}
+                            <tr>
+                                <td class="fw-bold text-primary">{{ product.name }}</td>
+                                <td>{{ product._id }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ product.category_name }}</span></td>
+                                <td>₱{{ "%.2f"|format(product.price) }}</td>
+                                <td>{{ product.date_created.strftime('%b %d, %Y') }}</td>
+                                <td>
+                                    <a href="{{ url_for('product_detail', sku=product._id) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" class="text-center py-3">No recent products.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize the Sales Trend Chart
+    const ctx = document.getElementById('salesTrendChart').getContext('2d');
+    
+    // Create gradient for the chart
+    let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(44, 62, 80, 0.2)'); // Primary color low opacity
+    gradient.addColorStop(1, 'rgba(44, 62, 80, 0)');
+
+    const salesTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ trend_labels|tojson }}, 
+            datasets: [{
+                label: 'Daily Revenue',
+                data: {{ trend_values|tojson }},
+                borderColor: '#2c3e50',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#e67e22',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.4, // Smooth curves
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#2c3e50',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 14 },
+                    callbacks: {
+                        label: function(context) {
+                            return 'Sales: ₱' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { borderDash: [5, 5], color: '#f0f0f0' },
+                    ticks: {
+                        callback: function(value) { return '₱' + value; },
+                        font: { family: 'Inter', size: 11 }
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: 'Inter', size: 11 } }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

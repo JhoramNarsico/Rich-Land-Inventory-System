@@ -1,0 +1,80 @@
+<!-- /templates/inventory/barcode_tool.html -->
+{% extends "base.html" %}
+
+{% block title %}Barcode Labels{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <h1><i class="fas fa-barcode me-2"></i>Product Barcode Labels</h1>
+    <div>
+        <button onclick="window.print()" class="btn btn-primary btn-lg">
+            <i class="fas fa-print me-2"></i>Print Labels
+        </button>
+        <a href="{{ url_for('product_list') }}" class="btn btn-secondary btn-lg ms-2">Back</a>
+    </div>
+</div>
+
+<div class="alert alert-warning no-print">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Tip:</strong> Use "Ctrl + P" or the button above. Ensure "Background Graphics" is enabled in your print settings for best results.
+</div>
+
+<!-- Label Grid -->
+<div class="row row-cols-1 row-cols-md-3 g-4" id="printableArea">
+    {% for product in products %}
+    <div class="col print-col">
+        <div class="card h-100 border-dark text-center p-2 barcode-card">
+            <h6 class="fw-bold text-truncate mb-1">{{ product.name }}</h6>
+            <small class="text-muted">{{ product.category_name }}</small>
+            
+            <!-- The Canvas where JS draws the barcode -->
+            <svg class="barcode"
+                 jsbarcode-format="CODE128"
+                 jsbarcode-value="{{ product._id }}"
+                 jsbarcode-textmargin="0"
+                 jsbarcode-fontoptions="bold">
+            </svg>
+            
+            <div class="fw-bold fs-5">₱{{ "%.2f"|format(product.price) }}</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center">No active products found.</div>
+    {% endfor %}
+</div>
+
+<!-- CDN for Barcode Generation -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+
+<script>
+    // Initialize Barcodes
+    JsBarcode(".barcode").init();
+</script>
+
+<style>
+    /* Screen Styles */
+    .barcode-card {
+        border: 2px dashed #ccc;
+    }
+
+    /* Print Styles - Optimizes layout for Sticker Sheets */
+    @media print {
+        .no-print { display: none !important; }
+        body { background: white; margin: 0; padding: 0; }
+        .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        
+        /* Grid Layout for Print */
+        .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .col { page-break-inside: avoid; }
+        
+        .barcode-card {
+            border: 1px solid #000; /* Solid border for cutting */
+            padding: 10px;
+            break-inside: avoid;
+        }
+        
+        /* Hide navbar and footer */
+        nav, footer, .alert { display: none; }
+    }
+</style>
+{% endblock %}

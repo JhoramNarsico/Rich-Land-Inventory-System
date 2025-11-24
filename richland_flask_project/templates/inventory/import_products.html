@@ -1,0 +1,48 @@
+<!-- /templates/inventory/import_products.html -->
+{% extends "base.html" %}
+
+{% block title %}Import Products{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-file-csv me-2"></i>Bulk Product Import</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle me-2"></i>Instructions</h5>
+                    <p>Upload a CSV file to add multiple products at once. Existing SKUs will be skipped.</p>
+                    <p class="mb-0"><strong>Required Columns:</strong> SKU, Name, Price</p>
+                    <p><strong>Optional Columns:</strong> Category, Quantity, Reorder Level</p>
+                </div>
+
+                <div class="mb-4 p-3 bg-light border rounded">
+                    <h6>Example CSV Format:</h6>
+                    <code>SKU,Name,Category,Price,Quantity,Reorder Level</code><br>
+                    <code>SKU-001,Oil Filter,Engine,250,100,20</code><br>
+                    <code>SKU-002,Brake Pad,Brakes,1500,50,10</code>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-4">
+                        {{ form.csv_file.label(class="form-label fw-bold") }}
+                        {{ form.csv_file(class="form-control") }}
+                        {% if form.csv_file.errors %}
+                            <div class="text-danger small mt-1">{% for error in form.csv_file.errors %}{{ error }}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('product_list') }}" class="btn btn-secondary">Cancel</a>
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -28,6 +28,8 @@
     {% if po.status == 'PENDING' %}
     <div class="card-footer text-end">
         <form action="{{ url_for('complete_purchase_order', po_id=po._id) }}" method="post" onsubmit="return confirm('Are you sure you want to mark this PO as completed? This will add items to your stock and cannot be undone.');">
+            <!-- This hidden input fixes the CSRF error -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn btn-success"><i class="fas fa-check me-2"></i>Mark as Completed & Receive Stock</button>
         </form>
     </div>
