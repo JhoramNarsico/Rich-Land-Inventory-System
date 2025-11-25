@@ -23,8 +23,7 @@ sales_collection = db.sales
 purchase_orders_collection = db.purchase_orders
 suppliers_collection = db.suppliers
 product_history_collection = db.product_history
-
-# ADD THIS LINE:
 categories_collection = db.categories
+settings_collection = db.settings # <--- ADDED THIS
 
 print("Database collections initialized.")

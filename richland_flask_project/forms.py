@@ -1,6 +1,6 @@
 # forms.py
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed, FileRequired # <--- Added for File Upload
+from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import (StringField, PasswordField, SubmitField, DecimalField, 
                      IntegerField, SelectField, TextAreaField, FieldList, 
                      FormField, HiddenField, DateField, BooleanField)
@@ -57,10 +57,16 @@ class UserEditForm(FlaskForm):
     perm_analytics = BooleanField('Grant Access to Analytics')
     perm_admin = BooleanField('Grant Access to Admin Panel')
     perm_history = BooleanField('Grant Access to Edit History')
+    perm_refund = BooleanField('Grant Access to Refunds') 
     
     # Password is optional here
     password = PasswordField('New Password (Leave blank to keep current)', validators=[Optional()])
     submit = SubmitField('Update User')
+
+class MasterPasswordForm(FlaskForm):
+    """Form to set the Global Master Override Password."""
+    master_password = PasswordField('Set New Master Password', validators=[DataRequired()])
+    submit = SubmitField('Save Master Password')
 
 # ==============================================================================
 # Product Management Forms
@@ -98,6 +104,8 @@ class StockTransactionForm(FlaskForm):
     transaction_type = SelectField('Transaction Type', choices=[('IN', 'Stock In'), ('OUT', 'Stock Out')], validators=[DataRequired()])
     quantity = IntegerField('Quantity', validators=[DataRequired(), NumberRange(min=1, message="Quantity must be at least 1.")])
     notes = TextAreaField('Notes (Optional)')
+    # Added for the modal logic
+    master_password = PasswordField('Master Password (Required for Salesmen)', validators=[Optional()])
     submit = SubmitField('Record Adjustment')
 
 # ==============================================================================

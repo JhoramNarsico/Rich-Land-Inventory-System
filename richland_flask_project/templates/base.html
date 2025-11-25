@@ -37,6 +37,9 @@
                     {% if current_user.is_authenticated %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('product_list') }}">Inventory</a></li>
                         
+                        <!-- SALES HISTORY (Renamed from Transactions) -->
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('transaction_list') }}">Sales History</a></li>
+
                         {% if current_user.group in ['Owner', 'Admin', 'Stock Manager'] %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('purchase_order_list') }}">Orders</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('supplier_list') }}">Suppliers</a></li>
@@ -51,7 +54,7 @@
                         
                         <!-- GRANULAR PERMISSION LINKS -->
                         {% if current_user.group in ['Owner', 'Admin'] or current_user.has_permission('view_history') %}
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('product_history_list') }}">History</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('product_history_list') }}">Edit Logs</a></li>
                         {% endif %}
 
                         {% if current_user.group in ['Owner', 'Admin'] or current_user.has_permission('view_analytics') %}
@@ -68,7 +71,7 @@
                 <!-- RIGHT SIDE: POS Button & User Dropdown -->
                 <div class="d-flex align-items-center">
                     {% if current_user.is_authenticated %}
-                        <!-- POS BUTTON (Styled via CSS) -->
+                        <!-- POS BUTTON -->
                         <a class="btn btn-pos-nav me-4 rounded-pill px-4" href="{{ url_for('pos_interface') }}">
                             <i class="fas fa-cash-register me-2"></i>POS TERMINAL
                         </a>

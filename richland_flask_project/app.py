@@ -22,7 +22,7 @@ from flask_wtf.csrf import CSRFProtect
 from database import (
     users_collection, products_collection, sales_collection,
     purchase_orders_collection, suppliers_collection, product_history_collection,
-    categories_collection 
+    categories_collection, settings_collection # <--- Added
 )
 from models import User
 from forms import (
@@ -33,7 +33,8 @@ from forms import (
     CategoryForm, 
     UserEditForm,       
     ChangePasswordForm,
-    ProductImportForm
+    ProductImportForm,
+    MasterPasswordForm # <--- Added
 )
 
 # ==============================================================================
@@ -86,6 +87,14 @@ def intcomma_filter(value):
         return "{:,.0f}".format(float(value)) 
     except (ValueError, TypeError):
         return value
+
+# Helper to verify master password
+def verify_master_password(input_password):
+    """Checks the input against the stored global master password."""
+    settings = settings_collection.find_one({'_id': 'global_config'})
+    if settings and 'master_password' in settings:
+        return pwd_context.verify(input_password, settings['master_password'])
+    return False
 
 # ==============================================================================
 # Authentication Routes
@@ -255,10 +264,27 @@ def product_detail(sku):
         
     transaction_form = StockTransactionForm()
     
+    # HANDLE POST: Stock Adjustments
     if transaction_form.validate_on_submit():
         quantity = transaction_form.quantity.data
         trans_type = transaction_form.transaction_type.data
+        notes = transaction_form.notes.data or "Manual Stock Adjustment"
         
+        # SECURITY CHECK: 
+        # If user is Salesman, they MUST provide a valid Master Password
+        if current_user.group == 'Salesman':
+            master_pw = transaction_form.master_password.data
+            if not master_pw:
+                flash("Master Password required for Salesman adjustments.", "danger")
+                return redirect(url_for('product_detail', sku=sku))
+            
+            if not verify_master_password(master_pw):
+                flash("Invalid Master Password.", "danger")
+                return redirect(url_for('product_detail', sku=sku))
+            
+            # Append authorization note
+            notes += " (Auth: Master PW)"
+
         if trans_type == 'OUT' and product['quantity'] < quantity:
             flash('Cannot stock out more than the available quantity.', 'danger')
             return redirect(url_for('product_detail', sku=sku))
@@ -270,18 +296,19 @@ def product_detail(sku):
         sales_collection.insert_one({
             "sale_date": datetime.now(timezone.utc), 
             "user_username": current_user.username, 
-            "total_amount": product['price'] * quantity if trans_type == 'OUT' else 0, 
+            "total_amount": 0, 
             "items_sold": [{
                 "product_sku": sku, 
                 "product_name": product['name'], 
                 "quantity_sold": quantity, 
                 "price_per_unit": product['price'], 
                 "type": trans_type, 
-                "notes": transaction_form.notes.data
+                "notes": notes
             }]
         })
         
-        flash('Stock adjusted successfully!', 'success')
+        action = "Restocked" if trans_type == 'IN' else "Pulled out"
+        flash(f'Successfully {action} {quantity} units.', 'success')
         return redirect(url_for('product_detail', sku=sku))
         
     recent_transactions = list(sales_collection.find({"items_sold.product_sku": sku}).sort("sale_date", -1).limit(10))
@@ -792,9 +819,41 @@ def admin_panel():
         'orders_completed': purchase_orders_collection.count_documents({'status': 'COMPLETED'}),
         'categories': categories_collection.count_documents({}),
     }
+    
+    # Check if Master Password is set
+    settings = settings_collection.find_one({'_id': 'global_config'})
+    master_password_set = bool(settings and 'master_password' in settings)
+    
     recent_history = list(product_history_collection.find().sort("timestamp", -1).limit(10))
     users = list(users_collection.find({}))
-    return render_template('admin/panel.html', counts=counts, history=recent_history, users=users)
+    
+    # Create form for the modal
+    master_pw_form = MasterPasswordForm()
+    
+    return render_template('admin/panel.html', 
+                           counts=counts, 
+                           history=recent_history, 
+                           users=users,
+                           master_pw_set=master_password_set,
+                           master_pw_form=master_pw_form)
+
+@app.route('/admin/settings/password', methods=['POST'])
+@login_required
+@role_required('Owner', 'Admin')
+def set_master_password():
+    """Handles the form submission to set or update the Master Password."""
+    form = MasterPasswordForm()
+    if form.validate_on_submit():
+        hashed = pwd_context.hash(form.master_password.data)
+        settings_collection.update_one(
+            {'_id': 'global_config'},
+            {'$set': {'master_password': hashed}},
+            upsert=True
+        )
+        flash("Master Password updated successfully.", "success")
+    else:
+        flash("Error updating password.", "danger")
+    return redirect(url_for('admin_panel'))
 
 @app.route('/admin/user/add', methods=['GET', 'POST'])
 @login_required
@@ -839,6 +898,7 @@ def edit_user(user_id):
         form.perm_analytics.data = 'view_analytics' in current_perms
         form.perm_admin.data = 'view_admin' in current_perms
         form.perm_history.data = 'view_history' in current_perms
+        form.perm_refund.data = 'can_refund' in current_perms
 
     if form.validate_on_submit():
         update_fields = {
@@ -851,6 +911,7 @@ def edit_user(user_id):
         if form.perm_analytics.data: new_perms.append('view_analytics')
         if form.perm_admin.data: new_perms.append('view_admin')
         if form.perm_history.data: new_perms.append('view_history')
+        if form.perm_refund.data: new_perms.append('can_refund')
         
         update_fields['permissions'] = new_perms
         
@@ -921,6 +982,7 @@ def pos_checkout():
     """API endpoint to process a JSON cart from the POS page."""
     data = request.get_json()
     cart_items = data.get('items', [])
+    payment_info = data.get('payment', {}) 
     
     if not cart_items:
         return jsonify({"success": False, "message": "Cart is empty"}), 400
@@ -940,19 +1002,24 @@ def pos_checkout():
     for item in cart_items:
         qty = int(item['qty'])
         price = float(item['price'])
+        discount = float(item.get('discount', 0)) 
+        
+        final_price_per_unit = price - discount
         
         products_collection.update_one(
             {"_id": item['sku']},
             {"$inc": {"quantity": -qty}}
         )
         
-        total_sale_amount += (price * qty)
+        total_sale_amount += (final_price_per_unit * qty)
         
         sold_items_log.append({
             "product_sku": item['sku'],
             "product_name": item['name'],
             "quantity_sold": qty,
-            "price_per_unit": price,
+            "original_price": price,
+            "discount_per_unit": discount,
+            "price_per_unit": final_price_per_unit,
             "type": "OUT",
             "notes": "POS Transaction"
         })
@@ -961,7 +1028,11 @@ def pos_checkout():
         "sale_date": current_time,
         "user_username": current_user.username,
         "total_amount": total_sale_amount,
-        "items_sold": sold_items_log
+        "items_sold": sold_items_log,
+        "payment_method": payment_info.get('method', 'Cash'),
+        "amount_tendered": float(payment_info.get('tendered', 0)),
+        "change_due": float(payment_info.get('change', 0)),
+        "status": "COMPLETED" 
     })
 
     return jsonify({
@@ -970,6 +1041,70 @@ def pos_checkout():
         "sale_id": str(result.inserted_id),
         "date": current_time.strftime('%Y-%m-%d %I:%M %p')
     })
+
+@app.route('/transaction/<sale_id>/refund', methods=['POST'])
+@login_required
+def refund_transaction(sale_id):
+    """Refunds a transaction. Supports Manager Override via Master Password."""
+    
+    # 1. Check Permissions / Override
+    authorized = False
+    refund_performer = current_user.username
+
+    # Case A: User has explicit permission or is Owner/Admin
+    if current_user.group in ['Owner', 'Admin', 'Stock Manager'] or current_user.has_permission('can_refund'):
+        authorized = True
+    
+    # Case B: Master Password Override
+    else:
+        master_pw = request.form.get('master_password')
+        if master_pw:
+            if verify_master_password(master_pw):
+                authorized = True
+                refund_performer = f"{current_user.username} (Auth: Master PW)"
+            else:
+                flash("Invalid Master Password.", "danger")
+                return redirect(url_for('transaction_list'))
+        else:
+            flash("Refund Unauthorized.", "danger")
+            return redirect(url_for('transaction_list'))
+
+    if not authorized:
+        return redirect(url_for('transaction_list'))
+
+    # 2. Process Refund
+    sale = sales_collection.find_one({'_id': ObjectId(sale_id)})
+    
+    if not sale:
+        flash("Transaction not found.", "danger")
+        return redirect(url_for('transaction_list'))
+        
+    if sale.get('status') == 'REFUNDED':
+        flash("This transaction has already been refunded.", "warning")
+        return redirect(url_for('transaction_list'))
+
+    # Return Stock
+    for item in sale['items_sold']:
+        if item['type'] == "OUT": 
+            products_collection.update_one(
+                {'_id': item['product_sku']},
+                {'$inc': {'quantity': item['quantity_sold']}}
+            )
+
+    # Update Sale Status
+    sales_collection.update_one(
+        {'_id': ObjectId(sale_id)},
+        {
+            '$set': {
+                'status': 'REFUNDED',
+                'refunded_by': refund_performer,
+                'refund_date': datetime.now(timezone.utc)
+            }
+        }
+    )
+    
+    flash(f"Transaction {sale_id} refunded successfully.", "success")
+    return redirect(url_for('transaction_list'))
 
 def create_initial_users():
     """A helper function to create initial users with group-based roles."""

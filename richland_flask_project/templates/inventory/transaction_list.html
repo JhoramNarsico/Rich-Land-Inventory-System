@@ -1,73 +1,162 @@
 <!-- /templates/inventory/transaction_list.html -->
 {% extends "base.html" %}
 
-{% block title %}Transaction Log{% endblock %}
+{% block title %}Sales History{% endblock %}
 
 {% block content %}
-    <h1 class="mb-4">Transaction Log</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-history me-2"></i>Sales History</h1>
+    </div>
 
-    <!-- Filter Form (Simplified for this example) -->
-    <div class="accordion mb-4">
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFilter">
-                    <i class="fas fa-filter me-2"></i> Filter Transactions
-                </button>
-            </h2>
-            <div id="collapseFilter" class="accordion-collapse collapse">
-                <div class="accordion-body">
-                    <form method="get" action="{{ url_for('transaction_list') }}">
-                        <div class="row g-3">
-                            <div class="col-md-6">{{ filter_form.product.label(class="form-label") }} {{ filter_form.product(class="form-control") }}</div>
-                            <div class="col-md-3">{{ filter_form.transaction_type.label(class="form-label") }} {{ filter_form.transaction_type(class="form-select") }}</div>
-                        </div>
-                        <div class="mt-3">
-                            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Apply</button>
-                            <a href="{{ url_for('transaction_list') }}" class="btn btn-secondary">Reset</a>
-                        </div>
-                    </form>
+    <!-- Filter Form -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body bg-light rounded">
+            <form method="get" action="{{ url_for('transaction_list') }}" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    {{ filter_form.product.label(class="form-label fw-bold") }} 
+                    {{ filter_form.product(class="form-control", placeholder="Enter SKU...") }}
                 </div>
-            </div>
+                <div class="col-md-3">
+                    {{ filter_form.transaction_type.label(class="form-label fw-bold") }} 
+                    {{ filter_form.transaction_type(class="form-select") }}
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary me-2" type="submit"><i class="fas fa-search"></i> Filter</button>
+                    <a href="{{ url_for('transaction_list') }}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- Results Table -->
-    <div class="card">
-        <div class="card-body">
+    <!-- Sales Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover align-middle">
-                    <thead>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-secondary">
                         <tr>
-                            <th>Product</th>
-                            <th class="text-center">Type</th>
-                            <th class="text-center">Quantity</th>
-                            <th>User</th>
-                            <th>Timestamp</th>
-                            <th>Notes</th>
+                            <th class="ps-4">Date & Time</th>
+                            <th>Receipt #</th>
+                            <th>Cashier</th>
+                            <th>Type</th>
+                            <th>Items Sold</th>
+                            <th>Total Amount</th>
+                            <th class="text-end pe-4">Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- INFO: Loop through each sale, then loop through the items inside it -->
                         {% for transaction in transaction_list %}
-                            {% for item in transaction.items_sold %}
-                            <tr>
-                                <td><a href="{{ url_for('product_detail', sku=item.product_sku) }}">{{ item.product_name }}</a></td>
-                                <td class="text-center">
-                                    {% if item.type == 'IN' %}<span class="badge bg-success">Stock In</span>
-                                    {% else %}<span class="badge bg-danger">Stock Out</span>{% endif %}
-                                </td>
-                                <td class="text-center">{{ item.quantity_sold|intcomma }}</td>
-                                <td>{{ transaction.user_username or "N/A" }}</td>
-                                <td>{{ transaction.sale_date.strftime('%B %d, %Y, %I:%M %p') }}</td>
-                                <td>{{ item.notes or "" }}</td>
-                            </tr>
-                            {% endfor %}
+                        <tr class="{% if transaction.status == 'REFUNDED' %}table-danger text-muted{% endif %}">
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ transaction.sale_date.strftime('%Y-%m-%d') }}</div>
+                                <div class="small text-muted">{{ transaction.sale_date.strftime('%I:%M %p') }}</div>
+                            </td>
+                            <td>
+                                <span class="font-monospace small bg-light border rounded px-2 py-1">
+                                    {{ transaction._id|string|truncate(10, True, '')|upper }}...
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-secondary text-white rounded-circle small d-flex justify-content-center align-items-center me-2" style="width: 24px; height: 24px;">
+                                        {{ transaction.user_username[0]|upper }}
+                                    </div>
+                                    {{ transaction.user_username }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if transaction.items_sold[0].type == 'IN' %}
+                                    <span class="badge bg-info text-dark"><i class="fas fa-truck-loading me-1"></i>RESTOCK</span>
+                                {% else %}
+                                    <span class="badge bg-success"><i class="fas fa-shopping-bag me-1"></i>SALE</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <ul class="list-unstyled mb-0 small">
+                                {% for item in transaction.items_sold %}
+                                    <li class="mb-1">
+                                        <span class="fw-bold text-dark">{{ item.quantity_sold }}x</span> {{ item.product_name }}
+                                    </li>
+                                {% endfor %}
+                                </ul>
+                            </td>
+                            <td>
+                                <div class="fw-bold fs-6">₱{{ "%.2f"|format(transaction.total_amount) }}</div>
+                                {% if transaction.payment_method %}
+                                <small class="text-muted">{{ transaction.payment_method }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                {% if transaction.status == 'REFUNDED' %}
+                                    <span class="badge bg-secondary px-3 py-2">REFUNDED</span>
+                                    <div class="small text-muted mt-1">by {{ transaction.refunded_by }}</div>
+                                {% elif transaction.items_sold[0].type == 'OUT' %}
+                                    
+                                    <!-- CHECK REFUND PERMISSIONS -->
+                                    {% if current_user.group in ['Owner', 'Admin', 'Stock Manager'] or current_user.has_permission('can_refund') %}
+                                        <!-- Authorized Refund -->
+                                        <form action="{{ url_for('refund_transaction', sale_id=transaction._id) }}" method="post" onsubmit="return confirm('Are you sure you want to REFUND this transaction?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                                                <i class="fas fa-undo-alt me-1"></i>Refund
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <!-- Unauthorized: Master Password Override Needed -->
+                                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="openOverrideModal('{{ transaction._id }}')">
+                                            <i class="fas fa-lock me-1"></i>Refund
+                                        </button>
+                                    {% endif %}
+
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% else %}
-                        <tr><td colspan="6" class="text-center py-4">No transactions found.</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted">No sales history found.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
+
+    <!-- MANAGER OVERRIDE MODAL -->
+    <div class="modal fade" id="overrideModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-user-shield me-2"></i>Manager Override</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" id="overrideForm">
+                    <div class="modal-body">
+                        <p class="small text-muted">You do not have permission to process refunds. Please enter the <strong>Master Password</strong>.</p>
+                        
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Master Password</label>
+                            <input type="password" name="master_password" class="form-control form-control-lg" required autofocus placeholder="****">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger fw-bold">Authorize Refund</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openOverrideModal(saleId) {
+            const form = document.getElementById('overrideForm');
+            form.action = `/transaction/${saleId}/refund`;
+            
+            var myModal = new bootstrap.Modal(document.getElementById('overrideModal'));
+            myModal.show();
+        }
+    </script>
 {% endblock %}

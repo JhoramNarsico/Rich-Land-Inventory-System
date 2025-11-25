@@ -1,104 +1,247 @@
 <!-- /templates/inventory/product_detail.html -->
 {% extends "base.html" %}
 
-{% block title %}{{ product.name }} Details{% endblock %}
+{% block title %}{{ product.name }}{% endblock %}
 
 {% block content %}
-    {% if product.status == 'DEACTIVATED' %}
-    <div class="alert alert-warning" role="alert">
-        This product is currently deactivated and will not appear in default searches.
-    </div>
-    {% endif %}
-
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="mb-0">Product Details: {{ product.name }}</h2>
-            <a href="{{ url_for('product_list') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Back to List
-            </a>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <p><strong>SKU:</strong> {{ product._id }}</p>
-                    <p><strong>Category:</strong> {{ product.category_name or "N/A" }}</p>
-                    <p><strong>Price:</strong> ₱{{ "%.2f"|format(product.price|float) }}</p>
-                    <p><strong>Status:</strong> {{ product.status }}</p>
-                    <p><strong>Reorder Level:</strong> {{ product.reorder_level|intcomma }} units</p>
-                    <p><strong>Date Added:</strong> {{ product.date_created.strftime('%B %d, %Y') }}</p>
-                    <p><strong>Last Updated:</strong> {{ product.date_updated.strftime('%B %d, %Y') }}</p>
+<div class="row">
+    <!-- LEFT COLUMN: Product Info -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center p-4">
+                <div class="bg-light rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-box-open fa-3x text-primary"></i>
                 </div>
-                <div class="col-md-4 text-center">
-                    <h5 class="text-muted">Quantity on Hand</h5>
-                    <p class="display-4 fw-bold">{{ product.quantity|intcomma }}</p>
+                <h4 class="fw-bold text-dark mb-1">{{ product.name }}</h4>
+                <span class="badge bg-secondary mb-3">{{ product._id }}</span>
+                
+                <hr class="my-4 opacity-25">
+                
+                <div class="row text-start">
+                    <div class="col-6 mb-3">
+                        <label class="small text-muted text-uppercase fw-bold">Category</label>
+                        <div class="fw-bold text-dark">{{ product.category_name or "Uncategorized" }}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="small text-muted text-uppercase fw-bold">Reorder Level</label>
+                        <div class="fw-bold text-dark">{{ product.reorder_level }} units</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted text-uppercase fw-bold">Status</label>
+                        <div>
+                            {% if product.status == 'ACTIVE' %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted text-uppercase fw-bold">Last Updated</label>
+                        <div class="small text-dark">{{ product.date_updated.strftime('%b %d, %Y') }}</div>
+                    </div>
+                </div>
+
+                <hr class="my-4 opacity-25">
+
+                <!-- ACTIONS (Restricted to Non-Salesmen) -->
+                {% if current_user.group in ['Owner', 'Admin', 'Stock Manager'] %}
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('update_product', sku=product._id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-2"></i>Edit Details
+                        </a>
+                        
+                        {% if current_user.group == 'Owner' %}
+                        <form action="{{ url_for('delete_product', sku=product._id) }}" method="post" onsubmit="return confirm('PERMANENTLY DELETE this product? This cannot be undone.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn btn-link text-danger text-decoration-none w-100 btn-sm">
+                                Delete Product
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-light border text-muted small">
+                        <i class="fas fa-lock me-1"></i> Admin actions restricted.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Stats & Management -->
+    <div class="col-md-8">
+        <!-- Vital Stats Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card bg-white border-0 shadow-sm p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted small text-uppercase fw-bold">Current Stock</h6>
+                            <h2 class="display-5 fw-bold {% if product.quantity <= product.reorder_level %}text-danger{% else %}text-success{% endif %}">
+                                {{ product.quantity|intcomma }}
+                            </h2>
+                        </div>
+                        <div class="text-end">
+                            <!-- Logic: Allow ALL users to see buttons, but logic inside Modal differs -->
+                            <!-- Add Stock Button -->
+                            <button class="btn btn-success mb-2 d-block w-100" data-bs-toggle="modal" data-bs-target="#stockInModal">
+                                <i class="fas fa-plus me-1"></i> Add Stock
+                            </button>
+                            <!-- Remove Stock Button -->
+                            <button class="btn btn-outline-danger d-block w-100" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+                                <i class="fas fa-minus me-1"></i> Adjust
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-white border-0 shadow-sm p-3">
+                    <div>
+                        <h6 class="text-muted small text-uppercase fw-bold">Selling Price</h6>
+                        <h2 class="display-5 fw-bold text-primary">₱{{ "%.2f"|format(product.price) }}</h2>
+                    </div>
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-muted">Total Stock Value: </small>
+                        <strong class="text-dark">₱{{ "%.2f"|format(product.price * product.quantity) }}</strong>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="card-footer text-end">
-            {% if current_user.group in ['Owner', 'Admin', 'Stock Manager'] %}
-                <!-- Edit Button -->
-                <a href="{{ url_for('update_product', sku=product._id) }}" class="btn btn-info">
-                    <i class="fas fa-edit me-2"></i>Edit Details
-                </a>
 
-                <!-- Toggle Status Form -->
-                <form action="{{ url_for('toggle_product_status', sku=product._id) }}" method="post" class="d-inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    
-                    {% if product.status == 'ACTIVE' %}
-                        <button type="submit" class="btn btn-warning">
-                            <i class="fas fa-eye-slash me-2"></i>Deactivate
-                        </button>
-                    {% else %}
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-eye me-2"></i>Activate
-                        </button>
-                    {% endif %}
-                </form>
-            {% endif %}
-            
-            {% if current_user.group == 'Owner' %}
-                <!-- Delete Form -->
-                <form action="{{ url_for('delete_product', sku=product._id) }}" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to permanently delete this product?');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash me-2"></i>Delete
-                    </button>
-                </form>
-            {% endif %}
+        <!-- Transaction History -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-history me-2"></i>Recent Movements</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Type</th>
+                                <th>Qty</th>
+                                <th>User</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trans in transactions %}
+                                {% set item = trans.items_sold[0] %} <!-- Simplified for single product view -->
+                                <tr>
+                                    <td class="ps-4 text-muted small">{{ trans.sale_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        {% if item.type == 'IN' %}
+                                            <span class="badge bg-success-subtle text-success border border-success">STOCK IN</span>
+                                        {% else %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary">OUT / SOLD</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">{{ item.quantity_sold }}</td>
+                                    <td class="small">{{ trans.user_username }}</td>
+                                    <td class="small text-muted text-truncate" style="max-width: 200px;">{{ item.notes }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="5" class="text-center py-4 text-muted">No recent history.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
+</div>
 
-    <!-- Adjust Stock Form -->
-   <div class="card mb-4">
-        <div class="card-header"><h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Adjust Stock Quantity</h4></div>
-        <div class="card-body">
-            <form method="post" action="{{ url_for('product_detail', sku=product._id) }}">
-                {{ transaction_form.hidden_tag() }}
-                <div class="row align-items-end">
-                    <div class="col-md-3 mb-3">
-                        {{ transaction_form.transaction_type.label(class="form-label") }}
-                        {{ transaction_form.transaction_type(class="form-select") }}
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        {{ transaction_form.quantity.label(class="form-label") }}
-                        {{ transaction_form.quantity(class="form-control") }}
-                    </div>
+<!-- MODAL: STOCK IN (Restock) -->
+<div class="modal fade" id="stockInModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-arrow-down me-2"></i>Add Stock (Restock)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                <div class="modal-body">
+                    {{ transaction_form.hidden_tag() }}
+                    <input type="hidden" name="transaction_type" value="IN">
                     
-                    <!-- CHANGED: Use 'col-md' here to let notes fill remaining space -->
-                    <div class="col-md mb-3">
-                        {{ transaction_form.notes.label(class="form-label") }}
-                        {{ transaction_form.notes(class="form-control", rows=1) }}
+                    <!-- SECURITY CHECK FOR SALESMAN -->
+                    {% if current_user.group == 'Salesman' %}
+                    <div class="alert alert-warning small">
+                        <i class="fas fa-lock me-1"></i> <strong>Master Password Required</strong><br>
+                        You are not authorized to add stock without manager approval.
                     </div>
-                    
-                    <!-- CHANGED: Use 'col-md-auto' so the column fits the button size exactly -->
-                    <div class="col-md-auto mb-3">
-                         <!-- Optional: invisible label to ensure perfect alignment if 'align-items-end' fails -->
-                         <label class="form-label d-none d-md-block">&nbsp;</label>
-                        {{ transaction_form.submit(class="btn btn-primary w-100") }}
+                    <div class="mb-3">
+                        {{ transaction_form.master_password.label(class="form-label fw-bold") }}
+                        {{ transaction_form.master_password(class="form-control form-control-lg", placeholder="****") }}
                     </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Quantity to Add</label>
+                        {{ transaction_form.quantity(class="form-control form-control-lg text-center fw-bold", placeholder="0", min="1") }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason / Notes</label>
+                        {{ transaction_form.notes(class="form-control", placeholder="e.g., Supplier delivery, Found inventory...", rows="2") }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold">Confirm Add Stock</button>
                 </div>
             </form>
         </div>
     </div>
+</div>
+
+<!-- MODAL: STOCK OUT (Manual Adjustment) -->
+<div class="modal fade" id="stockOutModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-arrow-up me-2"></i>Remove Stock (Adjust)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                <div class="modal-body">
+                    {{ transaction_form.hidden_tag() }}
+                    <input type="hidden" name="transaction_type" value="OUT">
+                    
+                    <!-- SECURITY CHECK FOR SALESMAN -->
+                    {% if current_user.group == 'Salesman' %}
+                    <div class="alert alert-warning small">
+                        <i class="fas fa-lock me-1"></i> <strong>Master Password Required</strong><br>
+                        You are not authorized to remove stock without manager approval.
+                    </div>
+                    <div class="mb-3">
+                        {{ transaction_form.master_password.label(class="form-label fw-bold") }}
+                        {{ transaction_form.master_password(class="form-control form-control-lg", placeholder="****") }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="alert alert-light border small mt-2">
+                        <i class="fas fa-exclamation-triangle me-1"></i> 
+                        Use this for damaged goods, internal use, or inventory corrections. For Sales, please use the <strong>POS Terminal</strong>.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Quantity to Remove</label>
+                        {{ transaction_form.quantity(class="form-control form-control-lg text-center fw-bold text-danger", placeholder="0", min="1") }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason (Required for Audit)</label>
+                        {{ transaction_form.notes(class="form-control", placeholder="e.g., Damaged, Expired, Theft...", rows="2", required=True) }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger fw-bold">Confirm Removal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
