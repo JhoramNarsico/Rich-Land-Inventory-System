@@ -6,37 +6,69 @@
 {% block content %}
 <!-- CUSTOM CSS FOR POS ONLY -->
 <style>
-    /* Lock the screen height for an App-like feel */
+    /* Lock screen height */
     .pos-container {
-        height: calc(100vh - 100px); /* Adjust based on navbar height */
+        height: calc(100vh - 100px);
         overflow: hidden;
     }
 
-    /* LEFT SIDE: Product Catalog */
+    /* --- LEFT SIDE: CATALOG (Flexbox Layout) --- */
     .catalog-section {
         background-color: #f8f9fa;
         border-right: 1px solid #dee2e6;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 0;
+    }
+
+    /* 1. Fixed Header */
+    .catalog-header {
+        padding: 15px 20px;
+        background: white;
+        border-bottom: 1px solid #eee;
+        flex-shrink: 0; /* Never shrink */
+        z-index: 10;
+    }
+
+    /* 2. Scrollable Grid Area */
+    .catalog-grid {
+        flex-grow: 1;
         overflow-y: auto;
         padding: 20px;
     }
 
+    /* 3. Fixed Footer (Pagination) */
+    .catalog-footer {
+        background: white;
+        border-top: 1px solid #dee2e6;
+        padding: 10px 20px;
+        flex-shrink: 0; /* Never shrink */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 60px;
+    }
+
+    /* --- MODERN CARD DESIGN (Restored) --- */
     .product-card {
         border: none;
         border-radius: 12px;
         background: white;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
         transition: all 0.2s ease;
         cursor: pointer;
         height: 100%;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        padding: 15px; /* Comfortable padding */
     }
 
     .product-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        border: 1px solid var(--primary-color);
+        transform: translateY(-4px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        border: 1px solid var(--info-color);
     }
 
     .product-card:active {
@@ -46,202 +78,192 @@
     .price-tag {
         background-color: var(--primary-color);
         color: white;
-        padding: 5px 10px;
+        padding: 4px 12px;
         border-radius: 20px;
         font-weight: bold;
         font-size: 0.9rem;
     }
 
-    /* RIGHT SIDE: Cart */
+    /* Pagination Buttons */
+    .page-link {
+        color: #333;
+        border: 1px solid #dee2e6;
+        margin: 0 3px;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+    }
+
+    .page-item.disabled .page-link {
+        color: #ccc;
+        pointer-events: none;
+        background-color: #f9f9f9;
+    }
+
+    /* --- RIGHT SIDE: CART --- */
     .cart-section {
         background-color: white;
         display: flex;
         flex-direction: column;
         height: 100%;
+        box-shadow: -5px 0 20px rgba(0,0,0,0.05);
+        z-index: 20;
     }
 
-    .cart-header {
-        padding: 15px;
-        background-color: #2c3e50;
-        color: white;
-    }
-
-    .cart-items {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding: 0;
-    }
-
-    .cart-footer {
-        padding: 20px;
-        background-color: #f1f2f6;
-        border-top: 2px solid #dfe6e9;
-    }
-
-    .cart-row {
-        border-bottom: 1px solid #eee;
-        padding: 10px 15px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
+    .cart-header { padding: 15px 20px; background-color: #2c3e50; color: white; flex-shrink: 0; }
+    .cart-items { flex-grow: 1; overflow-y: auto; padding: 0; }
+    .cart-footer { padding: 20px; background-color: #f8f9fa; border-top: 2px solid #e9ecef; flex-shrink: 0; }
     
-    .cart-row:hover {
-        background-color: #f9f9f9;
-    }
-
-    /* Form Inputs in Cart */
-    .qty-input {
-        width: 50px;
-        text-align: center;
-        border: 1px solid #ced4da;
-        border-radius: 5px;
-        font-weight: bold;
-    }
-
-    .discount-input {
-        width: 60px;
-        text-align: center;
-        border: 1px solid #e74c3c;
-        color: #e74c3c;
-        border-radius: 5px;
-        font-size: 0.85rem;
-    }
-
-    /* Payment Modal Buttons */
-    .btn-pay-method {
-        height: 80px;
-        font-size: 1.2rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
+    .cart-row { border-bottom: 1px solid #f1f1f1; padding: 12px 20px; display: flex; align-items: center; }
+    .cart-row:hover { background-color: #f8f9fa; }
+    
+    .qty-input { width: 50px; text-align: center; border: 1px solid #ced4da; border-radius: 6px; font-weight: bold; }
+    .discount-input { width: 60px; text-align: center; border: 1px solid #e74c3c; color: #e74c3c; border-radius: 6px; font-size: 0.85rem; }
+    
+    .btn-pay-method { height: 90px; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; border-width: 2px; }
 </style>
 
 <div class="row pos-container no-print g-0">
-    <!-- LEFT: Product Selector -->
+    <!-- LEFT: Product Catalog -->
     <div class="col-md-8 catalog-section">
-        <!-- Search Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-light p-2 rounded shadow-sm" style="top: -20px; z-index: 10;">
-            <h4 class="mb-0 fw-bold text-primary"><i class="fas fa-boxes me-2"></i>Catalog</h4>
-            <div class="input-group w-50">
-                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                <input type="text" id="productSearch" class="form-control border-start-0 ps-0" placeholder="Scan Barcode or Search Item..." autofocus autocomplete="off">
+        <!-- Header -->
+        <div class="catalog-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0 fw-bold text-primary"><i class="fas fa-th me-2"></i>Catalog</h4>
+                <div class="input-group w-50">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="productSearch" class="form-control border-start-0 ps-0" placeholder="Scan Barcode or Search Item..." autofocus autocomplete="off">
+                </div>
             </div>
         </div>
 
-        <!-- Product Grid -->
-        <div class="row g-3" id="productList">
-            {% for product in products %}
-            <div class="col-sm-6 col-lg-4 col-xl-3 product-card-wrapper" data-name="{{ product.name|lower }}" data-sku="{{ product._id|lower }}">
-                <div class="product-card p-3" onclick="addToCart('{{ product._id }}', '{{ product.name }}', {{ product.price }}, {{ product.quantity }})">
-                    <div class="mb-2">
-                        <h6 class="fw-bold mb-1 text-dark" style="line-height: 1.4;">{{ product.name }}</h6>
-                        <small class="text-muted d-block">{{ product.category_name }}</small>
-                        <small class="text-secondary font-monospace" style="font-size: 0.75rem;">{{ product._id }}</small>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-end mt-2">
-                        <span class="price-tag">₱{{ "%.2f"|format(product.price) }}</span>
-                        <small class="fw-bold {% if product.quantity == 0 %}text-danger{% elif product.quantity <= product.reorder_level %}text-warning{% else %}text-success{% endif %}">
-                            {{ product.quantity }} in stock
-                        </small>
-                    </div>
-                </div>
+        <!-- Grid -->
+        <div class="catalog-grid" id="catalogGrid">
+            <div class="row g-3" id="productList">
+                <!-- Products loaded via JS -->
             </div>
-            {% endfor %}
+            <div id="loadingSpinner" class="text-center mt-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+            </div>
+        </div>
+        
+        <!-- Fixed Pagination Footer -->
+        <div class="catalog-footer">
+            <div class="text-muted small fw-bold" id="resultInfo">Loading...</div>
+            
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="paginationControls">
+                    <!-- Page buttons injected here -->
+                </ul>
+            </nav>
+
+            <div class="d-flex align-items-center">
+                <span class="small text-muted me-2">Show:</span>
+                <select class="form-select form-select-sm bg-light border-0 fw-bold" style="width: 70px;" id="perPageSelect" onchange="changePerPage(this.value)">
+                    <option value="12">12</option>
+                    <option value="16" selected>16</option> <!-- DEFAULT 16 -->
+                    <option value="20">20</option>
+                    <option value="24">24</option>
+                </select>
+            </div>
         </div>
     </div>
 
     <!-- RIGHT: Cart & Checkout -->
-    <div class="col-md-4 cart-section shadow-lg">
+    <div class="col-md-4 cart-section">
         <div class="cart-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Current Sale</h5>
+            <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>Current Sale</h5>
             <span class="badge bg-warning text-dark" id="itemCount">0 items</span>
         </div>
 
         <div class="cart-items" id="cartContainer">
-            <!-- Empty State -->
             <div id="emptyState" class="text-center text-muted mt-5 pt-5">
-                <i class="fas fa-basket-shopping fa-4x mb-3 opacity-25"></i>
-                <p>Scan an item or select from catalog</p>
+                <i class="fas fa-cash-register fa-4x mb-3 opacity-25"></i>
+                <p class="fw-bold">Ready for new transaction</p>
+                <small>Scan items or select from list</small>
             </div>
-            <!-- Items injected via JS here -->
             <div id="cartTableBody"></div>
         </div>
         
-        <!-- Footer / Totals -->
         <div class="cart-footer">
             <div class="d-flex justify-content-between mb-2">
                 <span class="text-muted">Subtotal</span>
                 <span class="fw-bold" id="subTotal">₱0.00</span>
             </div>
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="h4 fw-bold mb-0">TOTAL</span>
-                <span class="h2 fw-bold text-success mb-0" id="grandTotal">₱0.00</span>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <span class="h4 fw-bold mb-0 text-dark">TOTAL</span>
+                <span class="display-6 fw-bold text-success mb-0" id="grandTotal">₱0.00</span>
             </div>
             
             <button class="btn btn-success w-100 btn-lg fw-bold py-3 shadow-sm" onclick="openPaymentModal()" id="btnCheckout" disabled>
-                <i class="fas fa-chevron-right me-2"></i> PROCEED TO PAYMENT
+                PROCEED TO PAYMENT <i class="fas fa-chevron-right ms-2"></i>
             </button>
         </div>
     </div>
 </div>
 
-<!-- PAYMENT MODAL (Improved UI) -->
+<!-- PAYMENT MODAL -->
 <div class="modal fade" id="paymentModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="fas fa-wallet me-2"></i>Payment Details</h5>
+                <h5 class="modal-title"><i class="fas fa-wallet me-2"></i>Payment</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="text-center mb-4 p-3 bg-light rounded">
-                    <h6 class="text-uppercase text-muted small fw-bold">Total Amount Due</h6>
+                <div class="text-center mb-4 p-3 bg-light rounded border">
+                    <h6 class="text-uppercase text-muted small fw-bold mb-1">Total Amount Due</h6>
                     <h1 class="display-4 fw-bold text-dark mb-0" id="payModalTotal">₱0.00</h1>
                 </div>
                 
                 <div class="row g-2 mb-4">
                     <div class="col-4">
                         <input type="radio" class="btn-check" name="payMethod" id="methodCash" value="Cash" checked onchange="toggleReference(false)">
-                        <label class="btn btn-outline-secondary w-100 btn-pay-method" for="methodCash">
-                            <i class="fas fa-money-bill-wave mb-2"></i> Cash
+                        <label class="btn btn-outline-secondary w-100 btn-pay-method rounded-3" for="methodCash">
+                            <i class="fas fa-money-bill-wave mb-2 fs-3"></i> Cash
                         </label>
                     </div>
                     <div class="col-4">
                         <input type="radio" class="btn-check" name="payMethod" id="methodGcash" value="GCash" onchange="toggleReference(true)">
-                        <label class="btn btn-outline-primary w-100 btn-pay-method" for="methodGcash">
-                            <i class="fas fa-mobile-alt mb-2"></i> GCash
+                        <label class="btn btn-outline-primary w-100 btn-pay-method rounded-3" for="methodGcash">
+                            <i class="fas fa-mobile-alt mb-2 fs-3"></i> GCash
                         </label>
                     </div>
                     <div class="col-4">
                         <input type="radio" class="btn-check" name="payMethod" id="methodCard" value="Card" onchange="toggleReference(true)">
-                        <label class="btn btn-outline-warning w-100 btn-pay-method" for="methodCard">
-                            <i class="far fa-credit-card mb-2"></i> Card
+                        <label class="btn btn-outline-warning w-100 btn-pay-method rounded-3" for="methodCard">
+                            <i class="far fa-credit-card mb-2 fs-3"></i> Card
                         </label>
                     </div>
                 </div>
 
                 <div class="form-floating mb-3">
-                    <input type="number" class="form-control form-control-lg fw-bold fs-4" id="amountTendered" placeholder="0.00" onkeyup="calculateChange()">
+                    <input type="number" class="form-control form-control-lg fw-bold fs-3" id="amountTendered" placeholder="0.00" onkeyup="calculateChange()">
                     <label for="amountTendered">Amount Received (₱)</label>
                 </div>
 
                 <div class="mb-3 d-none" id="refNumDiv">
-                    <label class="form-label small text-muted">Reference Number (Optional)</label>
-                    <input type="text" class="form-control" id="refNumber" placeholder="Enter Ref #">
+                    <label class="form-label small text-muted fw-bold">Reference Number</label>
+                    <input type="text" class="form-control form-control-lg" id="refNumber" placeholder="Enter Ref #">
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-3">
                     <span class="h5 mb-0 text-muted">Change Due:</span>
                     <span class="h3 mb-0 fw-bold text-dark" id="changeDue">₱0.00</span>
                 </div>
             </div>
             <div class="modal-footer p-3 bg-light">
-                <button type="button" class="btn btn-lg btn-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-lg btn-success px-5 fw-bold" id="btnConfirmPay" onclick="processCheckout()" disabled>
-                    <i class="fas fa-check me-2"></i> PAY & PRINT
+                <button type="button" class="btn btn-lg btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-lg btn-success px-5 fw-bold shadow-sm" id="btnConfirmPay" onclick="processCheckout()" disabled>
+                    <i class="fas fa-check me-2"></i> CONFIRM
                 </button>
             </div>
         </div>
@@ -263,36 +285,17 @@
                     <p class="small mb-2">VAT REG TIN: 000-000-000</p>
                     <hr class="border-dark border-1 opacity-100 my-2">
                     
-                    <div class="d-flex justify-content-between small">
-                        <span>OR#:</span> <span id="rec-id" class="fw-bold"></span>
-                    </div>
-                    <div class="d-flex justify-content-between small">
-                        <span>Date:</span> <span id="rec-date"></span>
-                    </div>
-                    <div class="d-flex justify-content-between small">
-                        <span>Cashier:</span> <span>{{ current_user.username }}</span>
-                    </div>
+                    <div class="d-flex justify-content-between small"><span>OR#:</span> <span id="rec-id" class="fw-bold"></span></div>
+                    <div class="d-flex justify-content-between small"><span>Date:</span> <span id="rec-date"></span></div>
+                    <div class="d-flex justify-content-between small"><span>Cashier:</span> <span>{{ current_user.username }}</span></div>
                     
                     <hr class="border-dark border-2 border-dotted opacity-100 my-2">
-                    
-                    <div id="rec-items" class="text-start small">
-                        <!-- Items go here -->
-                    </div>
-                    
+                    <div id="rec-items" class="text-start small"></div>
                     <hr class="border-dark border-2 border-dotted opacity-100 my-2">
                     
-                    <div class="d-flex justify-content-between fw-bold fs-6 my-1">
-                        <span>TOTAL:</span>
-                        <span id="rec-total"></span>
-                    </div>
-                    <div class="d-flex justify-content-between small">
-                        <span>Payment:</span>
-                        <span id="rec-tender"></span>
-                    </div>
-                    <div class="d-flex justify-content-between small">
-                        <span>Change:</span>
-                        <span id="rec-change"></span>
-                    </div>
+                    <div class="d-flex justify-content-between fw-bold fs-6 my-1"><span>TOTAL:</span><span id="rec-total"></span></div>
+                    <div class="d-flex justify-content-between small"><span>Payment:</span><span id="rec-tender"></span></div>
+                    <div class="d-flex justify-content-between small"><span>Change:</span><span id="rec-change"></span></div>
                     
                     <hr class="border-dark border-1 opacity-100 my-2">
                     <p class="small mt-2 mb-0 text-center">THIS SERVES AS YOUR SALES INVOICE</p>
@@ -309,7 +312,6 @@
 </div>
 
 <style>
-    /* Print Styles */
     @media print {
         body * { visibility: hidden; }
         .no-print { display: none !important; }
@@ -317,29 +319,119 @@
         #receiptModal { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
         .modal-dialog { margin: 0; width: 100%; max-width: 100%; }
         .modal-content { border: none; box-shadow: none; }
-        .modal-header, .modal-footer { display: none; } /* Hide buttons on paper */
+        .modal-header, .modal-footer { display: none; } 
     }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // VARIABLES
     let cart = [];
     let currentTotal = 0;
+    let currentPage = 1;
+    let itemsPerPage = 16; // Default set to 16 (4x4)
+    let currentSearch = '';
+    let isLoading = false;
+    
     var paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
     var receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
-    
-    // 1. Filter Logic
-    document.getElementById('productSearch').addEventListener('keyup', function(e) {
-        let term = e.target.value.toLowerCase();
-        document.querySelectorAll('.product-card-wrapper').forEach(card => {
-            let name = card.getAttribute('data-name');
-            let sku = card.getAttribute('data-sku');
-            card.style.display = (name.includes(term) || sku.includes(term)) ? 'block' : 'none';
-        });
+
+    // INITIALIZE
+    document.addEventListener('DOMContentLoaded', function() {
+        loadProducts();
     });
 
-    // 2. Add Item
+    // SEARCH
+    const searchInput = document.getElementById('productSearch');
+    let typingTimer;
+    searchInput.addEventListener('keyup', function(e) {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            currentSearch = e.target.value;
+            currentPage = 1;
+            loadProducts();
+        }, 300);
+    });
+
+    // PAGINATION
+    function changePage(page) { if (page < 1) return; currentPage = page; loadProducts(); }
+    function changePerPage(val) { itemsPerPage = parseInt(val); currentPage = 1; loadProducts(); }
+
+    // LOAD PRODUCTS (Modern Card Design)
+    function loadProducts() {
+        if (isLoading) return;
+        isLoading = true;
+        
+        document.getElementById('loadingSpinner').style.display = 'block';
+        document.getElementById('productList').innerHTML = '';
+
+        fetch(`/api/pos/products?page=${currentPage}&per_page=${itemsPerPage}&q=${currentSearch}`)
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('productList');
+                
+                if(data.products.length === 0) {
+                    container.innerHTML = '<div class="col-12 text-center text-muted mt-5 py-5"><h4>No products found.</h4><p>Try a different search term.</p></div>';
+                } else {
+                    data.products.forEach(product => {
+                        const stockColor = product.quantity === 0 ? 'text-danger' : (product.quantity <= product.reorder_level ? 'text-warning' : 'text-success');
+                        
+                        // MODERN CARD HTML
+                        const html = `
+                        <div class="col-sm-6 col-lg-4 col-xl-3 animate__animated animate__fadeIn">
+                            <div class="product-card" onclick="addToCart('${product._id}', '${product.name}', ${product.price}, ${product.quantity})">
+                                <div>
+                                    <h6 class="fw-bold text-dark mb-1" style="line-height: 1.4;">${product.name}</h6>
+                                    <small class="text-muted d-block text-truncate">${product.category_name}</small>
+                                    <small class="text-secondary font-monospace" style="font-size: 0.75rem;">${product._id}</small>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-end mt-3">
+                                    <span class="price-tag">₱${product.price.toLocaleString()}</span>
+                                    <small class="fw-bold ${stockColor}">
+                                        ${product.quantity} in stock
+                                    </small>
+                                </div>
+                            </div>
+                        </div>`;
+                        container.insertAdjacentHTML('beforeend', html);
+                    });
+                }
+
+                renderPagination(data.current_page, data.pages, data.total);
+                isLoading = false;
+                document.getElementById('loadingSpinner').style.display = 'none';
+            });
+    }
+
+    function renderPagination(current, totalPages, totalItems) {
+        let start = (current - 1) * itemsPerPage + 1;
+        let end = Math.min(current * itemsPerPage, totalItems);
+        if (totalItems === 0) { start = 0; end = 0; }
+        document.getElementById('resultInfo').innerText = `Results: ${start} - ${end} of ${totalItems}`;
+
+        let html = '';
+        html += `<li class="page-item ${current === 1 ? 'disabled' : ''}"><a class="page-link" onclick="changePage(${current - 1})">&lt;</a></li>`;
+
+        let range = [];
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) range.push(i);
+        } else {
+            if (current <= 4) range = [1, 2, 3, 4, 5, '...', totalPages];
+            else if (current >= totalPages - 3) range = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+            else range = [1, '...', current - 1, current, current + 1, '...', totalPages];
+        }
+
+        range.forEach(p => {
+            if (p === '...') html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            else html += `<li class="page-item ${current === p ? 'active' : ''}"><a class="page-link" onclick="changePage(${p})">${p}</a></li>`;
+        });
+
+        html += `<li class="page-item ${current === totalPages || totalPages === 0 ? 'disabled' : ''}"><a class="page-link" onclick="changePage(${current + 1})">&gt;</a></li>`;
+        document.getElementById('paginationControls').innerHTML = html;
+    }
+
+    // --- CART LOGIC ---
     function addToCart(sku, name, price, maxStock) {
         let existing = cart.find(item => item.sku === sku);
         if(existing) {
@@ -352,7 +444,6 @@
         renderCart();
     }
 
-    // 3. Render Cart
     function renderCart() {
         let container = document.getElementById('cartTableBody');
         let emptyState = document.getElementById('emptyState');
@@ -378,24 +469,23 @@
             let html = `
             <div class="cart-row animate__animated animate__fadeIn">
                 <div class="flex-grow-1">
-                    <div class="fw-bold text-dark">${item.name}</div>
-                    <div class="text-muted small">@ ₱${item.price.toLocaleString()} ea</div>
+                    <div class="fw-bold text-dark" style="font-size: 0.95rem;">${item.name}</div>
+                    <div class="text-muted small">@ ₱${item.price.toLocaleString()}</div>
                 </div>
                 
-                <div class="d-flex align-items-center mx-2">
+                <div class="d-flex align-items-center">
                     <div class="me-2 text-center">
-                        <label class="small text-muted d-block" style="font-size: 0.65rem;">QTY</label>
+                        <label class="small text-muted d-block" style="font-size: 0.6rem;">QTY</label>
                         <input type="number" class="qty-input" value="${item.qty}" min="1" max="${item.max}" onchange="updateItem(${index}, 'qty', this.value)">
                     </div>
-                    <div class="text-center">
-                        <label class="small text-danger d-block" style="font-size: 0.65rem;">DISC</label>
+                    <div class="text-center me-3">
+                        <label class="small text-danger d-block" style="font-size: 0.6rem;">DISC</label>
                         <input type="number" class="discount-input" value="${item.discount}" min="0" onchange="updateItem(${index}, 'discount', this.value)">
                     </div>
-                </div>
-
-                <div class="text-end ms-2" style="min-width: 70px;">
-                    <div class="fw-bold">₱${itemTotal.toLocaleString()}</div>
-                    <i class="fas fa-trash-alt text-secondary pointer mt-1" onclick="removeFromCart(${index})" style="font-size: 0.9rem;"></i>
+                    <div class="text-end" style="min-width: 70px;">
+                        <div class="fw-bold text-dark">₱${itemTotal.toLocaleString()}</div>
+                        <i class="fas fa-trash-alt text-secondary pointer mt-1" onclick="removeFromCart(${index})"></i>
+                    </div>
                 </div>
             </div>
             `;
@@ -419,12 +509,8 @@
         renderCart();
     }
 
-    function removeFromCart(index) {
-        cart.splice(index, 1);
-        renderCart();
-    }
+    function removeFromCart(index) { cart.splice(index, 1); renderCart(); }
 
-    // 4. Payment Logic
     function openPaymentModal() {
         document.getElementById('payModalTotal').innerText = '₱' + currentTotal.toLocaleString();
         document.getElementById('amountTendered').value = '';
@@ -434,9 +520,7 @@
         setTimeout(() => document.getElementById('amountTendered').focus(), 500);
     }
 
-    function toggleReference(show) {
-        document.getElementById('refNumDiv').classList.toggle('d-none', !show);
-    }
+    function toggleReference(show) { document.getElementById('refNumDiv').classList.toggle('d-none', !show); }
 
     function calculateChange() {
         let tendered = parseFloat(document.getElementById('amountTendered').value) || 0;
@@ -446,13 +530,11 @@
 
         if(change >= 0) {
             display.innerText = '₱' + change.toLocaleString(undefined, {minimumFractionDigits: 2});
-            display.classList.remove('text-danger');
-            display.classList.add('text-success');
+            display.classList.remove('text-danger'); display.classList.add('text-success');
             btn.disabled = false;
         } else {
             display.innerText = 'Short: ₱' + Math.abs(change).toLocaleString(undefined, {minimumFractionDigits: 2});
-            display.classList.add('text-danger');
-            display.classList.remove('text-success');
+            display.classList.add('text-danger'); display.classList.remove('text-success');
             btn.disabled = true;
         }
     }
@@ -466,17 +548,10 @@
         fetch("{{ url_for('pos_checkout') }}", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
-            body: JSON.stringify({ 
-                items: cart,
-                payment: { method: method, tendered: tendered, change: change }
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
+            body: JSON.stringify({ items: cart, payment: { method: method, tendered: tendered, change: change } })
+        }).then(response => response.json()).then(data => {
             if(data.success) {
                 paymentModal.hide();
-                
-                // Fill Receipt Data
                 document.getElementById('rec-id').innerText = data.sale_id.substring(18).toUpperCase();
                 document.getElementById('rec-date').innerText = data.date;
                 
@@ -484,27 +559,17 @@
                 cart.forEach(item => {
                     let finalPrice = item.price - item.discount;
                     let lineTotal = finalPrice * item.qty;
-                    itemsHtml += `
-                        <tr>
-                            <td colspan="3" class="fw-bold">${item.name}</td>
-                        </tr>
-                        <tr class="border-bottom border-light">
-                            <td class="ps-2">${item.qty} x ${finalPrice.toLocaleString()}</td>
-                            <td class="text-end">${lineTotal.toLocaleString()}</td>
-                        </tr>
-                    `;
+                    itemsHtml += `<tr><td colspan="3" class="fw-bold">${item.name}</td></tr><tr class="border-bottom border-light"><td class="ps-2">${item.qty} x ${finalPrice.toLocaleString()}</td><td class="text-end">${lineTotal.toLocaleString()}</td></tr>`;
                 });
                 itemsHtml += '</table>';
-                
                 document.getElementById('rec-items').innerHTML = itemsHtml;
                 document.getElementById('rec-total').innerText = '₱' + currentTotal.toLocaleString();
                 document.getElementById('rec-tender').innerText = '₱' + tendered.toLocaleString();
                 document.getElementById('rec-change').innerText = '₱' + change.toLocaleString();
                 
+                cart = []; renderCart(); loadProducts();
                 receiptModal.show();
-            } else {
-                alert("Error: " + data.message);
-            }
+            } else { alert("Error: " + data.message); }
         });
     }
 </script>

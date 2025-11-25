@@ -972,14 +972,60 @@ def delete_category(cat_id):
 @role_required('Owner', 'Admin', 'Salesman', 'Stock Manager')
 def pos_interface():
     """Renders the Point of Sale interface."""
-    products = list(products_collection.find({"status": "ACTIVE"}).sort("name", 1))
-    return render_template('inventory/pos.html', products=products)
+    return render_template('inventory/pos.html')
+
+@app.route('/api/pos/products')
+@login_required
+def get_pos_products_api():
+    """JSON API to fetch products with advanced pagination."""
+    # 1. Get parameters from the URL (sent by JS)
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 10)) # <--- This handles the dropdown value
+    search_query = request.args.get('q', '').strip()
+    
+    query = {"status": "ACTIVE"}
+    if search_query:
+        query["$or"] = [
+            {"name": {"$regex": search_query, "$options": "i"}},
+            {"_id": {"$regex": search_query, "$options": "i"}}
+        ]
+    
+    # 2. Calculate Pagination Data
+    total_products = products_collection.count_documents(query)
+    # Calculate total pages (Ceiling division)
+    if per_page > 0:
+        total_pages = (total_products + per_page - 1) // per_page
+    else:
+        total_pages = 1
+    
+    # 3. Fetch the specific slice of products
+    products_cursor = products_collection.find(query).sort("name", 1).skip((page - 1) * per_page).limit(per_page)
+    
+    products = []
+    for p in products_cursor:
+        products.append({
+            "_id": p["_id"],
+            "name": p["name"],
+            "category_name": p.get("category_name", ""),
+            "price": p["price"],
+            "quantity": p["quantity"],
+            "reorder_level": p["reorder_level"]
+        })
+        
+    # 4. Return ALL data needed by the frontend
+    return jsonify({
+        "products": products,
+        "total": total_products,
+        "pages": total_pages,
+        "current_page": page,
+        "per_page": per_page
+    })
 
 @app.route('/pos/checkout', methods=['POST'])
 @login_required
 @role_required('Owner', 'Admin', 'Salesman', 'Stock Manager')
 def pos_checkout():
-    """API endpoint to process a JSON cart from the POS page."""
+    """API endpoint to process a detailed POS transaction."""
     data = request.get_json()
     cart_items = data.get('items', [])
     payment_info = data.get('payment', {}) 
@@ -990,13 +1036,12 @@ def pos_checkout():
     total_sale_amount = 0
     sold_items_log = []
     
-    # 1. Validate Stock Levels First
+    # Validate Stock Levels First
     for item in cart_items:
         product = products_collection.find_one({"_id": item['sku']})
         if not product or product['quantity'] < int(item['qty']):
             return jsonify({"success": False, "message": f"Not enough stock for {item['name']}"}), 400
 
-    # 2. Process Transactions
     current_time = datetime.now(timezone.utc)
     
     for item in cart_items:
@@ -1024,7 +1069,7 @@ def pos_checkout():
             "notes": "POS Transaction"
         })
 
-    result = sales_collection.insert_one({
+    sale_record = {
         "sale_date": current_time,
         "user_username": current_user.username,
         "total_amount": total_sale_amount,
@@ -1033,7 +1078,9 @@ def pos_checkout():
         "amount_tendered": float(payment_info.get('tendered', 0)),
         "change_due": float(payment_info.get('change', 0)),
         "status": "COMPLETED" 
-    })
+    }
+    
+    result = sales_collection.insert_one(sale_record)
 
     return jsonify({
         "success": True, 
@@ -1047,15 +1094,11 @@ def pos_checkout():
 def refund_transaction(sale_id):
     """Refunds a transaction. Supports Manager Override via Master Password."""
     
-    # 1. Check Permissions / Override
     authorized = False
     refund_performer = current_user.username
 
-    # Case A: User has explicit permission or is Owner/Admin
     if current_user.group in ['Owner', 'Admin', 'Stock Manager'] or current_user.has_permission('can_refund'):
         authorized = True
-    
-    # Case B: Master Password Override
     else:
         master_pw = request.form.get('master_password')
         if master_pw:
@@ -1072,7 +1115,6 @@ def refund_transaction(sale_id):
     if not authorized:
         return redirect(url_for('transaction_list'))
 
-    # 2. Process Refund
     sale = sales_collection.find_one({'_id': ObjectId(sale_id)})
     
     if not sale:
@@ -1083,7 +1125,6 @@ def refund_transaction(sale_id):
         flash("This transaction has already been refunded.", "warning")
         return redirect(url_for('transaction_list'))
 
-    # Return Stock
     for item in sale['items_sold']:
         if item['type'] == "OUT": 
             products_collection.update_one(
@@ -1091,7 +1132,6 @@ def refund_transaction(sale_id):
                 {'$inc': {'quantity': item['quantity_sold']}}
             )
 
-    # Update Sale Status
     sales_collection.update_one(
         {'_id': ObjectId(sale_id)},
         {
@@ -1105,6 +1145,7 @@ def refund_transaction(sale_id):
     
     flash(f"Transaction {sale_id} refunded successfully.", "success")
     return redirect(url_for('transaction_list'))
+
 
 def create_initial_users():
     """A helper function to create initial users with group-based roles."""
