@@ -83,7 +83,7 @@ Render Deployment Link: https://rich-land-inventory-system.onrender.com/
 - One-command setup for any environment
 
 ### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Final (Dec W2): Demo Ready
-- Live end-to-end demo prepared  
+- Using free tier of Render for deployment 
 - Backup assets and slides completed
 
 ---
