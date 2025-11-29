@@ -8,10 +8,9 @@ app_name = 'inventory-api'
 
 router = DefaultRouter()
 router.register(r'products', views.ProductViewSet, basename='product')
+router.register(r'categories', views.CategoryViewSet, basename='category') # Added this
 
-# The API URLs are now determined automatically by the router.
 urlpatterns = [
     path('', include(router.urls)),
-    # --- NEW: Add this URL for the dashboard chart data ---
     path('sales-chart-data/', views.sales_chart_data, name='sales-chart-data'),
 ]

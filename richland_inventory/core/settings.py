@@ -148,4 +148,5 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'A comprehensive API for managing products, stock, and transactions.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'SORT_TAGS_BY_NAME': True,
 }
