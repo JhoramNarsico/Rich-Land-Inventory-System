@@ -49,11 +49,9 @@ class CustomLoginView(LoginView):
         response = super().form_valid(form)
         remember_me = self.request.POST.get('remember_me')
         if remember_me:
-            # Keep session for 2 weeks
-            self.request.session.set_expiry(1209600)
+            self.request.session.set_expiry(1209600) # 2 weeks
         else:
-            # Rolling session: Expires in 30 mins of inactivity
-            self.request.session.set_expiry(1800)
+            self.request.session.set_expiry(1800) # 30 mins rolling
         return response
 
 # --- PRODUCT MANAGEMENT (UI) ---
@@ -66,7 +64,6 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_product'
 
     def get_template_names(self):
-        # HTMX Support
         if self.request.headers.get('HX-Request'):
             return ['inventory/partials/product_list_rows.html']
         return ['inventory/product_list.html']
@@ -127,13 +124,11 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
-        # Pass both forms to the template
         context['transaction_form'] = StockOutForm()
         context['refund_form'] = RefundForm()
         return context
     
     def post(self, request, *args, **kwargs):
-        # This POST handles StockOutForm (Sales/Damage)
         with transaction.atomic():
             product_object = Product.objects.select_for_update().get(pk=self.get_object().pk)
             form = StockOutForm(request.POST)
@@ -154,7 +149,6 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 product_object.quantity -= quantity
                 product_object.save()
                 
-                # Record price only for Sales and Damage (to track value lost/gained)
                 if transaction_reason in [StockTransaction.TransactionReason.SALE, StockTransaction.TransactionReason.DAMAGE]:
                     transaction_obj.selling_price = product_object.price
                 else:
@@ -177,28 +171,21 @@ def product_refund(request, slug):
     if form.is_valid():
         with transaction.atomic():
             quantity = form.cleaned_data['quantity']
-            
-            # 1. Create Transaction (IN)
             StockTransaction.objects.create(
                 product=product,
                 transaction_type='IN',
                 transaction_reason=StockTransaction.TransactionReason.RETURN,
                 quantity=quantity,
                 user=request.user,
-                # Record selling price so we can calculate Negative Revenue
                 selling_price=product.price, 
                 notes=f"Refund/Return: {form.cleaned_data.get('notes')}"
             )
-            
-            # 2. Add Stock Back
             product.quantity += quantity
             product.save()
-            
             clear_dashboard_cache()
             messages.success(request, f"Refund processed. {quantity} items returned to stock.")
     else:
         messages.error(request, "Invalid refund data.")
-        
     return redirect(product.get_absolute_url())
 
 class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
@@ -216,7 +203,6 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
             StockTransaction.objects.create(
                 product=self.object,
                 transaction_type='IN',
-                # Use INITIAL instead of CORRECTION
                 transaction_reason=StockTransaction.TransactionReason.INITIAL,
                 quantity=initial_quantity,
                 user=self.request.user,
@@ -273,10 +259,11 @@ def product_toggle_status(request, slug):
 
 # --- API VIEWS (SWAGGER IMPROVED) ---
 
+# FIX: Changed ReadOnlyModelViewSet to ModelViewSet to enable POST/PUT/DELETE
 @extend_schema(tags=['Inventory Management'])
-class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+class CategoryViewSet(viewsets.ModelViewSet):
     """
-    API endpoint to list all product categories.
+    API endpoint to manage product categories.
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -331,18 +318,12 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         queryset = StockTransaction.objects.select_related('product', 'user').all()
         form = TransactionFilterForm(self.request.GET)
         if form.is_valid():
-            if form.cleaned_data.get('product'):
-                queryset = queryset.filter(product=form.cleaned_data['product'])
-            if form.cleaned_data.get('transaction_type'):
-                queryset = queryset.filter(transaction_type=form.cleaned_data['transaction_type'])
-            if form.cleaned_data.get('transaction_reason'):
-                queryset = queryset.filter(transaction_reason=form.cleaned_data['transaction_reason'])
-            if form.cleaned_data.get('user'):
-                queryset = queryset.filter(user=form.cleaned_data['user'])
-            if form.cleaned_data.get('start_date'):
-                queryset = queryset.filter(timestamp__date__gte=form.cleaned_data['start_date'])
-            if form.cleaned_data.get('end_date'):
-                queryset = queryset.filter(timestamp__date__lte=form.cleaned_data['end_date'])
+            if form.cleaned_data.get('product'): queryset = queryset.filter(product=form.cleaned_data['product'])
+            if form.cleaned_data.get('transaction_type'): queryset = queryset.filter(transaction_type=form.cleaned_data['transaction_type'])
+            if form.cleaned_data.get('transaction_reason'): queryset = queryset.filter(transaction_reason=form.cleaned_data['transaction_reason'])
+            if form.cleaned_data.get('user'): queryset = queryset.filter(user=form.cleaned_data['user'])
+            if form.cleaned_data.get('start_date'): queryset = queryset.filter(timestamp__date__gte=form.cleaned_data['start_date'])
+            if form.cleaned_data.get('end_date'): queryset = queryset.filter(timestamp__date__lte=form.cleaned_data['end_date'])
         return queryset.order_by('-timestamp')
         
     def get_context_data(self, **kwargs):
@@ -426,7 +407,7 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
         context['product'] = self.product
         return context
 
-# --- REPORTING & ANALYTICS ---
+# --- REPORTING ---
 
 @method_decorator(xframe_options_exempt, name='dispatch')
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
@@ -468,12 +449,10 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             if start_date: transactions_base = transactions_base.filter(timestamp__date__gte=start_date)
             if end_date: transactions_base = transactions_base.filter(timestamp__date__lte=end_date)
         
-        # Annotate row totals
         all_transactions = transactions_base.annotate(
             row_total=ExpressionWrapper(F('selling_price') * F('quantity'), output_field=DecimalField())
         ).order_by('-timestamp')
 
-        # 3. Revenue (Strictly SALES)
         revenue_summary = transactions_base.filter(
             transaction_type='OUT',
             transaction_reason=StockTransaction.TransactionReason.SALE
@@ -482,7 +461,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             total_items_sold=Sum('quantity')
         )
 
-        # 4. Refunds
         refunds_data = transactions_base.filter(
             transaction_type='IN',
             transaction_reason=StockTransaction.TransactionReason.RETURN
@@ -494,7 +472,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         gross_sales = revenue_summary['total_revenue'] or 0
         net_revenue = gross_sales - total_refunds
 
-        # 5. Loss/Shrinkage
         loss_summary = transactions_base.filter(
             transaction_type='OUT'
         ).exclude(
@@ -505,7 +482,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 6. Inflow Summary
         inflow_summary = transactions_base.filter(
             transaction_type='IN'
         ).values('transaction_reason').annotate(
@@ -513,7 +489,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             count=Count('id')
         ).order_by('transaction_reason')
 
-        # 7. Top Sellers
         top_sellers = transactions_base.filter(
             transaction_reason=StockTransaction.TransactionReason.SALE
         ).values('product__name').annotate(total_quantity_sold=Sum('quantity')).order_by('-total_quantity_sold')[:5]
@@ -535,7 +510,6 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
         if not isinstance(pdf, HttpResponse): return HttpResponse("Error generating PDF.", status=500)
         
-        # Preview Logic
         if request.GET.get('preview'):
             disposition = 'inline'
         else:
@@ -544,6 +518,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         pdf['Content-Disposition'] = f'{disposition}; filename="stock_movement_report.pdf"'
         return pdf
 
+# --- ANALYTICS ---
 @login_required
 @permission_required('inventory.can_view_reports', raise_exception=True)
 def analytics_dashboard(request):
@@ -557,7 +532,6 @@ def analytics_dashboard(request):
         if form.cleaned_data.get('end_date'):
             end_date = form.cleaned_data['end_date']
 
-    # 1. Gross Sales
     sales_query = StockTransaction.objects.filter(
         transaction_type='OUT',
         transaction_reason=StockTransaction.TransactionReason.SALE,
@@ -568,7 +542,6 @@ def analytics_dashboard(request):
     gross_sales = sales_query.aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
     total_units_sold = sales_query.aggregate(Sum('quantity'))['quantity__sum'] or 0
 
-    # 2. Refunds
     refunds_query = StockTransaction.objects.filter(
         transaction_type='IN',
         transaction_reason=StockTransaction.TransactionReason.RETURN,
@@ -577,7 +550,6 @@ def analytics_dashboard(request):
     )
     total_refunds = refunds_query.aggregate(val=Sum(F('quantity') * F('product__price')))['val'] or 0
     
-    # 3. Loss
     damage_query = StockTransaction.objects.filter(
         transaction_type='OUT',
         transaction_reason=StockTransaction.TransactionReason.DAMAGE,
@@ -586,21 +558,13 @@ def analytics_dashboard(request):
     )
     total_loss = damage_query.aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
 
-    # 4. Net Revenue
     net_revenue = gross_sales - total_refunds
 
-    # Charts Data
-    cat_data = sales_query.values('product__category__name').annotate(
-        total_revenue=Sum(F('quantity') * F('selling_price'))
-    ).order_by('-total_revenue')
-
+    cat_data = sales_query.values('product__category__name').annotate(total_revenue=Sum(F('quantity') * F('selling_price'))).order_by('-total_revenue')
     cat_labels = [entry['product__category__name'] or "Uncategorized" for entry in cat_data]
     cat_values = [float(entry['total_revenue'] or 0) for entry in cat_data]
 
-    prod_data = sales_query.values('product__name').annotate(
-        total_revenue=Sum(F('quantity') * F('selling_price'))
-    ).order_by('-total_revenue')[:5]
-
+    prod_data = sales_query.values('product__name').annotate(total_revenue=Sum(F('quantity') * F('selling_price'))).order_by('-total_revenue')[:5]
     prod_labels = [p['product__name'] for p in prod_data]
     prod_values = [float(p['total_revenue']) for p in prod_data]
 
@@ -706,7 +670,6 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Calculate Total Cost for Internal use (though disabled in template)
         total = self.object.items.aggregate(
             total_cost=Sum(F('quantity') * F('price'), output_field=DecimalField())
         )['total_cost']
