@@ -743,27 +743,29 @@ def export_inventory_csv():
 @login_required
 @role_required('Owner', 'Admin')
 def export_sales_pdf():
-    form = SalesReportForm(request.args, meta={'csrf': False})
-    query = { "items_sold.type": "OUT" }
-    start_date = form.start_date.data
-    end_date = form.end_date.data
-    
-    if start_date:
-        query["sale_date"] = {"$gte": datetime.combine(start_date, datetime.min.time())}
-    if end_date:
-        if "sale_date" in query:
-            query["sale_date"]["$lte"] = datetime.combine(end_date, datetime.max.time())
-        else:
-            query["sale_date"] = {"$lte": datetime.combine(end_date, datetime.max.time())}
-            
-    sales_data = list(sales_collection.find(query).sort("sale_date", 1))
-    html = render_template('inventory/sales_report_pdf.html', sales=sales_data, generation_date=datetime.now(timezone.utc), start_date=start_date, end_date=end_date)
-    result = BytesIO()
-    pdf = pisa.CreatePDF(BytesIO(html.encode("UTF-8")), dest=result)
-    if not pdf.err:
-        return Response(result.getvalue(), mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=sales_report.pdf'})
-    flash("There was an error generating the PDF.", "danger")
+    flash("PDF export is temporarily disabled for server compatibility.", "warning")
     return redirect(url_for('reporting_hub'))
+    #form = SalesReportForm(request.args, meta={'csrf': False})
+    #query = { "items_sold.type": "OUT" }
+    #start_date = form.start_date.data
+    #end_date = form.end_date.data
+    
+    #if start_date:
+     #   query["sale_date"] = {"$gte": datetime.combine(start_date, datetime.min.time())}
+    #if end_date:
+     #   if "sale_date" in query:
+      #      query["sale_date"]["$lte"] = datetime.combine(end_date, datetime.max.time())
+       # else:
+        #    query["sale_date"] = {"$lte": datetime.combine(end_date, datetime.max.time())}
+            
+    #sales_data = list(sales_collection.find(query).sort("sale_date", 1))
+    #html = render_template('inventory/sales_report_pdf.html', sales=sales_data, generation_date=datetime.now(timezone.utc), start_date=start_date, end_date=end_date)
+    #result = BytesIO()
+    #pdf = pisa.CreatePDF(BytesIO(html.encode("UTF-8")), dest=result)
+    #if not pdf.err:
+     #   return Response(result.getvalue(), mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=sales_report.pdf'})
+    #flash("There was an error generating the PDF.", "danger")
+    #return redirect(url_for('reporting_hub'))
     
 # ==============================================================================
 # Analytics
