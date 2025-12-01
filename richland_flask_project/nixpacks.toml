@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ["python311", "cairo", "pkg-config", "gobject-introspection", "libxml2", "libxslt"]
-
-[phases.install]
-cmds = ["python -m venv .venv", ". .venv/bin/activate", "pip install -r requirements.txt"]
-
-[start]
-cmd = ". .venv/bin/activate && gunicorn app:app"
