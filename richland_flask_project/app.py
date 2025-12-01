@@ -1169,6 +1169,7 @@ def create_initial_users():
 # Main Execution
 # ==============================================================================
 
+create_initial_users() 
+
 if __name__ == '__main__':
-    create_initial_users()
     app.run(debug=True, use_reloader=False)
