@@ -12,7 +12,7 @@ from flask import (Flask, render_template, request, redirect, url_for, flash, Re
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 from bson.objectid import ObjectId
-from xhtml2pdf import pisa
+#from xhtml2pdf import pisa
 
 # --- Flask Extension Imports ---
 from flask_login import (LoginManager, login_user, logout_user, login_required, current_user)
