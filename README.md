@@ -143,4 +143,4 @@ The application will redirect you to the login page. You can use the following d
 | **Stock Manager**| `manager` | `managerpass` |
 | **Salesman**| `sales` | `salespass` |
 
-You are now ready to explore all the features of the Rich Land Auto Supply Inventory System.
+You are now ready to explore all the features of the Rich Land Auto Supply Inventory System. y
