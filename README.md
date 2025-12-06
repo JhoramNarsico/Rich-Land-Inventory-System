@@ -78,7 +78,9 @@ Render Deployment Link: https://rich-land-inventory-system.onrender.com/
 - Product list, detail, history, and reporting pages  
 - Admin panel enhanced with developer links
 
-### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 5 (Dec W1): Polishing, checking for bugs, and documentation.
+### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 5 (Dec W1): Polishing
+- Checking for bugs
+- Documentation
 
 ### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Final (Dec W2): Demo Ready
 - Using free tier of Render for deployment 
