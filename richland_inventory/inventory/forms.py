@@ -12,9 +12,10 @@ class ProductCreateForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'sku': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
-            'price': forms.NumberInput(attrs={'class': 'form-control'}),
-            'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
-            'reorder_level': forms.NumberInput(attrs={'class': 'form-control'}),
+            # FIX: Added min='0'
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'reorder_level': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
         }
 
 class ProductUpdateForm(forms.ModelForm):
@@ -25,8 +26,9 @@ class ProductUpdateForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'sku': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
-            'price': forms.NumberInput(attrs={'class': 'form-control'}),
-            'reorder_level': forms.NumberInput(attrs={'class': 'form-control'}),
+            # FIX: Added min='0'
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
+            'reorder_level': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
         }
 
@@ -37,7 +39,7 @@ class StockTransactionForm(forms.ModelForm):
         widgets = {
             'transaction_type': forms.Select(attrs={'class': 'form-select'}),
             'transaction_reason': forms.Select(attrs={'class': 'form-select'}),
-            'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
@@ -47,7 +49,7 @@ class StockOutForm(forms.ModelForm):
         fields = ['transaction_reason', 'quantity', 'notes']
         widgets = {
             'transaction_reason': forms.Select(attrs={'class': 'form-select'}),
-            'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'e.g. Customer Name, Invoice #, or Reason for Damage'}),
         }
 
@@ -67,7 +69,7 @@ class RefundForm(forms.ModelForm):
         model = StockTransaction
         fields = ['quantity', 'notes']
         widgets = {
-            'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for return (e.g. Defective, Wrong Item)'}),
         }
 
@@ -88,7 +90,6 @@ class TransactionFilterForm(forms.Form):
         queryset=Product.objects.all(), 
         required=False, 
         label="Product", 
-        # Added searchable-select
         widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Product...'})
     )
     transaction_type = forms.ChoiceField(choices=(("", "All Types"), ("IN", "Stock In"), ("OUT", "Stock Out")), required=False, label="Type", widget=forms.Select(attrs={'class': 'form-select'}))
@@ -98,7 +99,6 @@ class TransactionFilterForm(forms.Form):
         queryset=User.objects.all(), 
         required=False, 
         label="User", 
-        # Added searchable-select
         widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select User...'})
     )
     start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
@@ -109,7 +109,6 @@ class ProductHistoryFilterForm(forms.Form):
         queryset=Product.objects.all(), 
         required=False, 
         label="Product", 
-        # Added searchable-select
         widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Product...'})
     )
     
@@ -117,7 +116,6 @@ class ProductHistoryFilterForm(forms.Form):
         queryset=User.objects.all(), 
         required=False, 
         label="User", 
-        # Added searchable-select
         widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select User...'})
     )
     
@@ -129,7 +127,6 @@ class PurchaseOrderFilterForm(forms.Form):
         queryset=Supplier.objects.all(), 
         required=False, 
         label="Supplier", 
-        # Added searchable-select
         widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Supplier...'})
     )
     
