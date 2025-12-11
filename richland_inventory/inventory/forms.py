@@ -1,8 +1,11 @@
 # inventory/forms.py
+
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import DateInput
 from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder
+
+# --- PRODUCT MANAGEMENT FORMS ---
 
 class ProductCreateForm(forms.ModelForm):
     class Meta:
@@ -11,8 +14,7 @@ class ProductCreateForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'sku': forms.TextInput(attrs={'class': 'form-control'}),
-            'category': forms.Select(attrs={'class': 'form-select'}),
-            # FIX: Added min='0'
+            'category': forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Category...'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'reorder_level': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
@@ -25,14 +27,16 @@ class ProductUpdateForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'sku': forms.TextInput(attrs={'class': 'form-control'}),
-            'category': forms.Select(attrs={'class': 'form-select'}),
-            # FIX: Added min='0'
+            'category': forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Category...'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
             'reorder_level': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
         }
 
+# --- TRANSACTION FORMS ---
+
 class StockTransactionForm(forms.ModelForm):
+    """General form for admin usage"""
     class Meta:
         model = StockTransaction
         fields = ['transaction_type', 'transaction_reason', 'quantity', 'notes']
@@ -44,6 +48,10 @@ class StockTransactionForm(forms.ModelForm):
         }
 
 class StockOutForm(forms.ModelForm):
+    """
+    Strictly for REMOVING stock (Sales, Damage, Internal Use).
+    Filters out reasons that add stock (Returns, POs).
+    """
     class Meta:
         model = StockTransaction
         fields = ['transaction_reason', 'quantity', 'notes']
@@ -55,6 +63,7 @@ class StockOutForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Exclude reasons that don't make sense for a manual Stock Out
         excluded_reasons = [
             StockTransaction.TransactionReason.PURCHASE_ORDER,
             StockTransaction.TransactionReason.RETURN,
@@ -65,6 +74,7 @@ class StockOutForm(forms.ModelForm):
         self.fields['transaction_reason'].choices = valid_choices
 
 class RefundForm(forms.ModelForm):
+    """Strictly for ADDING stock back (Returns)"""
     class Meta:
         model = StockTransaction
         fields = ['quantity', 'notes']
@@ -73,19 +83,32 @@ class RefundForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for return (e.g. Defective, Wrong Item)'}),
         }
 
+# --- SEARCH/FILTER FORMS ---
+
 class ProductFilterForm(forms.Form):
     STOCK_STATUS_CHOICES = (("", "All Stock Levels"), ("in_stock", "In Stock (>10)"), ("low_stock", "Low Stock (1-10)"), ("out_of_stock", "Out of Stock"))
     PRODUCT_STATUS_CHOICES = (("ACTIVE", "Active"), ("DEACTIVATED", "Deactivated"), ("", "All Statuses"))
     SORT_BY_CHOICES = (("-date_created", "Newest First"), ("date_created", "Oldest First"), ("name", "Name (A-Z)"), ("-name", "Name (Z-A)"), ("price", "Price (Low to High)"), ("-price", "Price (High to Low)"))
-    q = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    category = forms.ModelChoiceField(queryset=Category.objects.all(), required=False, label="Category", widget=forms.Select(attrs={'class': 'form-select'}))
+    
+    q = forms.CharField(
+        required=False, 
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search Name or SKU...'})
+    )
+    
+    # SEARCHABLE CATEGORY FILTER
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(), 
+        required=False, 
+        label="Category", 
+        widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Category...'})
+    )
+    
     stock_status = forms.ChoiceField(choices=STOCK_STATUS_CHOICES, required=False, label="Stock Level", widget=forms.Select(attrs={'class': 'form-select'}))
     product_status = forms.ChoiceField(choices=PRODUCT_STATUS_CHOICES, required=False, label="Product Status", initial='ACTIVE', widget=forms.Select(attrs={'class': 'form-select'}))
     sort_by = forms.ChoiceField(choices=SORT_BY_CHOICES, required=False, label="Sort By", widget=forms.Select(attrs={'class': 'form-select'}))
 
-# --- SEARCHABLE FILTER FORMS ---
-
 class TransactionFilterForm(forms.Form):
+    # SEARCHABLE PRODUCT FILTER
     product = forms.ModelChoiceField(
         queryset=Product.objects.all(), 
         required=False, 
@@ -95,6 +118,7 @@ class TransactionFilterForm(forms.Form):
     transaction_type = forms.ChoiceField(choices=(("", "All Types"), ("IN", "Stock In"), ("OUT", "Stock Out")), required=False, label="Type", widget=forms.Select(attrs={'class': 'form-select'}))
     transaction_reason = forms.ChoiceField(choices=[('', 'All Reasons')] + list(StockTransaction.TransactionReason.choices), required=False, label="Reason", widget=forms.Select(attrs={'class': 'form-select'}))
     
+    # SEARCHABLE USER FILTER
     user = forms.ModelChoiceField(
         queryset=User.objects.all(), 
         required=False, 
@@ -105,6 +129,7 @@ class TransactionFilterForm(forms.Form):
     end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
 
 class ProductHistoryFilterForm(forms.Form):
+    # SEARCHABLE PRODUCT FILTER
     product = forms.ModelChoiceField(
         queryset=Product.objects.all(), 
         required=False, 
@@ -112,6 +137,7 @@ class ProductHistoryFilterForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Product...'})
     )
     
+    # SEARCHABLE USER FILTER
     user = forms.ModelChoiceField(
         queryset=User.objects.all(), 
         required=False, 
@@ -123,6 +149,7 @@ class ProductHistoryFilterForm(forms.Form):
     end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
 
 class PurchaseOrderFilterForm(forms.Form):
+    # SEARCHABLE SUPPLIER FILTER
     supplier = forms.ModelChoiceField(
         queryset=Supplier.objects.all(), 
         required=False, 
@@ -134,16 +161,20 @@ class PurchaseOrderFilterForm(forms.Form):
     start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
     end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
 
+# --- REPORTING FORMS ---
+
 class TransactionReportForm(forms.Form):
     start_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
     end_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+
+class AnalyticsFilterForm(forms.Form):
+    start_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    end_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+
+# --- MISC FORMS ---
 
 class CategoryCreateForm(forms.ModelForm):
     class Meta:
         model = Category
         fields = ['name']
         widgets = {'name': forms.TextInput(attrs={'class': 'form-control'})}
-
-class AnalyticsFilterForm(forms.Form):
-    start_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
-    end_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
