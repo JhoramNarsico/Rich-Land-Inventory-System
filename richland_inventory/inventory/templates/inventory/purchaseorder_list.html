@@ -17,10 +17,7 @@
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
                 <i class="fas fa-filter me-2"></i>Filters
             </button>
-
-            <a href="{% url 'admin:inventory_purchaseorder_add' %}" target="_blank" class="btn btn-primary shadow-sm">
-                <i class="fas fa-plus me-2"></i>Create Order
-            </a>
+            <!-- Create Order Button Removed -->
         </div>
     </div>
 
@@ -151,9 +148,6 @@
                         <td colspan="5" class="text-center py-5">
                             <div class="text-muted mb-2"><i class="fas fa-clipboard-list fa-3x opacity-25"></i></div>
                             <p class="text-muted fw-medium">No purchase orders found.</p>
-                            {% if perms.inventory.add_purchaseorder %}
-                            <a href="{% url 'admin:inventory_purchaseorder_add' %}" class="btn btn-sm btn-primary mt-2">Create First Order</a>
-                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
