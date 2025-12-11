@@ -7,8 +7,8 @@ from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from simple_history.models import HistoricalRecords
-
-# ... (Category and Product models remain the same) ...
+from django.core.validators import MinValueValidator # <--- IMPORT THIS
+from decimal import Decimal # <--- IMPORT THIS
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -34,7 +34,15 @@ class Product(models.Model):
     
     slug = models.SlugField(max_length=200, unique=True, blank=True, help_text='Unique URL-friendly name, leave blank to auto-generate')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text='Enter the price in PHP')
+    
+    # FIX: Added MinValueValidator to prevent negative prices
+    price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        help_text='Enter the price in PHP',
+        validators=[MinValueValidator(Decimal('0.00'))] 
+    )
+    
     quantity = models.PositiveIntegerField(default=0, help_text='Enter the available quantity')
     reorder_level = models.PositiveIntegerField(default=5, help_text="Automatically alert when stock quantity falls to this level.")
     
@@ -66,8 +74,8 @@ class StockTransaction(models.Model):
         DAMAGE = 'DAMAGE', 'Damaged / Expired (Loss)'
         INTERNAL = 'INTERNAL', 'Internal Use / Demo'
         CORRECTION = 'CORRECTION', 'Inventory Correction / Mistake'
-        INITIAL = 'INITIAL', 'Initial Stock'
         RETURN = 'RETURN', 'Customer Return'
+        INITIAL = 'INITIAL', 'Initial Stock'
         OTHER = 'OTHER', 'Other'
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='transactions')
@@ -78,7 +86,16 @@ class StockTransaction(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
     notes = models.TextField(blank=True, null=True, help_text="Reason for the transaction")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    selling_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Price per item at the time of a 'Stock Out' transaction.")
+    
+    # FIX: Added MinValueValidator
+    selling_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
+        help_text="Price per item at the time of a 'Stock Out' transaction.",
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
 
     class Meta:
         ordering = ['-timestamp']
@@ -110,8 +127,8 @@ class Supplier(models.Model):
 class PurchaseOrder(models.Model):
     STATUS_CHOICES = (
         ('PENDING', 'Pending (In Delivery)'),
-        ('COMPLETED', 'Arrived (Ready to Receive)'),  # Step 2: Admin sets this when truck arrives
-        ('RECEIVED', 'Received & Stocked'),           # Step 3: Final state, stock added
+        ('COMPLETED', 'Arrived (Ready to Receive)'),
+        ('RECEIVED', 'Received & Stocked'),
         ('CANCELED', 'Canceled'),
     )
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchase_orders')
@@ -124,20 +141,14 @@ class PurchaseOrder(models.Model):
     def __str__(self):
         return f"PO #{self.id} from {self.supplier.name}"
 
-    # LOGIC UPDATED: Now transitions from COMPLETED -> RECEIVED
     def complete_order(self, user):
-        """
-        Finalizes the order and adds stock to inventory.
-        """
         if self.status == 'RECEIVED':
-            return # Already done
+            return 
 
         with transaction.atomic():
-            # 1. Update Status to Final State
             self.status = 'RECEIVED'
             self.save()
 
-            # 2. Create Transactions and Update Product Stock
             for item in self.items.all():
                 product = item.product
                 
@@ -150,7 +161,6 @@ class PurchaseOrder(models.Model):
                     notes=f'Received from Purchase Order PO #{self.id}'
                 )
                 
-                # Update Product
                 product.quantity += item.quantity
                 product.last_purchase_date = timezone.now()
                 product.save()
@@ -159,7 +169,14 @@ class PurchaseOrderItem(models.Model):
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price per item in PHP at time of purchase")
+    
+    # FIX: Added MinValueValidator
+    price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        help_text="Price per item in PHP at time of purchase",
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
     
     def __str__(self):
         return f"{self.quantity} of {self.product.name}"
