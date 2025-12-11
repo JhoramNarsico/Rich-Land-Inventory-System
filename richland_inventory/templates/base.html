@@ -78,13 +78,11 @@
         .table-hover tbody tr:hover {
             background-color: rgba(39, 153, 165, 0.05); 
         }
-        
-        /* FIXED: Removed 'overflow: hidden' so dropdowns can float outside the card */
         .card {
             border: none;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
             border-radius: 8px;
-            /* overflow: hidden;  <-- REMOVED THIS LINE */
+            overflow: hidden;
         }
 
         /* 3. NAVBAR */
@@ -162,7 +160,7 @@
         }
         /* FIX: Ensure dropdown floats ON TOP of everything else */
         .ts-dropdown {
-            z-index: 1050 !important; /* Higher than Bootstrap sticky headers */
+            z-index: 1050 !important;
         }
     </style>
 </head>
@@ -251,7 +249,8 @@
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100">
         {% if messages %}
             {% for message in messages %}
-            <div class="toast align-items-center text-white bg-{{ message.tags }} border-0 show" role="alert" aria-live="assertive" aria-atomic="true">
+            <!-- FIX: Removed 'show' class to prevent it from sticking. JS will trigger it. -->
+            <div class="toast align-items-center text-white bg-{{ message.tags }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">
                     <div class="toast-body">
                         {% if message.tags == 'success' %}<i class="fas fa-check-circle me-2"></i>{% endif %}
@@ -278,10 +277,12 @@
         });
 
         document.addEventListener("DOMContentLoaded", function() {
-            // Init Toasts
+            // FIX: Manually trigger .show() to start the 3s timer
             var toastElList = [].slice.call(document.querySelectorAll('.toast'))
             var toastList = toastElList.map(function(toastEl) {
-                return new bootstrap.Toast(toastEl, { delay: 5000 });
+                var t = new bootstrap.Toast(toastEl, { delay: 3000 });
+                t.show(); // Trigger show and timer
+                return t;
             });
 
             // --- TOM SELECT INITIALIZATION ---
@@ -296,7 +297,7 @@
             });
         });
 
-        // --- AUTO LOGOUT SCRIPT ---
+        // --- AUTO LOGOUT SCRIPT (15 Minutes) ---
         {% if user.is_authenticated %}
         (function() {
             let time;
