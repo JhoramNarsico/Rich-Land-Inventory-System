@@ -11,22 +11,28 @@ from core.cache_utils import clear_dashboard_cache
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug')
     prepopulated_fields = {'slug': ('name',)}
+    search_fields = ('name',) 
 
 @admin.register(Product)
 class ProductAdmin(SimpleHistoryAdmin):
     list_display = ('name', 'sku', 'category', 'quantity', 'price', 'status', 'last_edited_on', 'last_edited_by')
     list_filter = ('category', 'status', 'date_created', 'date_updated')
-    search_fields = ('name', 'sku')
+    
+    # IMPORTANT: This line enables the searching capability for autocomplete_fields
+    search_fields = ('name', 'sku') 
+    
     prepopulated_fields = {'slug': ('name',)}
     list_editable = ('quantity', 'price', 'status')
     
     def get_actions(self, request):
+        """Remove the 'delete_selected' action for non-superusers."""
         actions = super().get_actions(request)
         if 'delete_selected' in actions and not request.user.is_superuser:
             del actions['delete_selected']
         return actions
 
     def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of products by non-superusers."""
         return request.user.is_superuser
 
     @admin.display(description='Last Edited On')
@@ -64,9 +70,13 @@ class SupplierAdmin(admin.ModelAdmin):
     list_display = ('name', 'email', 'phone', 'contact_person')
     search_fields = ('name', 'email')
 
+# --- UPDATED INLINE ---
 class PurchaseOrderItemInline(admin.TabularInline):
     model = PurchaseOrderItem
     extra = 1
+    # FIX: This turns the standard dropdown into a Searchable Box
+    # It uses the 'search_fields' defined in ProductAdmin to find matches.
+    autocomplete_fields = ['product'] 
 
 @admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(admin.ModelAdmin):
@@ -74,6 +84,9 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     list_filter = ('status', 'supplier', 'order_date')
     inlines = [PurchaseOrderItemInline]
     
+    # Enables searching for the supplier too, if you have many suppliers
+    autocomplete_fields = ['supplier'] 
+
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
         
@@ -85,12 +98,13 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
         previous_status = self._previous_status
         current_status = obj.status
         
-        # LOGIC CHANGE: Only add stock if status becomes 'RECEIVED'
-        if current_status == 'RECEIVED' and previous_status != 'RECEIVED':
-            self._adjust_stock(request, obj, 'IN')
+        # 1. PENDING -> COMPLETED (Add Stock) - DISABLED here, handled by Receive Button logic if preferred, 
+        # but if Admin manually sets to COMPLETED, nothing happens to stock yet (Arrived state).
+        # Logic is handled in views.py receive_purchase_order or manually here if needed.
+        # Based on previous logic, we rely on the "Receive" button in the frontend for stock addition.
 
-        # Correction: If we revert from RECEIVED back to something else
-        elif previous_status == 'RECEIVED' and current_status != 'RECEIVED':
+        # 2. RECEIVED -> anything else (Revert Stock)
+        if previous_status == 'RECEIVED' and current_status != 'RECEIVED':
              self._adjust_stock(request, obj, 'OUT')
         
         clear_dashboard_cache()
@@ -101,6 +115,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
             self._previous_status = original.status
         else:
             self._previous_status = None
+            
         super().save_model(request, obj, form, change)
 
     def _adjust_stock(self, request, po, type):
