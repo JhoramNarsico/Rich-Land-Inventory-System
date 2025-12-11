@@ -46,12 +46,22 @@ class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
 
     def form_valid(self, form):
+        # 1. Log the user in
         response = super().form_valid(form)
+        
+        # 2. Add Success Message (Toast)
+        user = form.get_user()
+        messages.success(self.request, f"Welcome back, {user.username}!")
+
+        # 3. Handle 'Remember Me' Logic
         remember_me = self.request.POST.get('remember_me')
         if remember_me:
-            self.request.session.set_expiry(1209600) # 2 weeks
+            # Keep session for 2 weeks
+            self.request.session.set_expiry(1209600)
         else:
-            self.request.session.set_expiry(1800) # 30 mins rolling
+            # Rolling session: Expires in 30 mins of inactivity
+            self.request.session.set_expiry(1800)
+            
         return response
 
 # --- PRODUCT MANAGEMENT (UI) ---
