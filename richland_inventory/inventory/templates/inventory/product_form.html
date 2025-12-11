@@ -34,7 +34,6 @@
 
     <!-- 2. MAIN FORM CARD -->
     <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <!-- Professional Header Strip -->
         <div class="card-header bg-white border-bottom py-3 px-4">
             <div class="d-flex align-items-center">
                 <div class="rounded-circle bg-light text-primary d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
@@ -55,7 +54,6 @@
             <form method="post" class="needs-validation" novalidate>
                 {% csrf_token %}
 
-                <!-- Global Error Message -->
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger d-flex align-items-center mb-4">
                         <i class="fas fa-exclamation-circle me-2"></i>
@@ -97,12 +95,17 @@
                                 {% endif %}
                             </div>
 
-                            <!-- Category -->
+                            <!-- Category (UPDATED WITH ADD BUTTON) -->
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.category.id_for_label }}" class="form-label small fw-bold text-dark">Category</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-folder text-secondary"></i></span>
+                                    <!-- The Select Field -->
                                     {{ form.category }}
+                                    <!-- The Add Button -->
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addCategoryModal" title="Create New Category">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
                                 </div>
                                 {% if form.category.errors %}
                                     <div class="text-danger small mt-1">{{ form.category.errors.0 }}</div>
@@ -188,5 +191,92 @@
             </form>
         </div>
     </div>
+
+    <!-- 4. ADD CATEGORY MODAL -->
+    <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header bg-light">
+            <h5 class="modal-title fw-bold text-dark">Add New Category</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form method="post" action="{% url 'inventory:add_category_ajax' %}" id="addCategoryForm">
+            {% csrf_token %}
+            <div class="modal-body p-4">
+                <div id="category-form-errors" class="alert alert-danger d-none"></div>
+                <label for="id_new_category_name" class="form-label small fw-bold text-uppercase">Category Name</label>
+                <input type="text" name="name" id="id_new_category_name" class="form-control" placeholder="e.g. Suspension" required>
+            </div>
+            <div class="modal-footer border-top-0 bg-light">
+              <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Category</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const categoryForm = document.getElementById('addCategoryForm');
+        // Find the specific select input for Category in the main form
+        const categorySelect = document.querySelector('select[name="category"]'); 
+        const categoryModalEl = document.getElementById('addCategoryModal');
+        
+        if (categoryForm && categorySelect) {
+            const categoryModal = bootstrap.Modal.getOrCreateInstance(categoryModalEl);
+            const errorDiv = document.getElementById('category-form-errors');
+
+            categoryForm.addEventListener('submit', function(event) {
+                event.preventDefault(); 
+                const formData = new FormData(categoryForm);
+                
+                fetch(categoryForm.action, {
+                    method: 'POST', 
+                    body: formData,
+                    headers: { 
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken'), 
+                        'X-Requested-With': 'XMLHttpRequest' 
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 1. Create new option
+                        const newOption = new Option(data.category.name, data.category.id, true, true);
+                        
+                        // 2. Add to Select
+                        categorySelect.add(newOption, undefined);
+                        
+                        // 3. IMPORTANT: Update TomSelect if it's active on this field
+                        if (categorySelect.tomselect) {
+                            categorySelect.tomselect.addOption({
+                                value: data.category.id,
+                                text: data.category.name
+                            });
+                            categorySelect.tomselect.addItem(data.category.id);
+                        } else {
+                            // Fallback for standard select
+                            categorySelect.value = data.category.id;
+                        }
+
+                        // 4. Cleanup
+                        categoryForm.reset(); 
+                        errorDiv.classList.add('d-none'); 
+                        categoryModal.hide();
+                        alert('Category added successfully!');
+                    } else {
+                        errorDiv.textContent = data.errors.name[0]; 
+                        errorDiv.classList.remove('d-none');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        }
+    });
+</script>
 {% endblock %}
