@@ -124,7 +124,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ### 3. Install Required Packages
    
 ```bash
-python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular
+python -m pip install --upgrade pip Django PyMySQL djangorestframework python-decouple cryptography xhtml2pdf django-simple-history drf-spectacular dj-database-url
 ```
 OR
 
