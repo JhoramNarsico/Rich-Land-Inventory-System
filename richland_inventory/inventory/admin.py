@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.db import transaction
 from simple_history.admin import SimpleHistoryAdmin
-from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, PurchaseOrderItem
+from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, PurchaseOrderItem, POSSale
 from core.cache_utils import clear_dashboard_cache
 
 @admin.register(Category)
@@ -17,22 +17,17 @@ class CategoryAdmin(admin.ModelAdmin):
 class ProductAdmin(SimpleHistoryAdmin):
     list_display = ('name', 'sku', 'category', 'quantity', 'price', 'status', 'last_edited_on', 'last_edited_by')
     list_filter = ('category', 'status', 'date_created', 'date_updated')
-    
-    # IMPORTANT: This line enables the searching capability for autocomplete_fields
     search_fields = ('name', 'sku') 
-    
     prepopulated_fields = {'slug': ('name',)}
     list_editable = ('quantity', 'price', 'status')
     
     def get_actions(self, request):
-        """Remove the 'delete_selected' action for non-superusers."""
         actions = super().get_actions(request)
         if 'delete_selected' in actions and not request.user.is_superuser:
             del actions['delete_selected']
         return actions
 
     def has_delete_permission(self, request, obj=None):
-        """Prevent deletion of products by non-superusers."""
         return request.user.is_superuser
 
     @admin.display(description='Last Edited On')
@@ -65,26 +60,46 @@ class StockTransactionAdmin(admin.ModelAdmin):
         super().delete_model(request, obj)
         clear_dashboard_cache()
 
+# --- NEW: POS SALE ADMIN ---
+class StockTransactionInline(admin.TabularInline):
+    model = StockTransaction
+    fields = ('product', 'quantity', 'selling_price')
+    readonly_fields = ('product', 'quantity', 'selling_price')
+    extra = 0
+    can_delete = False
+
+@admin.register(POSSale)
+class POSSaleAdmin(admin.ModelAdmin):
+    list_display = ('receipt_id', 'timestamp', 'cashier', 'total_amount', 'amount_paid')
+    search_fields = ('receipt_id', 'cashier__username')
+    list_filter = ('timestamp', 'cashier')
+    inlines = [StockTransactionInline]
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
     list_display = ('name', 'email', 'phone', 'contact_person')
     search_fields = ('name', 'email')
 
-# --- UPDATED INLINE ---
 class PurchaseOrderItemInline(admin.TabularInline):
     model = PurchaseOrderItem
     extra = 1
-    # FIX: This turns the standard dropdown into a Searchable Box
-    # It uses the 'search_fields' defined in ProductAdmin to find matches.
     autocomplete_fields = ['product'] 
 
 @admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'supplier', 'status', 'order_date')
+    # UPDATED: Use order_id instead of id
+    list_display = ('order_id', 'supplier', 'status', 'order_date')
     list_filter = ('status', 'supplier', 'order_date')
     inlines = [PurchaseOrderItemInline]
     
-    # Enables searching for the supplier too, if you have many suppliers
+    # UPDATED: Search by order_id
+    search_fields = ('order_id', 'supplier__name')
     autocomplete_fields = ['supplier'] 
 
     def save_related(self, request, form, formsets, change):
@@ -98,12 +113,8 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
         previous_status = self._previous_status
         current_status = obj.status
         
-        # 1. PENDING -> COMPLETED (Add Stock) - DISABLED here, handled by Receive Button logic if preferred, 
-        # but if Admin manually sets to COMPLETED, nothing happens to stock yet (Arrived state).
-        # Logic is handled in views.py receive_purchase_order or manually here if needed.
-        # Based on previous logic, we rely on the "Receive" button in the frontend for stock addition.
-
-        # 2. RECEIVED -> anything else (Revert Stock)
+        # Logic: If changing FROM Received TO something else, revert stock.
+        # (Receiving stock is usually done via the "Receive" button in the frontend or custom action)
         if previous_status == 'RECEIVED' and current_status != 'RECEIVED':
              self._adjust_stock(request, obj, 'OUT')
         
@@ -131,7 +142,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
                         transaction_reason=StockTransaction.TransactionReason.PURCHASE_ORDER,
                         quantity=qty,
                         user=request.user,
-                        notes=f'Received from Purchase Order PO #{po.id}'
+                        notes=f'Received from Purchase Order {po.order_id}'
                     )
                     product.quantity += qty
                     product.last_purchase_date = timezone.now()
@@ -143,7 +154,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
                         transaction_reason=StockTransaction.TransactionReason.CORRECTION,
                         quantity=qty,
                         user=request.user,
-                        notes=f'Correction: Reverted Purchase Order PO #{po.id} status'
+                        notes=f'Correction: Reverted Purchase Order {po.order_id} status'
                     )
                     product.quantity = max(0, product.quantity - qty)
                 

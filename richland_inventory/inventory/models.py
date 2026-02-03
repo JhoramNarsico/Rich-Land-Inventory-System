@@ -1,5 +1,7 @@
 # inventory/models.py
 
+import uuid
+from decimal import Decimal
 from django.db import models, transaction
 from django.urls import reverse
 from django.utils.text import slugify
@@ -8,9 +10,14 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from simple_history.models import HistoricalRecords
 from django.core.validators import MinValueValidator
-from decimal import Decimal
 
-# --- NEW MODEL: POS SALE HEADER ---
+# --- HELPER FUNCTIONS ---
+def generate_po_number():
+    """Generates a unique PO number like 'PO-1A2B3C4D'"""
+    return f"PO-{uuid.uuid4().hex[:8].upper()}"
+
+# --- MODELS ---
+
 class POSSale(models.Model):
     """
     Represents a single POS transaction (Receipt).
@@ -31,8 +38,6 @@ class POSSale(models.Model):
 
     def __str__(self):
         return f"Receipt #{self.receipt_id}"
-
-# --- EXISTING MODELS ---
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -75,14 +80,18 @@ class Product(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     history = HistoricalRecords()
+    
     class Meta:
         ordering = ['-date_created']
+        
     def get_absolute_url(self):
         return reverse('inventory:product_detail', kwargs={'slug': self.slug})
+        
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+        
     def __str__(self):
         return self.name
 
@@ -103,7 +112,7 @@ class StockTransaction(models.Model):
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='transactions')
     
-    # NEW: Link transaction to a POS Sale (Optional, as not all transactions are POS sales)
+    # Linked POS Sale (Optional)
     pos_sale = models.ForeignKey(POSSale, on_delete=models.CASCADE, null=True, blank=True, related_name='items')
     
     transaction_type = models.CharField(max_length=3, choices=TransactionType.choices)
@@ -157,6 +166,16 @@ class PurchaseOrder(models.Model):
         ('RECEIVED', 'Received & Stocked'),
         ('CANCELED', 'Canceled'),
     )
+    
+    # Updated: Removed 'default' to fix migration errors. 
+    # Logic moved to .save()
+    order_id = models.CharField(
+        max_length=20, 
+        unique=True, 
+        editable=False,
+        null=True
+    )
+    
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchase_orders')
     order_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
@@ -165,7 +184,13 @@ class PurchaseOrder(models.Model):
         return reverse('inventory:purchaseorder_detail', kwargs={'pk': self.pk})
 
     def __str__(self):
-        return f"PO #{self.id} from {self.supplier.name}"
+        return f"{self.order_id} from {self.supplier.name}"
+
+    def save(self, *args, **kwargs):
+        """Overrides save to auto-generate PO number if not present."""
+        if not self.order_id:
+            self.order_id = generate_po_number()
+        super().save(*args, **kwargs)
 
     def complete_order(self, user):
         if self.status == 'RECEIVED':
@@ -184,7 +209,7 @@ class PurchaseOrder(models.Model):
                     transaction_reason=StockTransaction.TransactionReason.PURCHASE_ORDER,
                     quantity=item.quantity,
                     user=user,
-                    notes=f'Received from Purchase Order PO #{self.id}'
+                    notes=f'Received from Purchase Order {self.order_id}'
                 )
                 
                 product.quantity += item.quantity

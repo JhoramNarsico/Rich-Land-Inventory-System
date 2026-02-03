@@ -16,7 +16,7 @@
                 </ol>
             </nav>
             <div class="d-flex align-items-center gap-3">
-                <h2 class="fw-bold text-dark mb-0">Purchase Order #{{ po.id|stringformat:"05d" }}</h2>
+                <h2 class="fw-bold text-dark mb-0">Purchase Order {{ po.order_id }}</h2>
                 {% if po.status == 'RECEIVED' %}
                     <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Received</span>
                 {% elif po.status == 'COMPLETED' %}
