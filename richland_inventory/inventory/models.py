@@ -7,8 +7,32 @@ from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from simple_history.models import HistoricalRecords
-from django.core.validators import MinValueValidator # <--- IMPORT THIS
-from decimal import Decimal # <--- IMPORT THIS
+from django.core.validators import MinValueValidator
+from decimal import Decimal
+
+# --- NEW MODEL: POS SALE HEADER ---
+class POSSale(models.Model):
+    """
+    Represents a single POS transaction (Receipt).
+    Groups multiple StockTransactions (items) together.
+    """
+    receipt_id = models.CharField(max_length=50, unique=True, editable=False)
+    cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    change_given = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "POS Sale"
+        verbose_name_plural = "POS Sales"
+
+    def __str__(self):
+        return f"Receipt #{self.receipt_id}"
+
+# --- EXISTING MODELS ---
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -35,7 +59,6 @@ class Product(models.Model):
     slug = models.SlugField(max_length=200, unique=True, blank=True, help_text='Unique URL-friendly name, leave blank to auto-generate')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     
-    # FIX: Added MinValueValidator to prevent negative prices
     price = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -79,6 +102,10 @@ class StockTransaction(models.Model):
         OTHER = 'OTHER', 'Other'
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='transactions')
+    
+    # NEW: Link transaction to a POS Sale (Optional, as not all transactions are POS sales)
+    pos_sale = models.ForeignKey(POSSale, on_delete=models.CASCADE, null=True, blank=True, related_name='items')
+    
     transaction_type = models.CharField(max_length=3, choices=TransactionType.choices)
     transaction_reason = models.CharField(max_length=20, choices=TransactionReason.choices, default=TransactionReason.SALE)
     
@@ -87,7 +114,6 @@ class StockTransaction(models.Model):
     notes = models.TextField(blank=True, null=True, help_text="Reason for the transaction")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     
-    # FIX: Added MinValueValidator
     selling_price = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -170,7 +196,6 @@ class PurchaseOrderItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     
-    # FIX: Added MinValueValidator
     price = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 

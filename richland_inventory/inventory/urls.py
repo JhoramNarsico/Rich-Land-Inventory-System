@@ -40,4 +40,8 @@ urlpatterns = [
     # --- POINT OF SALE (POS) ---
     path('pos/', views.pos_dashboard, name='pos_dashboard'),
     path('pos/checkout/', views.pos_checkout, name='pos_checkout'),
+    
+    # NEW: POS History & Receipt Viewing
+    path('pos/history/', views.POSHistoryListView.as_view(), name='pos_history'),
+    path('pos/receipt/<str:receipt_id>/', views.POSReceiptDetailView.as_view(), name='pos_receipt_detail'),
 ]

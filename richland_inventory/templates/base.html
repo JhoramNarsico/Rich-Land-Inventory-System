@@ -168,7 +168,6 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container-fluid px-4">
             <a class="navbar-brand me-4" href="{% url 'home' %}">
-                <!-- Ensure you have a logo.png in your static/images folder, or remove this img tag -->
                 <img src="{% static 'images/logo.png' %}" alt="Rich Land Logo" height="40">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -213,12 +212,16 @@
                     </li>
                     {% endif %}
                     
-                    <!-- POS SYSTEM LINK -->
+                    <!-- UPDATED POS SECTION -->
                     {% if perms.inventory.can_adjust_stock %}
-                    <li class="nav-item">
-                        <a class="nav-link text-warning fw-bold" href="{% url 'inventory:pos_dashboard' %}">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-warning fw-bold" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-cash-register me-1"></i> POS
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'inventory:pos_dashboard' %}">Open Terminal</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventory:pos_history' %}">Sales History</a></li>
+                        </ul>
                     </li>
                     {% endif %}
                 </ul>

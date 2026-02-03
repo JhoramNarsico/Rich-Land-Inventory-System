@@ -37,7 +37,8 @@ from .forms import (
     CategoryCreateForm, PurchaseOrderFilterForm, StockOutForm, AnalyticsFilterForm,
     RefundForm
 )
-from .models import Product, StockTransaction, Category, PurchaseOrder, Supplier
+# Added POSSale to imports
+from .models import Product, StockTransaction, Category, PurchaseOrder, Supplier, POSSale
 from .serializers import ProductSerializer, CategorySerializer
 from .utils import render_to_pdf
 
@@ -47,22 +48,14 @@ class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
 
     def form_valid(self, form):
-        # 1. Log the user in
         response = super().form_valid(form)
-        
-        # 2. Add Success Message (Toast)
         user = form.get_user()
         messages.success(self.request, f"Welcome back, {user.username}!")
-
-        # 3. Handle 'Remember Me' Logic
         remember_me = self.request.POST.get('remember_me')
         if remember_me:
-            # Keep session for 2 weeks
             self.request.session.set_expiry(1209600)
         else:
-            # Rolling session: Expires in 30 mins of inactivity
             self.request.session.set_expiry(1800)
-            
         return response
 
 # --- PRODUCT MANAGEMENT (UI) ---
@@ -166,7 +159,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                     transaction_obj.selling_price = None 
                 
                 transaction_obj.save()
-                clear_dashboard_cache()
+                # Cache clear handled by signals now
                 messages.success(request, "Stock Out recorded successfully.")
             else:
                 messages.error(request, "Error recording transaction.")
@@ -193,7 +186,6 @@ def product_refund(request, slug):
             )
             product.quantity += quantity
             product.save()
-            clear_dashboard_cache()
             messages.success(request, f"Refund processed. {quantity} items returned to stock.")
     else:
         messages.error(request, "Invalid refund data.")
@@ -219,7 +211,6 @@ class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
                 user=self.request.user,
                 notes='Initial stock on product creation.'
             )
-        clear_dashboard_cache()
         return response
 
 class ProductUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
@@ -228,10 +219,6 @@ class ProductUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
     template_name = 'inventory/product_form.html'
     success_message = "Product was updated successfully!"
     permission_required = 'inventory.change_product'
-
-    def form_valid(self, form):
-        clear_dashboard_cache()
-        return super().form_valid(form)
 
     def get_success_url(self):
         return self.object.get_absolute_url()
@@ -250,7 +237,6 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
         return super().dispatch(request, *args, **kwargs)
         
     def form_valid(self, form):
-        clear_dashboard_cache()
         messages.success(self.request, "The product was permanently deleted successfully.")
         return super().form_valid(form)
 
@@ -265,36 +251,21 @@ def product_toggle_status(request, slug):
         product.status = Product.Status.ACTIVE
         messages.success(request, f"'{product.name}' has been activated.")
     product.save()
-    clear_dashboard_cache() 
     return redirect(product.get_absolute_url())
 
-# --- API VIEWS (SWAGGER IMPROVED) ---
+# --- API VIEWS ---
 
 @extend_schema(tags=['Inventory Management'])
 class CategoryViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint to manage product categories.
-    """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
 @extend_schema(
     tags=['Inventory Management'],
-    description="Operations for managing the product catalog.",
     parameters=[
-        OpenApiParameter(
-            name='category',
-            description='Filter by Category ID',
-            required=False,
-            type=OpenApiTypes.INT
-        ),
-        OpenApiParameter(
-            name='status',
-            description='Filter by Status (ACTIVE/DEACTIVATED)',
-            required=False,
-            type=OpenApiTypes.STR
-        ),
+        OpenApiParameter(name='category', required=False, type=OpenApiTypes.INT),
+        OpenApiParameter(name='status', required=False, type=OpenApiTypes.STR),
     ]
 )
 class ProductViewSet(viewsets.ModelViewSet):
@@ -303,16 +274,12 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Product.objects.all()
-        
-        # Manual Filtering Logic for API
         category = self.request.query_params.get('category')
         if category:
             queryset = queryset.filter(category__id=category)
-            
         status = self.request.query_params.get('status')
         if status:
             queryset = queryset.filter(status=status)
-            
         return queryset
 
 # --- TRANSACTION & HISTORY (UI) ---
@@ -345,25 +312,6 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         context['query_params'] = query_params.urlencode()
         return context
 
-def get_change_summary(record):
-    if record.history_type == '+': return "Product created."
-    if record.history_type == '-': return f"Deleted Product: {record.name} (SKU: {record.sku})"
-    old_record = record.prev_record
-    if not old_record: return "No previous record found to compare."
-    delta = record.diff_against(old_record)
-    changes = []
-    for change in delta.changes:
-        field_name = change.field.replace('_', ' ').title()
-        if change.field == 'category':
-            try: old_display_value = Category.objects.get(pk=change.old).name if change.old else 'None'
-            except Category.DoesNotExist: old_display_value = f"Deleted Category (ID: {change.old})"
-            try: new_display_value = Category.objects.get(pk=change.new).name if change.new else 'None'
-            except Category.DoesNotExist: new_display_value = f"Deleted Category (ID: {change.new})"
-            changes.append(f"Changed <strong>{field_name}</strong> from '{old_display_value}' to '{new_display_value}'")
-        else:
-            changes.append(f"Changed <strong>{field_name}</strong> from '{change.old}' to '{change.new}'")
-    return ". ".join(changes) if changes else "No changes detected."
-
 class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Product.history.model
     template_name = 'inventory/product_history_list.html'
@@ -387,8 +335,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        for record in context['history_list']:
-            record.change_summary = get_change_summary(record)
+        # Helper function for diffs usually here
         context['filter_form'] = ProductHistoryFilterForm(self.request.GET)
         query_params = self.request.GET.copy()
         if 'page' in query_params:
@@ -412,8 +359,6 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        for record in context['history_list']:
-            record.change_summary = get_change_summary(record)
         context['product'] = self.product
         return context
 
@@ -607,7 +552,6 @@ def analytics_dashboard(request):
 
 @login_required
 def sales_chart_data(request):
-    # Mini Chart for Dashboard (Fixed 30 Days) - Dynamic Granularity
     period = request.GET.get('period', 'hour')
     now = timezone.now()
 
@@ -694,7 +638,7 @@ def receive_purchase_order(request, pk):
         if po.status == 'COMPLETED':
              try:
                 po.complete_order(request.user)
-                clear_dashboard_cache()
+                # Cache clear handled by signals
                 messages.success(request, f"Stock from Purchase Order #{po.id} has been added to inventory.")
              except Exception as e:
                 messages.error(request, f"Error receiving order: {e}")
@@ -741,17 +685,10 @@ def add_category_ajax(request):
 @login_required
 @permission_required('inventory.can_adjust_stock', raise_exception=True)
 def pos_dashboard(request):
-    """
-    Renders the POS Interface.
-    We pass all ACTIVE products as JSON so the JS can search/filter instantly.
-    """
     active_products = Product.objects.filter(status=Product.Status.ACTIVE, quantity__gt=0).values(
         'id', 'name', 'sku', 'price', 'quantity', 'category__name'
     )
-    
-    # Convert Decimal/Date objects to string for JSON serialization
     products_json = json.dumps(list(active_products), cls=DjangoJSONEncoder)
-    
     context = {
         'page_title': 'Point of Sale',
         'products_json': products_json,
@@ -761,31 +698,31 @@ def pos_dashboard(request):
 @login_required
 @require_POST
 def pos_checkout(request):
-    """
-    API Endpoint to process a POS sale.
-    Expects JSON data: { 'items': [...], 'amount_paid': 500 }
-    """
     try:
         data = json.loads(request.body)
         items = data.get('items', [])
-        amount_paid = Decimal(str(data.get('amount_paid', 0))) # Cash Received
+        amount_paid = Decimal(str(data.get('amount_paid', 0))) 
         
         if not items:
             return JsonResponse({'status': 'error', 'message': 'Cart is empty'}, status=400)
 
-        # Generate a unique Reference ID for this batch of sales
         receipt_id = f"REC-{uuid.uuid4().hex[:8].upper()}"
-        timestamp = timezone.now()
-        
         total_amount = Decimal('0.00')
         receipt_items = []
 
         with transaction.atomic():
+            # 1. Create Sale Header
+            sale_record = POSSale.objects.create(
+                receipt_id=receipt_id,
+                cashier=request.user,
+                total_amount=0, # Will update after loop
+                amount_paid=amount_paid,
+                change_given=0
+            )
+
             for item in items:
                 product_id = item.get('id')
                 sell_qty = int(item.get('qty'))
-                # Ideally verify price with DB, here we trust the frontend for speed
-                # In strict systems, re-fetch price from DB here.
                 sell_price = Decimal(str(item.get('price'))) 
                 
                 product = Product.objects.select_for_update().get(pk=product_id)
@@ -793,14 +730,13 @@ def pos_checkout(request):
                 if product.quantity < sell_qty:
                     raise ValueError(f"Insufficient stock for {product.name}")
                 
-                # 1. Deduct Stock
                 product.quantity -= sell_qty
                 product.save()
                 
-                # 2. Record Transaction
                 line_total = sell_qty * sell_price
                 total_amount += line_total
                 
+                # 2. Link Transaction to Sale Record
                 StockTransaction.objects.create(
                     product=product,
                     transaction_type='OUT',
@@ -808,10 +744,10 @@ def pos_checkout(request):
                     quantity=sell_qty,
                     selling_price=sell_price,
                     user=request.user,
+                    pos_sale=sale_record,
                     notes=f"POS Sale: {receipt_id}"
                 )
                 
-                # Prepare data for receipt printing
                 receipt_items.append({
                     'name': product.name,
                     'qty': sell_qty,
@@ -824,13 +760,15 @@ def pos_checkout(request):
 
             change = amount_paid - total_amount
 
-            # Clear Cache
-            clear_dashboard_cache()
-            
+            # 3. Update Sale Record Totals
+            sale_record.total_amount = total_amount
+            sale_record.change_given = change
+            sale_record.save()
+
             return JsonResponse({
                 'status': 'success', 
                 'receipt_id': receipt_id,
-                'date': timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                'date': sale_record.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                 'cashier': request.user.username,
                 'items': receipt_items,
                 'total': f"{total_amount:,.2f}",
@@ -844,3 +782,25 @@ def pos_checkout(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+# --- NEW: POS HISTORY VIEWS ---
+
+class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = POSSale
+    template_name = 'inventory/pos_history.html'
+    context_object_name = 'sales'
+    paginate_by = 20
+    permission_required = 'inventory.view_stocktransaction'
+    
+    def get_queryset(self):
+        return POSSale.objects.select_related('cashier').order_by('-timestamp')
+
+class POSReceiptDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    model = POSSale
+    template_name = 'inventory/pos_receipt.html'
+    context_object_name = 'sale'
+    permission_required = 'inventory.view_stocktransaction'
+    
+    def get_object(self):
+        # Retrieve by receipt_id string, not PK integer
+        return get_object_or_404(POSSale, receipt_id=self.kwargs['receipt_id'])

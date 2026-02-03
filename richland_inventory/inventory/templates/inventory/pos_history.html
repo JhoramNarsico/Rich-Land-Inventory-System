@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}POS Sales History{% endblock %}
+
+{% block content %}
+<div class="container-fluid pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark mb-0">POS Sales History</h2>
+        <a href="{% url 'inventory:pos_dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-cash-register me-2"></i>Back to POS
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Receipt ID</th>
+                        <th>Date & Time</th>
+                        <th>Cashier</th>
+                        <th class="text-end">Total Amount</th>
+                        <th class="text-end">Payment</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td class="ps-4 fw-bold font-monospace text-primary">
+                            {{ sale.receipt_id }}
+                        </td>
+                        <td>
+                            {{ sale.timestamp|date:"M d, Y" }} <small class="text-muted">{{ sale.timestamp|date:"h:i A" }}</small>
+                        </td>
+                        <td>{{ sale.cashier.username }}</td>
+                        <td class="text-end fw-bold">₱{{ sale.total_amount|intcomma }}</td>
+                        <td class="text-end">
+                            <small class="text-muted d-block">Paid: ₱{{ sale.amount_paid|intcomma }}</small>
+                            <small class="text-success">Change: ₱{{ sale.change_given|intcomma }}</small>
+                        </td>
+                        <td class="text-end pe-4">
+                            <a href="{% url 'inventory:pos_receipt_detail' sale.receipt_id %}" class="btn btn-sm btn-outline-secondary" title="View Receipt">
+                                <i class="fas fa-receipt"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">No sales history found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav>
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
