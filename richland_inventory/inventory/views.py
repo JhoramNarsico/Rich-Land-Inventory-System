@@ -2,6 +2,7 @@
 
 import csv
 import json
+import uuid
 from datetime import timedelta, datetime
 from decimal import Decimal
 
@@ -269,7 +270,6 @@ def product_toggle_status(request, slug):
 
 # --- API VIEWS (SWAGGER IMPROVED) ---
 
-# FIX: Changed ReadOnlyModelViewSet to ModelViewSet to enable POST/PUT/DELETE
 @extend_schema(tags=['Inventory Management'])
 class CategoryViewSet(viewsets.ModelViewSet):
     """
@@ -735,3 +735,112 @@ def add_category_ajax(request):
         return JsonResponse({'status': 'success', 'category': {'id': category.id, 'name': category.name}})
     else:
         return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+
+# --- POINT OF SALE (POS) SYSTEM ---
+
+@login_required
+@permission_required('inventory.can_adjust_stock', raise_exception=True)
+def pos_dashboard(request):
+    """
+    Renders the POS Interface.
+    We pass all ACTIVE products as JSON so the JS can search/filter instantly.
+    """
+    active_products = Product.objects.filter(status=Product.Status.ACTIVE, quantity__gt=0).values(
+        'id', 'name', 'sku', 'price', 'quantity', 'category__name'
+    )
+    
+    # Convert Decimal/Date objects to string for JSON serialization
+    products_json = json.dumps(list(active_products), cls=DjangoJSONEncoder)
+    
+    context = {
+        'page_title': 'Point of Sale',
+        'products_json': products_json,
+    }
+    return render(request, 'inventory/pos.html', context)
+
+@login_required
+@require_POST
+def pos_checkout(request):
+    """
+    API Endpoint to process a POS sale.
+    Expects JSON data: { 'items': [...], 'amount_paid': 500 }
+    """
+    try:
+        data = json.loads(request.body)
+        items = data.get('items', [])
+        amount_paid = Decimal(str(data.get('amount_paid', 0))) # Cash Received
+        
+        if not items:
+            return JsonResponse({'status': 'error', 'message': 'Cart is empty'}, status=400)
+
+        # Generate a unique Reference ID for this batch of sales
+        receipt_id = f"REC-{uuid.uuid4().hex[:8].upper()}"
+        timestamp = timezone.now()
+        
+        total_amount = Decimal('0.00')
+        receipt_items = []
+
+        with transaction.atomic():
+            for item in items:
+                product_id = item.get('id')
+                sell_qty = int(item.get('qty'))
+                # Ideally verify price with DB, here we trust the frontend for speed
+                # In strict systems, re-fetch price from DB here.
+                sell_price = Decimal(str(item.get('price'))) 
+                
+                product = Product.objects.select_for_update().get(pk=product_id)
+                
+                if product.quantity < sell_qty:
+                    raise ValueError(f"Insufficient stock for {product.name}")
+                
+                # 1. Deduct Stock
+                product.quantity -= sell_qty
+                product.save()
+                
+                # 2. Record Transaction
+                line_total = sell_qty * sell_price
+                total_amount += line_total
+                
+                StockTransaction.objects.create(
+                    product=product,
+                    transaction_type='OUT',
+                    transaction_reason=StockTransaction.TransactionReason.SALE,
+                    quantity=sell_qty,
+                    selling_price=sell_price,
+                    user=request.user,
+                    notes=f"POS Sale: {receipt_id}"
+                )
+                
+                # Prepare data for receipt printing
+                receipt_items.append({
+                    'name': product.name,
+                    'qty': sell_qty,
+                    'price': f"{sell_price:,.2f}",
+                    'total': f"{line_total:,.2f}"
+                })
+
+            if amount_paid < total_amount:
+                raise ValueError("Amount paid is less than total amount.")
+
+            change = amount_paid - total_amount
+
+            # Clear Cache
+            clear_dashboard_cache()
+            
+            return JsonResponse({
+                'status': 'success', 
+                'receipt_id': receipt_id,
+                'date': timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                'cashier': request.user.username,
+                'items': receipt_items,
+                'total': f"{total_amount:,.2f}",
+                'amount_paid': f"{amount_paid:,.2f}",
+                'change': f"{change:,.2f}"
+            })
+
+    except Product.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Product not found'}, status=404)
+    except ValueError as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
