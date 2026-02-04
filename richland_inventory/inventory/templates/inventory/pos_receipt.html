@@ -1,98 +1,147 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load static %}
 
 {% block title %}Receipt {{ sale.receipt_id }}{% endblock %}
 
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-5 col-lg-4">
-            
+        <div class="col-md-8 col-lg-6">
+
             <!-- Actions -->
             <div class="mb-4 text-center d-print-none">
-                <button onclick="window.print()" class="btn btn-primary shadow-sm me-2">
-                    <i class="fas fa-print me-2"></i>Print Receipt
+                <button onclick="window.print()" class="btn btn-dark shadow-sm me-2">
+                    <i class="fas fa-print me-2"></i>Print Invoice
                 </button>
-                <a href="{% url 'inventory:pos_history' %}" class="btn btn-light border">Back to History</a>
+                <a href="{% url 'inventory:pos_history' %}" class="btn btn-outline-secondary">Back to History</a>
             </div>
 
             <!-- Receipt Container -->
             <div class="card border-0 shadow-lg" id="receipt-card">
-                <div class="card-body p-4" style="font-family: 'Courier New', Courier, monospace;">
-                    
+                <div class="card-body p-5" style="font-family: Arial, sans-serif; color: black;">
+
                     <!-- Header -->
-                    <div class="text-center mb-4 border-bottom border-dark pb-3 border-dashed">
-                        <h4 class="fw-bold mb-1 text-dark">RICH LAND AUTO</h4>
-                        <p class="small mb-0">123 Auto Parts St., City</p>
-                        <p class="small mb-2">Tel: (02) 8123-4567</p>
+                    <div class="text-center mb-2">
+                        <div class="mb-2">
+                            <img src="{% static 'images/logo.png' %}" alt="Logo"
+                                style="max-height: 80px; filter: grayscale(100%);">
+                        </div>
+
+                        <h2 class="fw-bold mb-0 text-uppercase" style="font-size: 1.8rem;">RICH LAND AUTO SUPPLY</h2>
+                        <p class="mb-0 small">Stephen Tan Bldg., Osmeña Extn., Brgy. 26, City of Cagayan de Oro, Mis.
+                            Or., Phil.</p>
+                        <p class="mb-0 fw-bold small">FRANCISCO M. NARSICO - Proprietor</p>
+                        <p class="mb-0 small">Mobile No.: 0917-721-3234 ; Tel. No. (088) 323-5445</p>
+                        <p class="mb-0 small">VAT Reg. TIN: 103-169-755-0000</p>
+                        <p class="mb-0 small">Email: autosupplyrichland@gmail.com ; FB Page: Rich Land Auto Supply</p>
                     </div>
 
-                    <!-- Meta -->
-                    <div class="mb-3 small">
-                        <div class="d-flex justify-content-between">
-                            <span>Date:</span>
-                            <span>{{ sale.timestamp|date:"Y-m-d H:i" }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Ref:</span>
-                            <span>{{ sale.receipt_id }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Cashier:</span>
-                            <span>{{ sale.cashier.username }}</span>
-                        </div>
-                    </div>
-
-                    <hr class="border-dark border-dashed my-2">
-
-                    <!-- Items -->
-                    <table class="table table-borderless table-sm small mb-2">
-                        <thead>
-                            <tr>
-                                <th class="ps-0 text-dark">Item</th>
-                                <th class="text-center text-dark">Qty</th>
-                                <th class="text-end pe-0 text-dark">Amt</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in sale.items.all %}
-                            <tr>
-                                <td class="ps-0">{{ item.product.name }}</td>
-                                <td class="text-center">{{ item.quantity }}</td>
-                                <td class="text-end pe-0">
-                                    {% widthratio item.quantity 1 item.selling_price as total %}
-                                    {{ total|intcomma }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-
-                    <hr class="border-dark border-dashed my-2">
-
-                    <!-- Totals -->
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between fw-bold fs-5 text-dark">
-                            <span>TOTAL</span>
-                            <span>₱{{ sale.total_amount|intcomma }}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="small">
-                        <div class="d-flex justify-content-between">
-                            <span>Cash Tendered:</span>
-                            <span>₱{{ sale.amount_paid|intcomma }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Change:</span>
-                            <span>₱{{ sale.change_given|intcomma }}</span>
+                    <div class="row mt-4 mb-2">
+                        <div class="col-12 text-end">
+                            <h4 class="fw-bold text-uppercase border-bottom border-dark border-2 d-inline-block px-3">
+                                CHARGE INVOICE</h4>
                         </div>
                     </div>
 
-                    <!-- Footer -->
-                    <div class="text-center mt-4 pt-3 border-top border-dark border-dashed">
-                        <p class="small mb-0">Thank you for your business!</p>
-                        <p class="small">No Return, No Exchange</p>
+                    <!-- Customer Info Section -->
+                    <div class="row mb-3 small">
+                        <div class="col-7 pe-1">
+                            <div class="d-flex align-items-end mb-2">
+                                <span class="me-2" style="white-space: nowrap;">CHARGED TO:</span>
+                                <div class="border-bottom border-dark w-100">&nbsp;</div>
+                            </div>
+                            <div class="d-flex align-items-end">
+                                <span class="me-2">Address:</span>
+                                <div class="border-bottom border-dark w-100">&nbsp;</div>
+                            </div>
+                        </div>
+                        <div class="col-5 ps-1">
+                            <div class="d-flex align-items-end mb-1">
+                                <span class="me-2" style="min-width: 50px;">Date:</span>
+                                <div class="border-bottom border-dark flex-grow-1 text-center fw-bold">
+                                    {{ sale.timestamp|date:"m - d - Y" }}
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-end mb-1">
+                                <span class="me-2" style="min-width: 50px;">Terms:</span>
+                                <div class="border-bottom border-dark flex-grow-1">&nbsp;</div>
+                            </div>
+                            <div class="d-flex align-items-end">
+                                <span class="me-2" style="min-width: 50px;">TIN No.:</span>
+                                <div class="border-bottom border-dark flex-grow-1">&nbsp;</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div class="table-responsive mb-0">
+                        <table class="table table-bordered border-dark table-sm mb-0 align-middle">
+                            <thead class="text-center align-middle">
+                                <tr style="border-bottom: 2px solid black;">
+                                    <th class="py-2 text-uppercase" style="width: 55%;">DESCRIPTION</th>
+                                    <th class="py-2 text-uppercase" style="width: 10%;">QTY</th>
+                                    <th class="py-2 text-uppercase" style="width: 15%;">UNIT PRICE</th>
+                                    <th class="py-2 text-uppercase" style="width: 20%;">AMOUNT</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-dark">
+                                {% for item in sale.items.all %}
+                                <tr>
+                                    <td class="ps-2 py-2">{{ item.product.name }}</td>
+                                    <td class="text-center py-2">{{ item.quantity }}</td>
+                                    <td class="text-end pe-2 py-2">
+                                        {% if item.selling_price %}
+                                        {{ item.selling_price|intcomma }}
+                                        {% else %}
+                                        0.00
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-2 py-2">
+                                        {% if item.selling_price %}
+                                        {% widthratio item.quantity 1 item.selling_price as total %}
+                                        {{ total|intcomma }}
+                                        {% else %}
+                                        0.00
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="border-dark">
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold py-2 pe-3 border-dark">TOTAL AMOUNT DUE</td>
+                                    <td class="text-end fw-bold py-2 pe-2 border-dark">
+                                        <div class="d-flex justify-content-between">
+                                            <span>&#8369;</span>
+                                            <span>{{ sale.total_amount|intcomma }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Signatures -->
+                    <div class="row mt-5 pt-4">
+                        <div class="col-6">
+                            <div class="d-flex flex-column">
+                                <span class="small ps-1 mb-4">Processed By:</span>
+                                <div class="border-bottom border-dark w-75 mx-auto"></div>
+                                <div class="text-center small mt-1">{{ sale.cashier.username }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex flex-column">
+                                <span class="small ps-1 mb-4">Checked By:</span>
+                                <div class="border-bottom border-dark w-75 mx-auto"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Note -->
+                    <div class="text-center mt-5 pt-2">
+                        <p class="small mb-0 fst-italic">"Thank you for your business!"</p>
                     </div>
                 </div>
             </div>
@@ -102,27 +151,42 @@
 </div>
 
 <style>
-    /* Styling for dashed borders which Bootstrap doesn't have by default */
-    .border-dashed { border-style: dashed !important; }
-
     @media print {
-        /* Hide everything except the receipt card */
-        body * { visibility: hidden; }
-        #receipt-card, #receipt-card * { visibility: visible; }
-        
-        /* Position the receipt at the top left for printing */
+        body * {
+            visibility: hidden;
+        }
+
+        #receipt-card,
+        #receipt-card * {
+            visibility: visible;
+        }
+
         #receipt-card {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
+            margin: 0;
+            padding: 0;
             border: none !important;
             box-shadow: none !important;
         }
-        
-        /* Remove margins for thermal printers */
-        @page { margin: 0; }
-        body { padding: 10px; }
+
+        .container {
+            max-width: 100%;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        .card-body {
+            padding: 0 !important;
+        }
+
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
     }
 </style>
 {% endblock %}

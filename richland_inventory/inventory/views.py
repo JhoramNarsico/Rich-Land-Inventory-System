@@ -701,7 +701,10 @@ def pos_checkout(request):
     try:
         data = json.loads(request.body)
         items = data.get('items', [])
-        amount_paid = Decimal(str(data.get('amount_paid', 0))) 
+        raw_amount = data.get('amount_paid')
+        if raw_amount is None:
+            raw_amount = 0
+        amount_paid = Decimal(str(raw_amount)) 
         
         if not items:
             return JsonResponse({'status': 'error', 'message': 'Cart is empty'}, status=400)
@@ -723,7 +726,6 @@ def pos_checkout(request):
             for item in items:
                 product_id = item.get('id')
                 sell_qty = int(item.get('qty'))
-                sell_price = Decimal(str(item.get('price'))) 
                 
                 product = Product.objects.select_for_update().get(pk=product_id)
                 
@@ -732,6 +734,9 @@ def pos_checkout(request):
                 
                 product.quantity -= sell_qty
                 product.save()
+                
+                # SECURITY FIX: Use price from database, not frontend
+                sell_price = product.price
                 
                 line_total = sell_qty * sell_price
                 total_amount += line_total
