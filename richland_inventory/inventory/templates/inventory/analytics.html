@@ -148,58 +148,62 @@
         const prodLabels = JSON.parse('{{ prod_labels|safe }}');
         const prodValues = JSON.parse('{{ prod_values|safe }}');
 
-        new Chart(document.getElementById("productChart"), {
-            type: 'bar',
-            data: {
-                labels: prodLabels,
-                datasets: [{
-                    label: 'Revenue',
-                    data: prodValues,
-                    backgroundColor: '#2799a5',
-                    borderRadius: 4,
-                    barThickness: 25
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { grid: { display: false } }
+        if (prodLabels.length > 0) {
+            new Chart(document.getElementById("productChart"), {
+                type: 'bar',
+                data: {
+                    labels: prodLabels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: prodValues,
+                        backgroundColor: '#2799a5',
+                        borderRadius: 4,
+                        barThickness: 25
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { display: false } }
+                    }
                 }
-            }
-        });
+            });
+        }
 
         // 3. Trend
         const dateLabels = JSON.parse('{{ date_labels|safe }}');
         const dateValues = JSON.parse('{{ date_values|safe }}');
 
-        new Chart(document.getElementById("trendChart"), {
-            type: 'bar',
-            data: {
-                labels: dateLabels,
-                datasets: [{
-                    label: 'Daily Revenue',
-                    data: dateValues,
-                    backgroundColor: '#2c3e50',
-                    borderRadius: 4,
-                    barThickness: 'flex',
-                    maxBarThickness: 40
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: '#f8f9fa' }
-                    },
-                    x: { grid: { display: false } }
+        if (dateLabels.length > 0) {
+            new Chart(document.getElementById("trendChart"), {
+                type: 'bar',
+                data: {
+                    labels: dateLabels,
+                    datasets: [{
+                        label: 'Daily Revenue',
+                        data: dateValues,
+                        backgroundColor: '#2c3e50',
+                        borderRadius: 4,
+                        barThickness: 'flex',
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f8f9fa' }
+                        },
+                        x: { grid: { display: false } }
+                    }
                 }
-            }
-        });
+            });
+        }
     });
 </script>
 {% endblock %}

@@ -43,6 +43,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'simple_history',
     'drf_spectacular',
+    
+    'crispy_forms',      # +
+    'crispy_bootstrap5', # +
 ]
 
 MIDDLEWARE = [
@@ -151,3 +154,7 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'SORT_TAGS_BY_NAME': True,
 }
+
+# --- CRISPY FORMS ---
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"

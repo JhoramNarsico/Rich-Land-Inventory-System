@@ -69,6 +69,59 @@ class CustomerPayment(models.Model):
     def __str__(self):
         return f"Payment {self.amount} - {self.customer.name}"
 
+class HydraulicSow(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='sows')
+    date_created = models.DateTimeField(auto_now_add=True)
+    
+    hose_type = models.CharField(max_length=100, blank=True)
+    diameter = models.CharField(max_length=50, blank=True)
+    length = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    pressure = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    application = models.CharField(max_length=200, blank=True)
+    
+    fitting_a = models.CharField(max_length=100, blank=True)
+    fitting_b = models.CharField(max_length=100, blank=True)
+    orientation = models.IntegerField(null=True, blank=True, help_text="Angle in degrees")
+    protection = models.CharField(max_length=50, blank=True)
+    
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-date_created']
+
+    def __str__(self):
+        return f"SOW #{self.pk} - {self.customer.name}"
+
+# --- EXPENSE TRACKING ---
+
+class ExpenseCategory(models.Model):
+    """Categories for expenses, e.g., Rent, Utilities, Supplies."""
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Expense Category'
+        verbose_name_plural = 'Expense Categories'
+
+    def __str__(self):
+        return self.name
+
+class Expense(models.Model):
+    """Represents a single business expense."""
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, null=True, blank=True)
+    description = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    expense_date = models.DateField(default=timezone.now, db_index=True)
+    receipt = models.FileField(upload_to='expense_receipts/', blank=True, null=True, help_text="Optional: Upload a receipt image or PDF.")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-expense_date']
+
+    def __str__(self):
+        return f"{self.description} - {self.amount}"
+
 # --- CORE INVENTORY MODELS ---
 
 class POSSale(models.Model):

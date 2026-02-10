@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page { size: letter; margin: 1cm; }
+        body { font-family: sans-serif; font-size: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; font-size: 11px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; }
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; }
+        .total { text-align: right; font-weight: bold; font-size: 12px; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Expense Report</h1>
+        <p>Generated on: {{ today|date:"F d, Y" }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 15%;">Date</th>
+                <th style="width: 20%;">Category</th>
+                <th>Description</th>
+                <th style="width: 20%; text-align: right;">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for expense in expenses %}
+            <tr>
+                <td>{{ expense.expense_date|date:"Y-m-d" }}</td>
+                <td>{{ expense.category.name|default:"N/A" }}</td>
+                <td>{{ expense.description }}</td>
+                <td style="text-align: right;">{{ expense.amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="total">Total Expenses: {{ total_expenses|floatformat:2 }}</div>
+</body>
+</html>

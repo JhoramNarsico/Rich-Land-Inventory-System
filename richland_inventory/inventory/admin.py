@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.db import transaction
 from simple_history.admin import SimpleHistoryAdmin
-from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, PurchaseOrderItem, POSSale
+from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, PurchaseOrderItem, POSSale, HydraulicSow, Expense, ExpenseCategory
 from core.cache_utils import clear_dashboard_cache
 
 @admin.register(Category)
@@ -159,3 +159,15 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
                     product.quantity = max(0, product.quantity - qty)
                 
                 product.save()
+
+# --- EXPENSE ADMIN ---
+@admin.register(ExpenseCategory)
+class ExpenseCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ('description', 'category', 'amount', 'expense_date', 'recorded_by')
+    list_filter = ('category', 'expense_date', 'recorded_by')
+    search_fields = ('description', 'category__name')

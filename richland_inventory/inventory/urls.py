@@ -54,4 +54,15 @@ urlpatterns = [
     path('customers/<int:pk>/update/', views.CustomerUpdateView.as_view(), name='customer_update'),
     path('customers/<int:pk>/payment/', views.customer_payment, name='customer_payment'),
     path('customers/<int:pk>/export/', views.export_statement, name='customer_statement_export'),
+    path('customers/<int:pk>/sow/new/', views.hydraulic_sow_create, name='hydraulic_sow_create'),
+    path('sow/import/', views.hydraulic_sow_import, name='hydraulic_sow_import'),
+    path('customers/<int:pk>/sow/export/', views.export_sow_history, name='customer_sow_export'),
+    path('customers/<int:pk>/sow/import/', views.import_sow_history, name='customer_sow_import'),
+
+    # --- EXPENSE REPORTING ---
+    path('expenses/', views.ExpenseListView.as_view(), name='expense_list'),
+    path('expenses/create/', views.ExpenseCreateView.as_view(), name='expense_create'),
+    path('expenses/import/', views.import_expenses, name='expense_import'),
+    path('expenses/<int:pk>/update/', views.ExpenseUpdateView.as_view(), name='expense_update'),
+    path('expenses/<int:pk>/delete/', views.ExpenseDeleteView.as_view(), name='expense_delete'),
 ]

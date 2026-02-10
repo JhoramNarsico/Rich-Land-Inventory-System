@@ -32,25 +32,387 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 from django.db import models
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.http import HttpResponse
+from .models import (
+    Customer, HydraulicSow, Expense, ExpenseCategory, Product, StockTransaction, 
+    Category, PurchaseOrder, Supplier, POSSale, CustomerPayment
+)
+from .forms import (
+    ExpenseFilterForm, ExpenseForm, ProductCreateForm, ProductUpdateForm, 
+    StockTransactionForm, ProductFilterForm, TransactionFilterForm, 
+    TransactionReportForm, ProductHistoryFilterForm, CategoryCreateForm, 
+    PurchaseOrderFilterForm, StockOutForm, AnalyticsFilterForm, RefundForm, 
+    CustomerForm, CustomerPaymentForm
+)
+from .utils import render_to_pdf
+from core.cache_utils import clear_dashboard_cache
+
+def hydraulic_sow_create(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    # Handle Export Requests (PDF, Word, Excel, CSV)
+    export_format = request.GET.get('format')
+    if export_format:
+        # Placeholder for export logic
+        # You would generate the file here based on 'export_format'
+        response = HttpResponse(content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="sow_{customer.pk}.{export_format}"'
+        response.write(f"Exporting {export_format} for {customer.name}...")
+        return response
+
+    if request.method == 'POST':
+        # Extract data from the manual HTML form in the template
+        HydraulicSow.objects.create(
+            customer=customer,
+            hose_type=request.POST.get('hose_type', ''),
+            diameter=request.POST.get('diameter', ''),
+            length=request.POST.get('length') or None,
+            pressure=request.POST.get('pressure') or None,
+            application=request.POST.get('application', ''),
+            fitting_a=request.POST.get('fitting_a', ''),
+            fitting_b=request.POST.get('fitting_b', ''),
+            orientation=request.POST.get('orientation') or None,
+            protection=request.POST.get('protection', ''),
+            notes=request.POST.get('notes', '')
+        )
+        messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
+        return redirect('inventory:customer_detail', pk=pk)
+
+    return render(request, 'inventory/hydraulic_sow_form.html', {
+        'customer': customer
+    })
+
+def hydraulic_sow_import(request):
+    if request.method == 'POST':
+        # Handle file upload and parsing logic here
+        messages.info(request, "Import functionality is under construction.")
+        return redirect('inventory:customer_list')
+        
+    # You will need a simple template for this, or reuse a generic import template
+    return render(request, 'inventory/form_import.html', {
+        'title': 'Import Hydraulic SOW'
+    })
+
+@login_required
+def export_sow_history(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    format_type = request.GET.get('format', 'pdf')
+    sows = customer.sows.all()
+    filename = f"SOW_History_{slugify(customer.name)}_{timezone.now().strftime('%Y%m%d')}"
+
+    if format_type == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Date', 'Application', 'Hose Type', 'Diameter', 'Length', 'Pressure', 'Fitting A', 'Fitting B', 'Notes'])
+        for sow in sows:
+            writer.writerow([
+                sow.date_created.strftime('%Y-%m-%d'),
+                sow.application,
+                sow.hose_type,
+                sow.diameter,
+                sow.length,
+                sow.pressure,
+                sow.fitting_a,
+                sow.fitting_b,
+                sow.notes
+            ])
+        return response
+
+    elif format_type == 'excel':
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "SOW History"
+        ws.append(["SOW HISTORY", f"Customer: {customer.name}", f"Date: {timezone.now().strftime('%Y-%m-%d')}"])
+        ws.append([])
+        headers = ['Date', 'Application', 'Hose Type', 'Diameter', 'Length', 'Pressure', 'Fitting A', 'Fitting B', 'Notes']
+        ws.append(headers)
+        for sow in sows:
+            ws.append([
+                sow.date_created.strftime('%Y-%m-%d'),
+                sow.application,
+                sow.hose_type,
+                sow.diameter,
+                sow.length,
+                sow.pressure,
+                sow.fitting_a,
+                sow.fitting_b,
+                sow.notes
+            ])
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+        wb.save(response)
+        return response
+
+    elif format_type == 'word':
+        document = Document()
+        document.add_heading(f'Hydraulic SOW History', 0)
+        p = document.add_paragraph()
+        p.add_run(f'Customer: {customer.name}\n').bold = True
+        p.add_run(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
+
+        table = document.add_table(rows=1, cols=5)
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Date'
+        hdr_cells[1].text = 'Application'
+        hdr_cells[2].text = 'Hose Details'
+        hdr_cells[3].text = 'Fittings'
+        hdr_cells[4].text = 'Notes'
+
+        for sow in sows:
+            row_cells = table.add_row().cells
+            row_cells[0].text = sow.date_created.strftime('%Y-%m-%d')
+            row_cells[1].text = sow.application
+            row_cells[2].text = f"{sow.hose_type}\n{sow.diameter}\" x {sow.length}mm\n{sow.pressure} PSI"
+            row_cells[3].text = f"A: {sow.fitting_a}\nB: {sow.fitting_b}"
+            row_cells[4].text = sow.notes
+
+        f = io.BytesIO()
+        document.save(f)
+        f.seek(0)
+        response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
+        return response
+
+    else: # PDF
+        context = {
+            'customer': customer,
+            'sows': sows,
+            'today': timezone.now(),
+        }
+        pdf = render_to_pdf('inventory/sow_history_pdf.html', context, request=request)
+        if pdf:
+            response = HttpResponse(pdf, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+            return response
+        return HttpResponse("Error Generating PDF", status=500)
+
+@login_required
+def import_sow_history(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    if request.method == "POST" and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, "Please upload a CSV file.")
+            return redirect('inventory:customer_detail', pk=pk)
+
+        try:
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+            # Normalize headers
+            reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+            
+            count = 0
+            with transaction.atomic():
+                for row in reader:
+                    # Basic mapping, assuming CSV headers match model fields or close to it
+                    HydraulicSow.objects.create(
+                        customer=customer,
+                        hose_type=row.get('hose_type', ''),
+                        diameter=row.get('diameter', ''),
+                        length=row.get('length') or None,
+                        pressure=row.get('pressure') or None,
+                        application=row.get('application', ''),
+                        fitting_a=row.get('fitting_a', ''),
+                        fitting_b=row.get('fitting_b', ''),
+                        notes=row.get('notes', '')
+                    )
+                    count += 1
+            messages.success(request, f"Imported {count} SOW records.")
+        except Exception as e:
+            messages.error(request, f"Error processing file: {e}")
+            
+        return redirect('inventory:customer_detail', pk=pk)
+
+    return render(request, 'inventory/sow_import.html', {'customer': customer})
+
+
+# --- EXPENSE MANAGEMENT ---
+
+class ExpenseListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = Expense
+    template_name = 'inventory/expense_list.html'
+    context_object_name = 'expenses'
+    paginate_by = 20
+    permission_required = 'inventory.view_expense'
+
+    def get_queryset(self):
+        queryset = Expense.objects.select_related('category', 'recorded_by').all()
+        self.filter_form = ExpenseFilterForm(self.request.GET)
+        if self.filter_form.is_valid():
+            if self.filter_form.cleaned_data.get('q'):
+                queryset = queryset.filter(description__icontains=self.filter_form.cleaned_data['q'])
+            if self.filter_form.cleaned_data.get('category'):
+                queryset = queryset.filter(category=self.filter_form.cleaned_data['category'])
+            if self.filter_form.cleaned_data.get('start_date'):
+                queryset = queryset.filter(expense_date__gte=self.filter_form.cleaned_data['start_date'])
+            if self.filter_form.cleaned_data.get('end_date'):
+                queryset = queryset.filter(expense_date__lte=self.filter_form.cleaned_data['end_date'])
+        return queryset.order_by('-expense_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['filter_form'] = self.filter_form
+        context['total_expenses'] = self.get_queryset().aggregate(total=Sum('amount'))['total'] or 0
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            query_params.pop('page')
+        context['query_params'] = query_params.urlencode()
+        return context
+
+    def get(self, request, *args, **kwargs):
+        export_format = request.GET.get('export')
+        if export_format:
+            return self.export_expenses(request, export_format)
+        return super().get(request, *args, **kwargs)
+
+    def export_expenses(self, request, format_type):
+        expenses = self.get_queryset().order_by('expense_date')
+        filename = f"Expense_Report_{timezone.now().strftime('%Y%m%d')}"
+
+        if format_type == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+            writer = csv.writer(response)
+            writer.writerow(['Date', 'Category', 'Description', 'Amount', 'Recorded By'])
+            for expense in expenses:
+                writer.writerow([
+                    expense.expense_date,
+                    expense.category.name if expense.category else 'N/A',
+                    expense.description,
+                    expense.amount,
+                    expense.recorded_by.username if expense.recorded_by else 'N/A'
+                ])
+            return response
+        
+        elif format_type == 'word':
+            document = Document()
+            document.add_heading('Expense Report', 0)
+            total = expenses.aggregate(total=Sum('amount'))['total'] or 0
+            p = document.add_paragraph()
+            p.add_run(f"Total Expenses: {total:,.2f}\n").bold = True
+            p.add_run(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
+
+            table = document.add_table(rows=1, cols=4, style='Table Grid')
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = 'Date'
+            hdr_cells[1].text = 'Category'
+            hdr_cells[2].text = 'Description'
+            hdr_cells[3].text = 'Amount'
+            
+            for expense in expenses:
+                row_cells = table.add_row().cells
+                row_cells[0].text = expense.expense_date.strftime('%Y-%m-%d')
+                row_cells[1].text = expense.category.name if expense.category else ''
+                row_cells[2].text = expense.description
+                row_cells[3].text = f"{expense.amount:,.2f}"
+
+            f = io.BytesIO()
+            document.save(f)
+            f.seek(0)
+            response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
+            return response
+
+        elif format_type == 'pdf':
+            context = {
+                'expenses': expenses,
+                'total_expenses': expenses.aggregate(total=Sum('amount'))['total'] or 0,
+                'today': timezone.now(),
+            }
+            pdf = render_to_pdf('inventory/expense_report_pdf.html', context, request=request)
+            if pdf:
+                response = HttpResponse(pdf, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+                return response
+        
+        messages.error(request, "Could not generate report. Invalid format specified.")
+        return redirect('inventory:expense_list')
+
+class ExpenseCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
+    model = Expense
+    form_class = ExpenseForm
+    template_name = 'inventory/expense_form.html'
+    success_url = reverse_lazy('inventory:expense_list')
+    success_message = "Expense recorded successfully."
+    permission_required = 'inventory.add_expense'
+
+    def form_valid(self, form):
+        form.instance.recorded_by = self.request.user
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Record New Expense"
+        return context
+
+class ExpenseUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Expense
+    form_class = ExpenseForm
+    template_name = 'inventory/expense_form.html'
+    success_url = reverse_lazy('inventory:expense_list')
+    success_message = "Expense updated successfully."
+    permission_required = 'inventory.change_expense'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Edit Expense"
+        return context
+
+class ExpenseDeleteView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, DeleteView):
+    model = Expense
+    template_name = 'inventory/expense_confirm_delete.html'
+    success_url = reverse_lazy('inventory:expense_list')
+    success_message = "Expense deleted successfully."
+    permission_required = 'inventory.delete_expense'
+
+@login_required
+@permission_required('inventory.add_expense', raise_exception=True)
+def import_expenses(request):
+    if request.method == "POST" and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, "Please upload a CSV file.")
+            return redirect('inventory:expense_list')
+
+        try:
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+            reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+            
+            count = 0
+            with transaction.atomic():
+                for row in reader:
+                    cat_name = row.get('category')
+                    category = None
+                    if cat_name:
+                        category, _ = ExpenseCategory.objects.get_or_create(name=cat_name.strip())
+
+                    Expense.objects.create(
+                        expense_date=row.get('date'),
+                        category=category,
+                        description=row.get('description', ''),
+                        amount=Decimal(row.get('amount', '0')),
+                        recorded_by=request.user
+                    )
+                    count += 1
+            messages.success(request, f"Successfully imported {count} expenses.")
+        except Exception as e:
+            messages.error(request, f"Error processing file: {e}")
+            
+        return redirect('inventory:expense_list')
+        
+    return render(request, 'inventory/expense_import.html')
 
 # DRF & Swagger Imports
 from rest_framework import viewsets, permissions
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
-# Local Imports
-from core.cache_utils import clear_dashboard_cache
-from .forms import (
-    ProductCreateForm, ProductUpdateForm, StockTransactionForm, ProductFilterForm,
-    TransactionFilterForm, TransactionReportForm, ProductHistoryFilterForm,
-    CategoryCreateForm, PurchaseOrderFilterForm, StockOutForm, AnalyticsFilterForm,
-    RefundForm, CustomerForm, CustomerPaymentForm
-)
-from .models import (
-    Product, StockTransaction, Category, PurchaseOrder, Supplier, 
-    POSSale, Customer, CustomerPayment
-)
 from .serializers import ProductSerializer, CategorySerializer
-from .utils import render_to_pdf
 
 # --- AUTHENTICATION ---
 
@@ -160,6 +522,7 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         credit_limit = self.object.credit_limit
         context['current_balance'] = current_balance
         context['available_credit'] = credit_limit - current_balance
+        context['sows'] = self.object.sows.all()
         return context
 
 @login_required
@@ -724,26 +1087,91 @@ class POSReceiptDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
 class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'inventory/reporting.html'
     permission_required = 'inventory.can_view_reports'
-    
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Report Generation"
+        context['transaction_report_form'] = TransactionReportForm(self.request.GET or None)
+        return context
+
     def get(self, request, *args, **kwargs):
         export_type = request.GET.get('export')
         if export_type == 'inventory_csv': return self.export_inventory_csv()
         elif export_type == 'transaction_pdf': return self.export_transactions_pdf(request)
         return super().get(request, *args, **kwargs)
 
-    # ... (Keep existing export methods for Inventory/Transactions) ...
     def export_inventory_csv(self):
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="inventory.csv"'
+        response['Content-Disposition'] = 'attachment; filename="inventory_snapshot.csv"'
         writer = csv.writer(response)
-        writer.writerow(['Product', 'SKU', 'Qty', 'Price'])
-        for p in Product.objects.all():
-            writer.writerow([p.name, p.sku, p.quantity, p.price])
+        writer.writerow(['Product', 'SKU', 'Category', 'Quantity', 'Price', 'Status'])
+        products = Product.objects.select_related('category').all()
+        for p in products:
+            writer.writerow([p.name, p.sku, p.category.name if p.category else 'N/A', p.quantity, p.price, p.get_status_display()])
         return response
 
     def export_transactions_pdf(self, request):
-        # Implementation assumed from previous context
-        return HttpResponse("PDF Report")
+        form = TransactionReportForm(request.GET)
+        
+        start_date, end_date = None, None
+        transactions = StockTransaction.objects.select_related('product', 'user').all()
+
+        if form.is_valid():
+            start_date = form.cleaned_data.get('start_date')
+            end_date = form.cleaned_data.get('end_date')
+            if start_date:
+                start_dt = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+                transactions = transactions.filter(timestamp__gte=start_dt)
+            if end_date:
+                end_dt = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
+                transactions = transactions.filter(timestamp__lte=end_dt)
+        
+        transactions = transactions.annotate(
+            row_total=ExpressionWrapper(F('quantity') * F('selling_price'), output_field=DecimalField())
+        ).order_by('-timestamp')
+
+        sales_txns = transactions.filter(transaction_reason=StockTransaction.TransactionReason.SALE)
+        refund_txns = transactions.filter(transaction_reason=StockTransaction.TransactionReason.RETURN)
+
+        gross_sales = sales_txns.aggregate(total=Sum('row_total'))['total'] or Decimal('0.00')
+        total_refunds = refund_txns.aggregate(total=Sum('row_total'))['total'] or Decimal('0.00')
+        net_revenue = gross_sales - total_refunds
+        total_items_sold = sales_txns.aggregate(total=Sum('quantity'))['total'] or 0
+
+        inflow_summary = transactions.filter(transaction_type='IN').values('transaction_reason').annotate(total_qty=Sum('quantity')).order_by('-total_qty')
+        
+        loss_summary = transactions.filter(
+            transaction_reason__in=[StockTransaction.TransactionReason.DAMAGE, StockTransaction.TransactionReason.INTERNAL]
+        ).annotate(
+            lost_value=ExpressionWrapper(F('quantity') * F('product__price'), output_field=DecimalField())
+        ).values('transaction_reason').annotate(
+            total_qty=Sum('quantity'), total_val=Sum('lost_value')
+        ).order_by('-total_val')
+
+        top_sellers = sales_txns.values('product__name').annotate(
+            total_quantity_sold=Sum('quantity')
+        ).order_by('-total_quantity_sold')[:5]
+
+        context = {
+            'transactions': transactions, 'start_date': start_date, 'end_date': end_date,
+            'gross_sales': gross_sales, 'total_refunds': total_refunds, 'net_revenue': net_revenue,
+            'total_items_sold': total_items_sold, 'inflow_summary': inflow_summary,
+            'loss_summary': loss_summary, 'top_sellers': top_sellers, 'today': timezone.now(),
+        }
+
+        pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)
+        
+        if pdf:
+            response = HttpResponse(pdf, content_type='application/pdf')
+            filename = f"Stock_Movement_Report_{timezone.now().strftime('%Y%m%d')}.pdf"
+            if 'preview' in request.GET:
+                response['Content-Disposition'] = f'inline; filename="{filename}"'
+            else:
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        messages.error(request, "Could not generate PDF report. Please try again.")
+        return redirect('inventory:reporting')
 
 @login_required
 def analytics_dashboard(request):

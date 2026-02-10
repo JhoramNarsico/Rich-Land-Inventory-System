@@ -12,6 +12,9 @@
             <a href="{% url 'inventory:customer_list' %}" class="btn btn-sm btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-1"></i> Back to List
             </a>
+            <a href="{% url 'inventory:hydraulic_sow_create' pk=customer.pk %}" class="btn btn-sm btn-info text-white me-2">
+                <i class="fas fa-tools me-1"></i> New Hose SOW
+            </a>
             <a href="{% url 'inventory:customer_update' pk=customer.pk %}" class="btn btn-sm btn-primary">
                 <i class="fas fa-edit me-1"></i> Edit Customer
             </a>
@@ -196,6 +199,72 @@
                                 <tr>
                                     <td colspan="6" class="text-center py-5 text-muted">No transactions found for this
                                         customer.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hydraulic SOW History -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Hydraulic SOW History</h5>
+                    <div class="btn-group">
+                        <a href="{% url 'inventory:customer_sow_import' pk=customer.pk %}"
+                            class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-file-import me-1"></i> Import
+                        </a>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
+                                id="sowExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-download me-1"></i> Export
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sowExportDropdown">
+                                <li><a class="dropdown-item"
+                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=pdf"><i
+                                            class="fas fa-file-pdf fa-fw me-2 text-danger"></i>PDF</a></li>
+                                <li><a class="dropdown-item"
+                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=excel"><i
+                                            class="fas fa-file-excel fa-fw me-2 text-success"></i>Excel</a></li>
+                                <li><a class="dropdown-item"
+                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=csv"><i
+                                            class="fas fa-file-csv fa-fw me-2 text-info"></i>CSV</a></li>
+                                <li><a class="dropdown-item"
+                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=word"><i
+                                            class="fas fa-file-word fa-fw me-2 text-primary"></i>Word</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Application</th>
+                                    <th>Hose Type</th>
+                                    <th>Fittings</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sow in sows %}
+                                <tr>
+                                    <td>{{ sow.date_created|date:"Y-m-d" }}</td>
+                                    <td>{{ sow.application|default:"-" }}</td>
+                                    <td>{{ sow.hose_type }} ({{ sow.diameter }}" x {{ sow.length }}mm)</td>
+                                    <td>
+                                        <small class="d-block">A: {{ sow.fitting_a }}</small>
+                                        <small class="d-block">B: {{ sow.fitting_b }}</small>
+                                    </td>
+                                    <td><small class="text-muted">{{ sow.notes|truncatechars:30 }}</small></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-3 text-muted">No job sheets found.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

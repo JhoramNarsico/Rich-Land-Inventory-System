@@ -220,6 +220,9 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'inventory:analytics' %}">Analytics</a></li>
                             <li><a class="dropdown-item" href="{% url 'inventory:reporting' %}">Reports</a></li>
+                            {% if perms.inventory.view_expense %}
+                            <li><a class="dropdown-item" href="{% url 'inventory:expense_list' %}">Expenses</a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% endif %}

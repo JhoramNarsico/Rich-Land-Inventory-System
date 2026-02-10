@@ -3,7 +3,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import DateInput
-from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder
+from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, Expense, ExpenseCategory
 from .models import Customer, CustomerPayment
 # --- PRODUCT MANAGEMENT FORMS ---
 
@@ -188,3 +188,23 @@ class CategoryCreateForm(forms.ModelForm):
         model = Category
         fields = ['name']
         widgets = {'name': forms.TextInput(attrs={'class': 'form-control'})}
+
+# --- EXPENSE FORMS ---
+
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['category', 'description', 'amount', 'expense_date', 'receipt']
+        widgets = {
+            'category': forms.Select(attrs={'class': 'form-select searchable-select'}),
+            'description': forms.TextInput(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control'}),
+            'expense_date': DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'receipt': forms.FileInput(attrs={'class': 'form-control'}),
+        }
+
+class ExpenseFilterForm(forms.Form):
+    q = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search description...'}))
+    category = forms.ModelChoiceField(queryset=ExpenseCategory.objects.all(), required=False, label="Category", widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'All Categories'}))
+    start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
+    end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
