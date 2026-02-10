@@ -168,6 +168,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container-fluid px-4">
             <a class="navbar-brand me-4" href="{% url 'home' %}">
+                <!-- Ensure logo.png exists in static/images/ -->
                 <img src="{% static 'images/logo.png' %}" alt="Rich Land Logo" height="40">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -175,8 +176,10 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <!-- Dashboard -->
                     <li class="nav-item"><a class="nav-link" href="{% url 'home' %}"><i class="fas fa-tachometer-alt me-1"></i> Dashboard</a></li>
                     
+                    <!-- Inventory Dropdown -->
                     {% if perms.inventory.view_product %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-boxes me-1"></i> Inventory</a>
@@ -192,6 +195,7 @@
                     </li>
                     {% endif %}
                     
+                    <!-- Procurement Dropdown -->
                     {% if perms.inventory.view_purchaseorder %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-truck me-1"></i> Procurement</a>
@@ -202,6 +206,14 @@
                     </li>
                     {% endif %}
                     
+                    <!-- NEW CUSTOMERS / BILLING TAB -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'inventory:customer_list' %}">
+                            <i class="fas fa-users me-1"></i> Customers
+                        </a>
+                    </li>
+                    
+                    <!-- Insights Dropdown -->
                     {% if perms.inventory.can_view_reports %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-chart-pie me-1"></i> Insights</a>
@@ -212,7 +224,7 @@
                     </li>
                     {% endif %}
                     
-                    <!-- UPDATED POS SECTION -->
+                    <!-- POS Dropdown -->
                     {% if perms.inventory.can_adjust_stock %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-warning fw-bold" href="#" role="button" data-bs-toggle="dropdown">

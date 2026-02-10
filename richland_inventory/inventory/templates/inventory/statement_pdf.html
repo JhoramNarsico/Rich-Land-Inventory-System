@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .header { text-align: center; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Billing Statement</h1>
+        <h3>{{ customer.name }}</h3>
+    </div>
+    <p><strong>Date:</strong> {{ today|date:"F d, Y" }}</p>
+    <p><strong>Total Due:</strong> PHP {{ current_balance|floatformat:2 }}</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Reference</th>
+                <th>Description</th>
+                <th>Debit (Charge)</th>
+                <th>Credit (Payment)</th>
+                <th>Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in ledger %}
+            <tr>
+                <td>{{ row.date|date:"Y-m-d" }}</td>
+                <td>{{ row.ref }}</td>
+                <td>{{ row.desc }}</td>
+                <td>{% if not row.is_credit %}{{ row.amount|floatformat:2 }}{% endif %}</td>
+                <td>{% if row.is_credit %}{{ row.amount|floatformat:2 }}{% endif %}</td>
+                <td>{{ row.balance|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

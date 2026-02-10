@@ -44,4 +44,14 @@ urlpatterns = [
     # NEW: POS History & Receipt Viewing
     path('pos/history/', views.POSHistoryListView.as_view(), name='pos_history'),
     path('pos/receipt/<str:receipt_id>/', views.POSReceiptDetailView.as_view(), name='pos_receipt_detail'),
+    
+     # --- CUSTOMER & BILLING ---
+    path('customers/', views.CustomerListView.as_view(), name='customer_list'),
+    path('customers/create/', views.CustomerCreateView.as_view(), name='customer_create'),
+    path('customers/import/', views.import_customers, name='customer_import'),
+    path('customers/<int:pk>/import-ledger/', views.import_ledger_entries, name='customer_ledger_import'),
+    path('customers/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),
+    path('customers/<int:pk>/update/', views.CustomerUpdateView.as_view(), name='customer_update'),
+    path('customers/<int:pk>/payment/', views.customer_payment, name='customer_payment'),
+    path('customers/<int:pk>/export/', views.export_statement, name='customer_statement_export'),
 ]

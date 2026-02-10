@@ -7,29 +7,94 @@ from django.urls import reverse
 from django.utils.text import slugify
 from django.utils import timezone
 from django.conf import settings
-from django.contrib.auth.models import User
 from simple_history.models import HistoricalRecords
 from django.core.validators import MinValueValidator
+from django.db.models import Sum
 
 # --- HELPER FUNCTIONS ---
 def generate_po_number():
     """Generates a unique PO number like 'PO-1A2B3C4D'"""
     return f"PO-{uuid.uuid4().hex[:8].upper()}"
 
-# --- MODELS ---
+# --- CUSTOMER & BILLING MODELS (NEW) ---
+
+class Customer(models.Model):
+    name = models.CharField(max_length=150, unique=True)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.TextField(blank=True)
+    tax_id = models.CharField(max_length=50, blank=True, help_text="TIN or Tax ID")
+    
+    # Financials
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Max amount allowed for credit")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def get_balance(self):
+        """Calculates current outstanding balance (Credit Sales - Payments)"""
+        # Sum of credit sales (Total Amount of sales marked as CREDIT)
+        credit_sales = self.purchases.filter(payment_method='CREDIT').aggregate(
+            total=Sum('total_amount')
+        )['total'] or Decimal('0.00')
+        
+        # Sum of payments made
+        payments = self.payments.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        return credit_sales - payments
+
+    def get_absolute_url(self):
+        return reverse('inventory:customer_detail', kwargs={'pk': self.pk})
+
+    def __str__(self):
+        return self.name
+
+class CustomerPayment(models.Model):
+    """Tracks payments made by customers towards their balance"""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    payment_date = models.DateTimeField(default=timezone.now)
+    reference_number = models.CharField(max_length=50, blank=True, help_text="Check No., Transaction ID, or Receipt No.")
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['-payment_date']
+
+    def __str__(self):
+        return f"Payment {self.amount} - {self.customer.name}"
+
+# --- CORE INVENTORY MODELS ---
 
 class POSSale(models.Model):
     """
     Represents a single POS transaction (Receipt).
     Groups multiple StockTransactions (items) together.
     """
+    class PaymentMethod(models.TextChoices):
+        CASH = 'CASH', 'Cash'
+        CREDIT = 'CREDIT', 'Charge/Credit'
+        CARD = 'CARD', 'Card/Digital'
+
     receipt_id = models.CharField(max_length=50, unique=True, editable=False)
     cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
     
+    # Customer Linking
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchases')
+    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
+    due_date = models.DateField(null=True, blank=True, help_text="If Credit, when is payment due?")
+
+    # Financials
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     change_given = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    notes = models.TextField(blank=True, help_text="Transaction notes or description")
     
     class Meta:
         ordering = ['-timestamp']
@@ -167,8 +232,6 @@ class PurchaseOrder(models.Model):
         ('CANCELED', 'Canceled'),
     )
     
-    # Updated: Removed 'default' to fix migration errors. 
-    # Logic moved to .save()
     order_id = models.CharField(
         max_length=20, 
         unique=True, 

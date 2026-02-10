@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Import Ledger - {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h4 class="mb-0 fw-bold">Import Ledger Entries</h4>
+                    <p class="text-muted mb-0">For Customer: <strong>{{ customer.name }}</strong></p>
+                </div>
+
+                <div class="card-body p-4">
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading fw-bold"><i class="fas fa-info-circle me-1"></i> Instructions</h6>
+                        <p class="mb-2">Upload a CSV file to bulk import charges and payments. This is useful for
+                            importing historical data or manual adjustments.</p>
+                        <hr>
+                        <p class="mb-1 small"><strong>Required CSV Columns:</strong></p>
+                        <ul class="small mb-0">
+                            <li><code>Date</code> (YYYY-MM-DD)</li>
+                            <li><code>Reference</code> (Unique ID for Charges, Ref No. for Payments)</li>
+                            <li><code>Description</code> (Notes/Details)</li>
+                            <li><code>Charge</code> (Amount added to balance)</li>
+                            <li><code>Payment</code> (Amount deducted from balance)</li>
+                        </ul>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label for="csv_file" class="form-label fw-bold">Select CSV File</label>
+                            <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv"
+                                required>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'inventory:customer_detail' customer.pk %}"
+                                class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Customer
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-file-import me-1"></i> Import Data
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="mt-3 text-center">
+                <small class="text-muted">
+                    Need a template?
+                    <a href="{% url 'inventory:customer_statement_export' customer.pk %}?format=csv"
+                        class="text-decoration-none">
+                        Download current ledger as CSV
+                    </a> to use as a starting point.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

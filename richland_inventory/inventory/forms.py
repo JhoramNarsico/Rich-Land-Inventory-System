@@ -4,8 +4,18 @@ from django import forms
 from django.contrib.auth.models import User
 from django.forms import DateInput
 from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder
-
+from .models import Customer, CustomerPayment
 # --- PRODUCT MANAGEMENT FORMS ---
+
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = ['name', 'email', 'phone', 'address', 'tax_id', 'credit_limit']
+
+class CustomerPaymentForm(forms.ModelForm):
+    class Meta:
+        model = CustomerPayment
+        fields = ['amount', 'reference_number', 'notes']
 
 class ProductCreateForm(forms.ModelForm):
     class Meta:
