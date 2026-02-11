@@ -87,6 +87,19 @@
         border-radius: 0.75rem; cursor: pointer; transition: all 0.2s ease;
         box-shadow: var(--card-shadow); height: 100%; display: flex; flex-direction: column;
     }
+    .product-card-img {
+        height: 120px;
+        width: 100%;
+        object-fit: cover;
+    }
+    .product-card-img-placeholder {
+        height: 120px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--light-gray);
+    }
     .product-card:hover { transform: translateY(-4px); box-shadow: var(--card-shadow-hover); }
     .product-info { padding: 1rem; flex-grow: 1; display: flex; flex-direction: column; }
     .product-category { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; }
@@ -252,7 +265,13 @@
             const div = document.createElement('div');
             div.className = 'col-xl-3 col-lg-4 col-md-6 col-12';
             div.innerHTML = `
-                <div class="product-card" onclick="addToCart(${p.id})">
+                <div class="product-card overflow-hidden" onclick="addToCart(${p.id})">
+                    ${ p.image_url
+                        ? `<img src="${p.image_url}" class="product-card-img" alt="${p.name}">`
+                        : `<div class="product-card-img-placeholder">
+                               <i class="fas fa-image fa-2x text-muted opacity-50"></i>
+                           </div>`
+                    }
                     <div class="product-info">
                         <div class="product-category">${p.category__name || 'Uncategorized'}</div>
                         <div class="product-name" title="${p.name}">${p.name}</div>

@@ -49,89 +49,95 @@
         </div>
     </div>
 
-    <!-- 2. KEY METRICS CARDS -->
-    <div class="row g-3 mb-4">
-        <!-- Stock Level Card (Updated Colors) -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-4 
-                {% if product.quantity == 0 %}border-danger
-                {% elif product.quantity <= product.reorder_level %}border-warning
-                {% else %}border-success{% endif %}">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-muted small fw-bold text-uppercase">On Hand</span>
-                        <div class="icon-box bg-light 
-                            {% if product.quantity == 0 %}text-danger
-                            {% elif product.quantity <= product.reorder_level %}text-warning
-                            {% else %}text-success{% endif %} 
-                            rounded-circle p-2">
-                            <i class="fas fa-cubes"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-0 
-                        {% if product.quantity == 0 %}text-danger
-                        {% elif product.quantity <= product.reorder_level %}text-warning
-                        {% endif %}">
-                        {{ product.quantity|intcomma }}
-                    </h3>
-                    <small class="text-muted">Reorder Level: {{ product.reorder_level }}</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Unit Price -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-muted small fw-bold text-uppercase">Unit Price</span>
-                        <div class="icon-box bg-light text-secondary rounded-circle p-2">
-                            <i class="fas fa-tag"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-0">₱{{ product.price|floatformat:2|intcomma }}</h3>
-                    <small class="text-muted">PHP</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Total Asset Value -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-muted small fw-bold text-uppercase">Total Value</span>
-                        <div class="icon-box bg-light text-success rounded-circle p-2">
-                            <i class="fas fa-coins"></i>
-                        </div>
-                    </div>
-                    <h3 class="fw-bold mb-0">
-                        {% widthratio product.price 1 product.quantity as total_val %}
-                        ₱{{ total_val|intcomma }}
-                    </h3>
-                    <small class="text-muted">Inventory Asset</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Status Info -->
-        <div class="col-md-3">
+    <!-- 2. PRODUCT IMAGE & KEY METRICS -->
+    <div class="row g-4 mb-4">
+        <!-- Product Image -->
+        <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-muted small fw-bold text-uppercase">Information</span>
+                <div class="card-body d-flex align-items-center justify-content-center bg-light p-2">
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid rounded" style="max-height: 300px; object-fit: contain;">
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-image fa-5x opacity-50"></i>
+                            <p class="mt-2 small">No Image Available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="col-lg-8">
+            <div class="row g-3">
+                <!-- Stock Level Card -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100 border-start border-4 
+                        {% if product.quantity == 0 %}border-danger
+                        {% elif product.quantity <= product.reorder_level %}border-warning
+                        {% else %}border-success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="text-muted small fw-bold text-uppercase">On Hand</span>
+                                <div class="icon-box bg-light rounded-circle p-2"><i class="fas fa-cubes"></i></div>
+                            </div>
+                            <h3 class="fw-bold mb-0">{{ product.quantity|intcomma }}</h3>
+                            <small class="text-muted">Reorder Level: {{ product.reorder_level }}</small>
+                        </div>
                     </div>
-                    <div class="mb-1">
-                        <span class="text-muted small">SKU:</span>
-                        <span class="fw-bold font-monospace ms-1">{{ product.sku }}</span>
+                </div>
+
+                <!-- Unit Price -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="text-muted small fw-bold text-uppercase">Unit Price</span>
+                                <div class="icon-box bg-light text-secondary rounded-circle p-2"><i class="fas fa-tag"></i></div>
+                            </div>
+                            <h3 class="fw-bold mb-0">₱{{ product.price|floatformat:2|intcomma }}</h3>
+                            <small class="text-muted">PHP</small>
+                        </div>
                     </div>
-                    <div class="mb-1">
-                        <span class="text-muted small">Category:</span>
-                        <span class="fw-bold ms-1">{{ product.category.name|default:"-" }}</span>
+                </div>
+
+                <!-- Total Asset Value -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="text-muted small fw-bold text-uppercase">Total Value</span>
+                                <div class="icon-box bg-light text-success rounded-circle p-2"><i class="fas fa-coins"></i></div>
+                            </div>
+                            <h3 class="fw-bold mb-0">
+                                {% widthratio product.price 1 product.quantity as total_val %}
+                                ₱{{ total_val|intcomma }}
+                            </h3>
+                            <small class="text-muted">Inventory Asset</small>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-muted small">Added:</span>
-                        <span class="fw-bold ms-1">{{ product.date_created|date:"M d, Y" }}</span>
+                </div>
+
+                <!-- Status Info -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100 bg-light">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="text-muted small fw-bold text-uppercase">Information</span>
+                            </div>
+                            <div class="mb-1">
+                                <span class="text-muted small">SKU:</span>
+                                <span class="fw-bold font-monospace ms-1">{{ product.sku }}</span>
+                            </div>
+                            <div class="mb-1">
+                                <span class="text-muted small">Category:</span>
+                                <span class="fw-bold ms-1">{{ product.category.name|default:"-" }}</span>
+                            </div>
+                            <div>
+                                <span class="text-muted small">Added:</span>
+                                <span class="fw-bold ms-1">{{ product.date_created|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -176,6 +176,7 @@ class Product(models.Model):
         ACTIVE = 'ACTIVE', 'Active'
         DEACTIVATED = 'DEACTIVATED', 'Deactivated'
 
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
     name = models.CharField(max_length=200, unique=True, help_text='Enter the product name', db_index=True)
     sku = models.CharField(max_length=100, unique=True, help_text='Enter the Stock Keeping Unit (SKU)', db_index=True)
     

@@ -91,7 +91,7 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
-                            <th style="width: 30%;" class="ps-4">Product Details</th>
+                            <th style="width: 35%;" class="ps-4">Product</th>
                             <th style="width: 15%;">Category</th>
                             <th style="width: 20%;">Stock Level</th>
                             <th style="width: 15%;" class="text-end">Price</th>
@@ -100,7 +100,46 @@
                         </tr>
                     </thead>
                     <tbody id="product-table-body" class="bg-white">
-                        {% include 'inventory/partials/product_list_rows.html' %}
+                        {% for product in product_list %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    {% if product.image %}
+                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="rounded me-3 shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="rounded me-3 bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border: 1px solid #eee;">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <a href="{{ product.get_absolute_url }}" class="fw-bold text-dark text-decoration-none d-block">{{ product.name }}</a>
+                                        <small class="text-muted font-monospace">{{ product.sku }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-light text-secondary border">{{ product.category.name|default:"-" }}</span></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="fw-bold me-2">{{ product.quantity|intcomma }}</div>
+                                    {% if product.quantity == 0 %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger">Out of Stock</span>
+                                    {% elif product.quantity <= product.reorder_level %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning">Low Stock</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success border border-success">Healthy</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-end font-monospace">₱{{ product.price|floatformat:2|intcomma }}</td>
+                            <td class="text-center">
+                                {% if product.status == 'ACTIVE' %}<span class="badge bg-success-subtle text-success">Active</span>
+                                {% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}
+                            </td>
+                            <td class="text-end pe-3"><a href="{{ product.get_absolute_url }}" class="btn btn-sm btn-light border"><i class="fas fa-chevron-right"></i></a></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center py-5 text-muted">No products found.</td></tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -114,6 +153,15 @@
             <div class="col-md-6 col-lg-4 col-xl-3">
                 <!-- ADDED GRID VIEW HOVER ANIMS   -->
                 <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
+                    {% if product.image %}
+                        <a href="{{ product.get_absolute_url }}">
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 180px; object-fit: cover;">
+                        </a>
+                    {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+                            <i class="fas fa-image fa-3x text-muted opacity-50"></i>
+                        </div>
+                    {% endif %}
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <span class="badge bg-light text-secondary border">{{ product.category.name|default:"Uncategorized" }}</span>

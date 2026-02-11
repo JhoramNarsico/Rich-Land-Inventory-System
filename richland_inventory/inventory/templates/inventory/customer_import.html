@@ -9,13 +9,13 @@
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white py-3">
                     <h4 class="mb-0 fw-bold"><i class="fas fa-users me-2"></i>Import Customers</h4>
-                    <p class="text-muted mb-0">Bulk upload customer data from a CSV file.</p>
+                    <p class="text-muted mb-0">Bulk upload customer data from a CSV or Excel file.</p>
                 </div>
 
                 <div class="card-body p-4">
                     <div class="alert alert-info mb-4">
                         <h6 class="alert-heading fw-bold"><i class="fas fa-info-circle me-1"></i> Instructions</h6>
-                        <p class="mb-2">Upload a CSV file to add new customers or update existing ones based on their name.</p>
+                        <p class="mb-2">Upload a CSV or Excel file to add new customers or update existing ones based on their name.</p>
                         <hr>
                         <p class="mb-1 small"><strong>Required Column:</strong></p>
                         <ul class="small mb-2">
@@ -34,8 +34,8 @@
                         {% csrf_token %}
 
                         <div class="mb-4">
-                            <label for="csv_file" class="form-label fw-bold">Select CSV File</label>
-                            <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv" required>
+                            <label for="csv_file" class="form-label fw-bold">Select File (CSV or Excel)</label>
+                            <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv, .xlsx, .xls" required>
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center">

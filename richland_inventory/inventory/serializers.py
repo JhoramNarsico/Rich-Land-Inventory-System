@@ -18,6 +18,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'id', 
             'name', 
             'sku', 
+            'image',
             'category',       # The ID (for writing/updating)
             'category_name',  # The Name (for reading/displaying)
             'price', 

@@ -20,11 +20,12 @@ class CustomerPaymentForm(forms.ModelForm):
 class ProductCreateForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'sku', 'category', 'price', 'quantity', 'reorder_level']
+        fields = ['name', 'sku', 'category', 'image', 'price', 'quantity', 'reorder_level']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'sku': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Category...'}),
+            'image': forms.FileInput(attrs={'class': 'form-control'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'reorder_level': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
@@ -33,11 +34,12 @@ class ProductCreateForm(forms.ModelForm):
 class ProductUpdateForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'sku', 'category', 'price', 'reorder_level', 'status']
+        fields = ['name', 'sku', 'category', 'image', 'price', 'reorder_level', 'status']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'sku': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select Category...'}),
+            'image': forms.FileInput(attrs={'class': 'form-control'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01'}),
             'reorder_level': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'status': forms.Select(attrs={'class': 'form-select'}),

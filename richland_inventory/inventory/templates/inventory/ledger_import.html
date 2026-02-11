@@ -15,10 +15,10 @@
                 <div class="card-body p-4">
                     <div class="alert alert-info mb-4">
                         <h6 class="alert-heading fw-bold"><i class="fas fa-info-circle me-1"></i> Instructions</h6>
-                        <p class="mb-2">Upload a CSV file to bulk import charges and payments. This is useful for
+                        <p class="mb-2">Upload a CSV or Excel file to bulk import charges and payments. This is useful for
                             importing historical data or manual adjustments.</p>
                         <hr>
-                        <p class="mb-1 small"><strong>Required CSV Columns:</strong></p>
+                        <p class="mb-1 small"><strong>Required Columns:</strong></p>
                         <ul class="small mb-0">
                             <li><code>Date</code> (YYYY-MM-DD)</li>
                             <li><code>Reference</code> (Unique ID for Charges, Ref No. for Payments)</li>
@@ -32,8 +32,8 @@
                         {% csrf_token %}
 
                         <div class="mb-4">
-                            <label for="csv_file" class="form-label fw-bold">Select CSV File</label>
-                            <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv"
+                            <label for="csv_file" class="form-label fw-bold">Select File</label>
+                            <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv, .xlsx, .xls"
                                 required>
                         </div>
 

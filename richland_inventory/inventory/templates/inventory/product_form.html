@@ -51,7 +51,7 @@
         </div>
 
         <div class="card-body p-4">
-            <form method="post" class="needs-validation" novalidate>
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
                 {% csrf_token %}
 
                 {% if form.non_field_errors %}
@@ -111,6 +111,21 @@
                                     <div class="text-danger small mt-1">{{ form.category.errors.0 }}</div>
                                 {% endif %}
                             </div>
+                        </div>
+
+                        <!-- Image Upload -->
+                        <div class="mb-3">
+                            <label for="{{ form.image.id_for_label }}" class="form-label small fw-bold text-dark">Product Image</label>
+                            {% if object.image %}
+                                <div class="mb-2">
+                                    <img src="{{ object.image.url }}" alt="{{ object.name }}" class="img-thumbnail" style="max-height: 100px;">
+                                    <span class="small text-muted ms-2">Current Image</span>
+                                </div>
+                            {% endif %}
+                            {{ form.image }}
+                            {% if form.image.errors %}
+                                <div class="text-danger small mt-1">{{ form.image.errors.0 }}</div>
+                            {% endif %}
                         </div>
                     </div>
 

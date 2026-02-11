@@ -8,13 +8,13 @@
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-file-import me-2"></i>Import Expenses from CSV</h5>
+                    <h5 class="mb-0"><i class="fas fa-file-import me-2"></i>Import Expenses</h5>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info small">
-                        <p class="fw-bold mb-1">CSV File Requirements:</p>
+                        <p class="fw-bold mb-1">File Requirements:</p>
                         <ul class="mb-0">
-                            <li>Must be a valid CSV file.</li>
+                            <li>Must be a valid CSV or Excel file.</li>
                             <li><strong>Required Columns:</strong> `date`, `description`, `amount`</li>
                             <li><strong>Optional Column:</strong> `category`</li>
                             <li>Date format should be `YYYY-MM-DD`.</li>
@@ -24,8 +24,8 @@
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label for="csv_file" class="form-label">Select CSV File</label>
-                            <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv" required>
+                            <label for="csv_file" class="form-label">Select File</label>
+                            <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv, .xlsx, .xls" required>
                         </div>
                         
                         <a href="{% url 'inventory:expense_list' %}" class="btn btn-outline-secondary">Cancel</a>

@@ -8,7 +8,7 @@ from datetime import timedelta, datetime
 from decimal import Decimal
 
 # External Libraries for Exporting
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from docx import Document
 from docx.shared import Inches
 
@@ -197,19 +197,32 @@ def import_sow_history(request, pk):
     
     if request.method == "POST" and request.FILES.get('csv_file'):
         csv_file = request.FILES['csv_file']
-        if not csv_file.name.endswith('.csv'):
-            messages.error(request, "Please upload a CSV file.")
+        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+            messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:customer_detail', pk=pk)
 
         try:
-            decoded_file = csv_file.read().decode('utf-8').splitlines()
-            reader = csv.DictReader(decoded_file)
-            # Normalize headers
-            reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+            data = []
+            if csv_file.name.endswith('.csv'):
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                # Normalize headers
+                reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+                data = list(reader)
+            elif csv_file.name.endswith('.xlsx'):
+                wb = load_workbook(csv_file, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[0]]
+                    for row in rows[1:]:
+                        # Create dict, converting None to empty string to mimic CSV behavior
+                        row_dict = {headers[i]: (str(val) if val is not None else '') for i, val in enumerate(row) if i < len(headers)}
+                        data.append(row_dict)
             
             count = 0
             with transaction.atomic():
-                for row in reader:
+                for row in data:
                     # Basic mapping, assuming CSV headers match model fields or close to it
                     HydraulicSow.objects.create(
                         customer=customer,
@@ -376,28 +389,50 @@ class ExpenseDeleteView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
 def import_expenses(request):
     if request.method == "POST" and request.FILES.get('csv_file'):
         csv_file = request.FILES['csv_file']
-        if not csv_file.name.endswith('.csv'):
-            messages.error(request, "Please upload a CSV file.")
+        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+            messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:expense_list')
 
         try:
-            decoded_file = csv_file.read().decode('utf-8').splitlines()
-            reader = csv.DictReader(decoded_file)
-            reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+            data = []
+            if csv_file.name.endswith('.csv'):
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+                data = list(reader)
+            elif csv_file.name.endswith('.xlsx'):
+                wb = load_workbook(csv_file, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[0]]
+                    for row in rows[1:]:
+                        # Keep native types for date/amount if possible, but handle None
+                        row_dict = {headers[i]: val for i, val in enumerate(row) if i < len(headers)}
+                        data.append(row_dict)
             
             count = 0
             with transaction.atomic():
-                for row in reader:
+                for row in data:
                     cat_name = row.get('category')
                     category = None
                     if cat_name:
                         category, _ = ExpenseCategory.objects.get_or_create(name=cat_name.strip())
 
+                    # Handle Date (Excel returns datetime, CSV returns string)
+                    date_val = row.get('date')
+                    if hasattr(date_val, 'date'): # datetime object
+                        date_val = date_val.date()
+                    
+                    # Handle Amount (Excel returns int/float, CSV returns string)
+                    amount_val = row.get('amount', 0)
+                    if amount_val is None: amount_val = 0
+
                     Expense.objects.create(
-                        expense_date=row.get('date'),
+                        expense_date=date_val,
                         category=category,
                         description=row.get('description', ''),
-                        amount=Decimal(row.get('amount', '0')),
+                        amount=Decimal(str(amount_val)),
                         recorded_by=request.user
                     )
                     count += 1
@@ -636,15 +671,28 @@ def import_customers(request):
     """Simple CSV Import for Customers"""
     if request.method == "POST" and request.FILES.get('csv_file'):
         csv_file = request.FILES['csv_file']
-        if not csv_file.name.endswith('.csv'):
-            messages.error(request, "Please upload a CSV file.")
+        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+            messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:customer_list')
 
         try:
-            decoded_file = csv_file.read().decode('utf-8').splitlines()
-            reader = csv.DictReader(decoded_file)
+            data = []
+            if csv_file.name.endswith('.csv'):
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                data = list(reader)
+            elif csv_file.name.endswith('.xlsx'):
+                wb = load_workbook(csv_file, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
+                    for row in rows[1:]:
+                        row_dict = {headers[i]: (str(val) if val is not None else '') for i, val in enumerate(row) if i < len(headers)}
+                        data.append(row_dict)
+
             count = 0
-            for row in reader:
+            for row in data:
                 # Expects columns: name, email, phone, address
                 if row.get('name'):
                     Customer.objects.update_or_create(
@@ -672,16 +720,27 @@ def import_ledger_entries(request, pk):
     
     if request.method == "POST" and request.FILES.get('csv_file'):
         csv_file = request.FILES['csv_file']
-        if not csv_file.name.endswith('.csv'):
-            messages.error(request, "Please upload a CSV file.")
+        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+            messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:customer_detail', pk=pk)
 
         try:
-            decoded_file = csv_file.read().decode('utf-8').splitlines()
-            reader = csv.DictReader(decoded_file)
-            
-            # Normalize headers (strip spaces, lowercase)
-            reader.fieldnames = [name.strip().lower() for name in reader.fieldnames]
+            data = []
+            if csv_file.name.endswith('.csv'):
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                reader.fieldnames = [name.strip().lower() for name in reader.fieldnames]
+                data = list(reader)
+            elif csv_file.name.endswith('.xlsx'):
+                wb = load_workbook(csv_file, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
+                    for row in rows[1:]:
+                        # Keep native types for date/numbers
+                        row_dict = {headers[i]: val for i, val in enumerate(row) if i < len(headers)}
+                        data.append(row_dict)
             
             # Expected headers mapping (naive)
             # We expect: date, reference, description, charge, payment
@@ -690,12 +749,17 @@ def import_ledger_entries(request, pk):
             count_payments = 0
             
             with transaction.atomic():
-                for row in reader:
+                for row in data:
                     # Parse Date
-                    date_str = row.get('date')
+                    date_val = row.get('date')
                     try:
-                        txn_date = datetime.strptime(date_str, '%Y-%m-%d')
-                        txn_date = timezone.make_aware(txn_date)
+                        if isinstance(date_val, (datetime, datetime.date)):
+                            txn_date = date_val
+                            if not timezone.is_aware(txn_date) and isinstance(txn_date, datetime):
+                                txn_date = timezone.make_aware(txn_date)
+                        else:
+                            txn_date = datetime.strptime(str(date_val), '%Y-%m-%d')
+                            txn_date = timezone.make_aware(txn_date)
                     except (ValueError, TypeError):
                         # Skip if no valid date
                         continue
@@ -1020,10 +1084,21 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
 @permission_required('inventory.can_adjust_stock', raise_exception=True)
 def pos_dashboard(request):
     # Products
-    active_products = Product.objects.filter(status=Product.Status.ACTIVE, quantity__gt=0).values(
-        'id', 'name', 'sku', 'price', 'quantity', 'category__name'
+    active_products_qs = Product.objects.filter(status=Product.Status.ACTIVE, quantity__gt=0).values(
+        'id', 'name', 'sku', 'price', 'quantity', 'category__name', 'image'
     )
-    products_json = json.dumps(list(active_products), cls=DjangoJSONEncoder)
+
+    # Manually process to add the full image URL
+    products_list = []
+    for p in active_products_qs:
+        image_url = None
+        if p.get('image'):
+            # Construct the full URL path for the template
+            image_url = f"{settings.MEDIA_URL}{p['image']}"
+        p['image_url'] = image_url
+        products_list.append(p)
+
+    products_json = json.dumps(products_list, cls=DjangoJSONEncoder)
     
     # Customers
     customers = Customer.objects.values('id', 'name', 'credit_limit')
@@ -1515,21 +1590,42 @@ def import_supplier_deliveries(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == "POST" and request.FILES.get('csv_file'):
         csv_file = request.FILES['csv_file']
-        if not csv_file.name.endswith('.csv'):
-            messages.error(request, "Please upload a CSV file.")
+        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+            messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:supplier_detail', pk=pk)
         try:
-            decoded_file = csv_file.read().decode('utf-8').splitlines()
-            reader = csv.DictReader(decoded_file)
-            reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+            data = []
+            if csv_file.name.endswith('.csv'):
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+                data = list(reader)
+            elif csv_file.name.endswith('.xlsx'):
+                wb = load_workbook(csv_file, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[0]]
+                    for row in rows[1:]:
+                        row_dict = {headers[i]: val for i, val in enumerate(row) if i < len(headers)}
+                        data.append(row_dict)
+
             created_pos = {}
             items_added = 0
             with transaction.atomic():
-                for row in reader:
+                for row in data:
                     po_id = row.get('po_id')
                     product_sku = row.get('product_sku')
-                    quantity = int(row.get('quantity', 0))
-                    price = Decimal(row.get('price', '0.00'))
+                    
+                    # Handle Excel int/float vs CSV string
+                    qty_val = row.get('quantity', 0)
+                    if qty_val is None: qty_val = 0
+                    quantity = int(qty_val)
+                    
+                    price_val = row.get('price', 0)
+                    if price_val is None: price_val = 0
+                    price = Decimal(str(price_val))
+
                     if not all([po_id, product_sku, quantity > 0]):
                         continue
                     if po_id not in created_pos:
