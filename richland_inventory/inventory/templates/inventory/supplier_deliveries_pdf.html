@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Supplier Delivery History</title>
+    <style>
+        @page { size: letter landscape; margin: 1cm; }
+        body { font-family: "Helvetica", sans-serif; font-size: 9px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; }
+        .header p { margin: 0; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        th, td { border: 1px solid #ddd; padding: 5px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .po-header { background-color: #e9ecef; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Supplier Delivery History</h1>
+        <p>Supplier: {{ supplier.name }}</p>
+        <p>Generated on: {{ today|date:"F d, Y" }}</p>
+    </div>
+
+    {% for po in purchase_orders %}
+    <table>
+        <thead>
+            <tr class="po-header">
+                <th colspan="2">PO ID: {{ po.order_id }}</th>
+                <th colspan="2">Order Date: {{ po.order_date|date:"Y-m-d" }}</th>
+                <th colspan="2">Status: {{ po.get_status_display }}</th>
+            </tr>
+            <tr>
+                <th>SKU</th>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Line Total</th>
+                <th>Received?</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in po.items.all %}
+            <tr>
+                <td>{{ item.product.sku }}</td>
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>₱{{ item.price|floatformat:2 }}</td>
+                <td>₱{{ item.line_total|floatformat:2 }}</td>
+                <td>{% if po.status == 'RECEIVED' %}Yes{% else %}No{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align: center;">No items found for this purchase order.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% empty %}
+    <p>No purchase orders found for this supplier.</p>
+    {% endfor %}
+</body>
+</html>

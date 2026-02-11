@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load humanize %}
 
 {% block title %}{{ supplier.name }} Details{% endblock %}
@@ -18,10 +18,26 @@
             <h2 class="fw-bold text-dark mb-0">{{ supplier.name }}</h2>
         </div>
         <div class="col-auto">
-            <!-- Removed Edit Profile Button, only Back button remains -->
-            <a href="{% url 'inventory:supplier_list' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Back
-            </a>
+            <div class="btn-toolbar">
+                <a href="{% url 'inventory:supplier_deliveries_import' supplier.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-upload me-2"></i> Import
+                </a>
+                <div class="btn-group mx-2">
+                    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download me-2"></i> Export
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="?export=csv">Export as CSV</a></li>
+                        <li><a class="dropdown-item" href="?export=excel">Export as Excel</a></li>
+                        <li><a class="dropdown-item" href="?export=word">Export as Word</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="?export=pdf">Export as PDF</a></li>
+                    </ul>
+                </div>
+                <a href="{% url 'inventory:supplier_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back
+                </a>
+            </div>
         </div>
     </div>
 
@@ -136,3 +152,4 @@
 
 </div>
 {% endblock %}
+

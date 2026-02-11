@@ -344,5 +344,9 @@ class PurchaseOrderItem(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))]
     )
     
+    @property
+    def line_total(self):
+        return self.quantity * self.price
+
     def __str__(self):
         return f"{self.quantity} of {self.product.name}"

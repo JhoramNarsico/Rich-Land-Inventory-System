@@ -36,6 +36,7 @@ urlpatterns = [
     
     path('suppliers/', views.SupplierListView.as_view(), name='supplier_list'),
     path('suppliers/<int:pk>/', views.SupplierDetailView.as_view(), name='supplier_detail'),
+    path('suppliers/<int:pk>/import/', views.import_supplier_deliveries, name='supplier_deliveries_import'),
 
     # --- POINT OF SALE (POS) ---
     path('pos/', views.pos_dashboard, name='pos_dashboard'),

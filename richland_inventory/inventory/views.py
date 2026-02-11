@@ -32,12 +32,13 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 from django.db import models
+from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import HttpResponse
 from .models import (
     Customer, HydraulicSow, Expense, ExpenseCategory, Product, StockTransaction, 
-    Category, PurchaseOrder, Supplier, POSSale, CustomerPayment
+    Category, PurchaseOrder, Supplier, POSSale, CustomerPayment, PurchaseOrderItem
 )
 from .forms import (
     ExpenseFilterForm, ExpenseForm, ProductCreateForm, ProductUpdateForm, 
@@ -434,11 +435,101 @@ class CustomerListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Customer.objects.all()
-        q = self.request.GET.get('q')
-        if q:
-            qs = qs.filter(Q(name__icontains=q) | Q(email__icontains=q))
+        qs = Customer.objects.all().order_by('name')
+        self.q = self.request.GET.get('q')
+        if self.q:
+            qs = qs.filter(
+                Q(name__icontains=self.q) | 
+                Q(email__icontains=self.q) | 
+                Q(phone__icontains=self.q) | 
+                Q(address__icontains=self.q)
+            )
         return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            query_params.pop('page')
+        context['query_params'] = query_params.urlencode()
+        context['q'] = self.q or ''
+        return context
+
+    def get(self, request, *args, **kwargs):
+        export_format = request.GET.get('export')
+        if export_format:
+            return self.export_customers(export_format)
+        return super().get(request, *args, **kwargs)
+
+    def export_customers(self, format_type):
+        customers = self.get_queryset()
+        filename = f"Customer_List_{timezone.now().strftime('%Y%m%d')}"
+
+        if format_type == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+            writer = csv.writer(response)
+            writer.writerow(['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Credit Limit', 'Current Balance'])
+            for customer in customers:
+                writer.writerow([
+                    customer.name, customer.email, customer.phone, customer.address,
+                    customer.tax_id, customer.credit_limit, customer.get_balance()
+                ])
+            return response
+
+        elif format_type == 'excel':
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Customers"
+            ws.append(['Customer List', f"Date: {timezone.now().strftime('%Y-%m-%d')}"])
+            ws.append([])
+            headers = ['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Credit Limit', 'Current Balance']
+            ws.append(headers)
+            for customer in customers:
+                ws.append([
+                    customer.name, customer.email, customer.phone, customer.address,
+                    customer.tax_id, f"{customer.credit_limit:.2f}", f"{customer.get_balance():.2f}"
+                ])
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+            wb.save(response)
+            return response
+
+        elif format_type == 'word':
+            document = Document()
+            document.add_heading('Customer List', 0)
+            document.add_paragraph(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
+            table = document.add_table(rows=1, cols=4, style='Table Grid')
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = 'Name'
+            hdr_cells[1].text = 'Contact'
+            hdr_cells[2].text = 'Address'
+            hdr_cells[3].text = 'Credit Info'
+            for customer in customers:
+                row_cells = table.add_row().cells
+                row_cells[0].text = customer.name
+                row_cells[1].text = f"{customer.email or 'N/A'}\n{customer.phone or 'N/A'}"
+                row_cells[2].text = customer.address or 'N/A'
+                row_cells[3].text = f"Limit: {customer.credit_limit:,.2f}\nBalance: {customer.get_balance():,.2f}"
+            f = io.BytesIO()
+            document.save(f)
+            f.seek(0)
+            response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
+            return response
+
+        elif format_type == 'pdf':
+            context = {'customers': customers, 'today': timezone.now(), 'request': self.request}
+            pdf = render_to_pdf('inventory/customer_list_pdf.html', context)
+            if pdf:
+                response = HttpResponse(pdf, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+                return response
+            messages.error(self.request, "Error generating PDF report.")
+            return redirect('inventory:customer_list')
+
+        messages.error(self.request, "Invalid export format specified.")
+        return redirect('inventory:customer_list')
 
 class CustomerCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
     model = Customer
@@ -556,7 +647,7 @@ def import_customers(request):
             for row in reader:
                 # Expects columns: name, email, phone, address
                 if row.get('name'):
-                    Customer.objects.get_or_create(
+                    Customer.objects.update_or_create(
                         name=row.get('name'),
                         defaults={
                             'email': row.get('email', ''),
@@ -1272,7 +1363,27 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
     permission_required = 'inventory.view_purchaseorder'
     
     def get_queryset(self):
-        return PurchaseOrder.objects.select_related('supplier').order_by('-order_date')
+        queryset = PurchaseOrder.objects.select_related('supplier').order_by('-order_date')
+        self.filter_form = PurchaseOrderFilterForm(self.request.GET)
+        if self.filter_form.is_valid():
+            if self.filter_form.cleaned_data.get('supplier'):
+                queryset = queryset.filter(supplier=self.filter_form.cleaned_data['supplier'])
+            if self.filter_form.cleaned_data.get('status'):
+                queryset = queryset.filter(status=self.filter_form.cleaned_data['status'])
+            if self.filter_form.cleaned_data.get('start_date'):
+                queryset = queryset.filter(order_date__date__gte=self.filter_form.cleaned_data['start_date'])
+            if self.filter_form.cleaned_data.get('end_date'):
+                queryset = queryset.filter(order_date__date__lte=self.filter_form.cleaned_data['end_date'])
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['filter_form'] = self.filter_form
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            query_params.pop('page')
+        context['query_params'] = query_params.urlencode()
+        return context
 
 class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = PurchaseOrder
@@ -1293,9 +1404,154 @@ class SupplierListView(LoginRequiredMixin, ListView):
     model = Supplier
     template_name = 'inventory/supplier_list.html'
 
-class SupplierDetailView(LoginRequiredMixin, DetailView):
+class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Supplier
     template_name = 'inventory/supplier_detail.html'
+    context_object_name = 'supplier'
+    permission_required = 'inventory.view_supplier'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        supplier = self.object
+        
+        po_list = supplier.purchase_orders.all().order_by('-order_date')
+        
+        paginator = Paginator(po_list, 15)
+        page_number = self.request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
+        context['purchase_orders'] = page_obj
+        context['is_paginated'] = page_obj.has_other_pages()
+        context['page_obj'] = page_obj
+        
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            query_params.pop('page')
+        context['query_params'] = query_params.urlencode()
+        
+        return context
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        export_format = request.GET.get('export')
+        if export_format:
+            return self.export_deliveries(export_format)
+        
+        context = self.get_context_data(object=self.object)
+        return self.render_to_response(context)
+
+    def get_purchase_orders(self):
+        return self.object.purchase_orders.prefetch_related('items', 'items__product').order_by('-order_date')
+
+    def export_deliveries(self, format_type):
+        supplier = self.object
+        purchase_orders = self.get_purchase_orders()
+        filename = f"Deliveries_{slugify(supplier.name)}_{timezone.now().strftime('%Y%m%d')}"
+
+        if format_type == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+            writer = csv.writer(response)
+            writer.writerow(['PO ID', 'Order Date', 'Status', 'Product SKU', 'Product Name', 'Quantity', 'Price per Item'])
+            for po in purchase_orders:
+                for item in po.items.all():
+                    writer.writerow([po.order_id, po.order_date.strftime('%Y-%m-%d'), po.get_status_display(), item.product.sku, item.product.name, item.quantity, item.price])
+            return response
+
+        elif format_type == 'excel':
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Deliveries"
+            ws.append([f"Delivery History for {supplier.name}", f"Date: {timezone.now().strftime('%Y-%m-%d')}"])
+            ws.append([])
+            headers = ['PO ID', 'Order Date', 'Status', 'Product SKU', 'Product Name', 'Quantity', 'Price per Item', 'Line Total']
+            ws.append(headers)
+            for po in purchase_orders:
+                for item in po.items.all():
+                    ws.append([po.order_id, po.order_date.strftime('%Y-%m-%d'), po.get_status_display(), item.product.sku, item.product.name, item.quantity, f"{item.price:.2f}", f"{item.line_total:.2f}"])
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+            wb.save(response)
+            return response
+
+        elif format_type == 'word':
+            document = Document()
+            document.add_heading(f'Delivery History for {supplier.name}', 0)
+            document.add_paragraph(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
+            for po in purchase_orders:
+                document.add_heading(f'PO ID: {po.order_id} ({po.order_date.strftime("%Y-%m-%d")})', level=2)
+                if not po.items.exists():
+                    document.add_paragraph('No items in this purchase order.')
+                    continue
+                table = document.add_table(rows=1, cols=4, style='Table Grid')
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Product'; hdr_cells[1].text = 'Quantity'; hdr_cells[2].text = 'Unit Price'; hdr_cells[3].text = 'Line Total'
+                for item in po.items.all():
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = f"{item.product.name}\n({item.product.sku})"; row_cells[1].text = str(item.quantity); row_cells[2].text = f"₱{item.price:,.2f}"; row_cells[3].text = f"₱{item.line_total:,.2f}"
+            f = io.BytesIO()
+            document.save(f)
+            f.seek(0)
+            response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
+            return response
+
+        elif format_type == 'pdf':
+            context = {'supplier': supplier, 'purchase_orders': purchase_orders, 'today': timezone.now(), 'request': self.request}
+            pdf = render_to_pdf('inventory/supplier_deliveries_pdf.html', context)
+            if pdf:
+                response = HttpResponse(pdf, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+                return response
+            messages.error(self.request, "Error generating PDF report.")
+            return redirect('inventory:supplier_detail', pk=supplier.pk)
+
+        messages.error(self.request, "Invalid export format specified.")
+        return redirect('inventory:supplier_detail', pk=supplier.pk)
+
+@login_required
+@permission_required('inventory.add_purchaseorder', raise_exception=True)
+def import_supplier_deliveries(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == "POST" and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, "Please upload a CSV file.")
+            return redirect('inventory:supplier_detail', pk=pk)
+        try:
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+            reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+            created_pos = {}
+            items_added = 0
+            with transaction.atomic():
+                for row in reader:
+                    po_id = row.get('po_id')
+                    product_sku = row.get('product_sku')
+                    quantity = int(row.get('quantity', 0))
+                    price = Decimal(row.get('price', '0.00'))
+                    if not all([po_id, product_sku, quantity > 0]):
+                        continue
+                    if po_id not in created_pos:
+                        po, created = PurchaseOrder.objects.get_or_create(order_id=po_id, defaults={'supplier': supplier, 'status': 'PENDING'})
+                        if not created and po.supplier != supplier:
+                            raise ValueError(f"Purchase Order ID {po_id} already exists for another supplier.")
+                        created_pos[po_id] = po
+                    po = created_pos[po_id]
+                    try:
+                        product = Product.objects.get(sku=product_sku)
+                    except Product.DoesNotExist:
+                        messages.warning(request, f"Product with SKU '{product_sku}' not found. Skipping item in PO {po_id}.")
+                        continue
+                    PurchaseOrderItem.objects.create(purchase_order=po, product=product, quantity=quantity, price=price)
+                    items_added += 1
+            messages.success(request, f"Successfully imported {items_added} items across {len(created_pos)} Purchase Orders.")
+        except ValueError as e:
+            messages.error(request, f"Data error: {e}")
+        except Exception as e:
+            messages.error(request, f"An unexpected error occurred: {e}")
+        return redirect('inventory:supplier_detail', pk=pk)
+    return render(request, 'inventory/supplier_deliveries_import.html', {'supplier': supplier})
 
 # --- API VIEWS (DRF) ---
 
