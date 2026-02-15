@@ -104,13 +104,7 @@
 
                         <!-- ACTION TYPE -->
                         <td class="text-center">
-                            {% if record.history_type == '+' %}
-                                <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Created</span>
-                            {% elif record.history_type == '~' %}
-                                <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-3">Updated</span>
-                            {% else %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-3">Deleted</span>
-                            {% endif %}
+                            <span class="badge {{ record.badge_class }} rounded-pill px-3">{{ record.action_label }}</span>
                         </td>
 
                         <!-- PRODUCT CONTEXT -->
@@ -135,7 +129,7 @@
                         <!-- CHANGES SUMMARY -->
                         <td>
                             <div class="text-secondary small" style="line-height: 1.5;">
-                                {{ record.change_summary|safe|default:"No specific field changes detected." }}
+                                {{ record.change_summary_html|safe }}
                             </div>
                         </td>
                     </tr>

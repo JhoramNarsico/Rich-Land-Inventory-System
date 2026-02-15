@@ -1743,6 +1743,70 @@ def product_toggle_status(request, slug):
     product.save()
     return redirect(product.get_absolute_url())
 
+def process_history_records(history_records):
+    """Helper to calculate deltas and action labels for history records."""
+    for record in history_records:
+        record.change_summary_html = "No details available."
+        record.action_label = "Update"
+        record.badge_class = "bg-secondary-subtle text-secondary border border-secondary"
+
+        if record.history_type == '+':
+            record.action_label = "Created"
+            record.badge_class = "bg-success-subtle text-success border border-success"
+            record.change_summary_html = "Initial product creation."
+        
+        elif record.history_type == '-':
+            record.action_label = "Deleted"
+            record.badge_class = "bg-danger-subtle text-danger border border-danger"
+            record.change_summary_html = "Product deleted."
+        
+        elif record.history_type == '~':
+            if record.prev_record:
+                delta = record.diff_against(record.prev_record)
+                changes = []
+                affected_fields = []
+                
+                for change in delta.changes:
+                    field = change.field
+                    old = change.old
+                    new = change.new
+                    
+                    if field == 'price':
+                        changes.append(f"<strong>Price:</strong> {old} &rarr; {new}")
+                        affected_fields.append("Price")
+                    elif field == 'quantity':
+                        changes.append(f"<strong>Stock:</strong> {old} &rarr; {new}")
+                        affected_fields.append("Stock")
+                    elif field == 'status':
+                        changes.append(f"<strong>Status:</strong> {old} &rarr; {new}")
+                        affected_fields.append("Status")
+                    elif field == 'category':
+                        changes.append(f"<strong>Category</strong> updated")
+                        affected_fields.append("Category")
+                    elif field in ['slug', 'date_updated']:
+                        continue
+                    else:
+                        changes.append(f"<strong>{field.replace('_', ' ').title()}:</strong> {old} &rarr; {new}")
+                        affected_fields.append("Details")
+                
+                record.change_summary_html = "<br>".join(changes) if changes else "No specific field changes detected."
+                
+                unique_fields = list(set(affected_fields))
+                if not unique_fields:
+                    record.action_label = "Update"
+                elif len(unique_fields) == 1:
+                    record.action_label = unique_fields[0]
+                else:
+                    record.action_label = "Multiple"
+                
+                # Badge Colors
+                if "Price" in unique_fields: record.badge_class = "bg-info-subtle text-info-emphasis border border-info"
+                elif "Stock" in unique_fields: record.badge_class = "bg-warning-subtle text-warning-emphasis border border-warning"
+                elif "Status" in unique_fields: record.badge_class = "bg-dark-subtle text-dark-emphasis border border-dark"
+                elif "Category" in unique_fields: record.badge_class = "bg-primary-subtle text-primary border border-primary"
+            else:
+                record.change_summary_html = "No previous record for comparison."
+
 class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = StockTransaction
     template_name = 'inventory/transaction_list.html'
@@ -1795,6 +1859,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['filter_form'] = ProductHistoryFilterForm(self.request.GET)
+        process_history_records(context['page_obj'])
         query_params = self.request.GET.copy()
         if 'page' in query_params:
             query_params.pop('page')
@@ -1818,4 +1883,5 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['product'] = self.product
+        process_history_records(context['page_obj'])
         return context
