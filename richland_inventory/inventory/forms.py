@@ -80,7 +80,8 @@ class StockOutForm(forms.ModelForm):
             StockTransaction.TransactionReason.PURCHASE_ORDER,
             StockTransaction.TransactionReason.RETURN,
             StockTransaction.TransactionReason.CORRECTION,
-            StockTransaction.TransactionReason.INITIAL 
+            StockTransaction.TransactionReason.INITIAL,
+            StockTransaction.TransactionReason.SALE
         ]
         valid_choices = [c for c in StockTransaction.TransactionReason.choices if c[0] not in excluded_reasons]
         self.fields['transaction_reason'].choices = valid_choices
