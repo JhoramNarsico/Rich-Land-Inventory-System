@@ -1479,6 +1479,24 @@ def receive_purchase_order(request, pk):
 class SupplierListView(LoginRequiredMixin, ListView):
     model = Supplier
     template_name = 'inventory/supplier_list.html'
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = super().get_queryset().order_by('name')
+        q = self.request.GET.get('q')
+        if q:
+            queryset = queryset.filter(
+                Q(name__icontains=q) |
+                Q(contact_person__icontains=q) |
+                Q(email__icontains=q) |
+                Q(supplier_id__icontains=q)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['q'] = self.request.GET.get('q', '')
+        return context
 
 class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Supplier

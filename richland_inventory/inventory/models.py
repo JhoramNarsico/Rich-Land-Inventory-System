@@ -16,6 +16,10 @@ def generate_po_number():
     """Generates a unique PO number like 'PO-1A2B3C4D'"""
     return f"PO-{uuid.uuid4().hex[:8].upper()}"
 
+def generate_supplier_id():
+    """Generates a unique Supplier ID like 'SUP-1A2B3C4D'"""
+    return f"SUP-{uuid.uuid4().hex[:8].upper()}"
+
 # --- CUSTOMER & BILLING MODELS (NEW) ---
 
 class Customer(models.Model):
@@ -267,6 +271,7 @@ class StockTransaction(models.Model):
         return f'{self.transaction_type} ({self.get_transaction_reason_display()}) - {self.product.name}'
 
 class Supplier(models.Model):
+    supplier_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
     name = models.CharField(max_length=150, unique=True)
     contact_person = models.CharField(max_length=100, blank=True)
     email = models.EmailField(unique=True)
@@ -274,6 +279,11 @@ class Supplier(models.Model):
     
     def get_absolute_url(self):
         return reverse('inventory:supplier_detail', kwargs={'pk': self.pk})
+
+    def save(self, *args, **kwargs):
+        if not self.supplier_id:
+            self.supplier_id = generate_supplier_id()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
