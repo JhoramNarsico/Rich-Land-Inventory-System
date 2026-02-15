@@ -1002,7 +1002,7 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
         context = super().get_context_data(**kwargs)
         context['transactions'] = StockTransaction.objects.filter(product=self.object).order_by('-timestamp')[:10]
         context['transaction_form'] = StockOutForm()
-        context['refund_form'] = RefundForm()
+        context['refund_form'] = RefundForm(product=self.object)
         return context
     
     def post(self, request, *args, **kwargs):
@@ -1036,11 +1036,42 @@ class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
 @permission_required('inventory.can_adjust_stock', raise_exception=True)
 def product_refund(request, slug):
     product = get_object_or_404(Product, slug=slug)
-    form = RefundForm(request.POST)
+    form = RefundForm(request.POST, product=product)
     
     if form.is_valid():
+        sale = form.cleaned_data['pos_sale']
+        receipt_id = sale.receipt_id
+        quantity = form.cleaned_data['quantity']
+        notes = form.cleaned_data.get('notes')
+
+        # 2. Verify Product was in that Receipt
+        sold_items = StockTransaction.objects.filter(
+            pos_sale=sale,
+            product=product,
+            transaction_type='OUT',
+            transaction_reason=StockTransaction.TransactionReason.SALE
+        )
+        total_sold = sold_items.aggregate(total=Sum('quantity'))['total'] or 0
+
+        if total_sold == 0:
+            messages.error(request, f"Product '{product.name}' was not found in Receipt {receipt_id}.")
+            return redirect(product.get_absolute_url())
+
+        # 3. Check Previous Returns (Prevent over-refunding)
+        returned_items = StockTransaction.objects.filter(
+            pos_sale=sale,
+            product=product,
+            transaction_type='IN',
+            transaction_reason=StockTransaction.TransactionReason.RETURN
+        )
+        total_returned = returned_items.aggregate(total=Sum('quantity'))['total'] or 0
+
+        if (total_returned + quantity) > total_sold:
+            remaining = total_sold - total_returned
+            messages.error(request, f"Cannot refund {quantity}. Only {remaining} items eligible for return from this receipt.")
+            return redirect(product.get_absolute_url())
+
         with transaction.atomic():
-            quantity = form.cleaned_data['quantity']
             StockTransaction.objects.create(
                 product=product,
                 transaction_type='IN',
@@ -1048,11 +1079,16 @@ def product_refund(request, slug):
                 quantity=quantity,
                 user=request.user,
                 selling_price=product.price, 
-                notes=f"Refund/Return: {form.cleaned_data.get('notes')}"
+                pos_sale=sale,
+                notes=f"Refund for Receipt {receipt_id}: {notes}"
             )
             product.quantity += quantity
             product.save()
-            messages.success(request, f"Refund processed. {quantity} items returned.")
+            messages.success(request, f"Refund processed. {quantity} items returned from Receipt {receipt_id}.")
+    else:
+        for field, errors in form.errors.items():
+            messages.error(request, f"{field}: {', '.join(errors)}")
+            
     return redirect(product.get_absolute_url())
 
 class ProductCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, CreateView):
@@ -1844,6 +1880,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     
     def get_queryset(self):
         queryset = super().get_queryset().select_related('history_user')
+        queryset = queryset.order_by('-history_date')
         form = ProductHistoryFilterForm(self.request.GET)
         if form.is_valid():
             if form.cleaned_data.get('product'):
@@ -1854,7 +1891,36 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
                 queryset = queryset.filter(history_date__date__gte=form.cleaned_data['start_date'])
             if form.cleaned_data.get('end_date'):
                 queryset = queryset.filter(history_date__date__lte=form.cleaned_data['end_date'])
-        return queryset.order_by('-history_date')
+            
+            # Handle Action Filtering
+            action = form.cleaned_data.get('action')
+            if action:
+                if action in ['+', '-', '~']:
+                    queryset = queryset.filter(history_type=action)
+                elif action in ['STOCK', 'STATUS', 'DETAILS', 'PRICE']:
+                    # 1. Filter for updates in DB first
+                    queryset = queryset.filter(history_type='~')
+                    
+                    # 2. Filter by specific change in Python
+                    filtered_list = []
+                    for record in queryset:
+                        if record.prev_record:
+                            delta = record.diff_against(record.prev_record)
+                            changed = delta.changed_fields
+                            
+                            if action == 'STOCK' and 'quantity' in changed:
+                                filtered_list.append(record)
+                            elif action == 'STATUS' and 'status' in changed:
+                                filtered_list.append(record)
+                            elif action == 'PRICE' and 'price' in changed:
+                                filtered_list.append(record)
+                            elif action == 'DETAILS':
+                                # Check if fields OTHER than the main ones changed
+                                if any(f for f in changed if f not in ['quantity', 'status', 'price', 'slug', 'date_updated']):
+                                    filtered_list.append(record)
+                    return filtered_list
+
+        return queryset
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

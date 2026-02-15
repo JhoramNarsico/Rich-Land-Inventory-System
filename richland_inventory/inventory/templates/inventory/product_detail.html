@@ -263,6 +263,10 @@
                     <form method="post" action="{% url 'inventory:product_refund' slug=product.slug %}">
                         {% csrf_token %}
                         <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="form-label small text-uppercase fw-bold text-muted">Receipt</label>
+                                {{ refund_form.pos_sale }}
+                            </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label small text-uppercase fw-bold text-muted">Qty</label>
                                 {{ refund_form.quantity }}

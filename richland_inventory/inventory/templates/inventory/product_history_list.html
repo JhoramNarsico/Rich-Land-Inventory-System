@@ -26,15 +26,21 @@
                 <form method="get" action="" class="row g-3 align-items-end">
                     
                     <!-- Product Search -->
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label small fw-bold text-uppercase text-muted">Product</label>
                         {{ filter_form.product }}
                     </div>
 
                     <!-- User -->
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label small fw-bold text-uppercase text-muted">User</label>
                         {{ filter_form.user }}
+                    </div>
+
+                    <!-- Action -->
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Action</label>
+                        {{ filter_form.action }}
                     </div>
 
                     <!-- Date Range -->

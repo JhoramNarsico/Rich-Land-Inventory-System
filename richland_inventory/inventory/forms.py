@@ -3,7 +3,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import DateInput
-from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, Expense, ExpenseCategory
+from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, Expense, ExpenseCategory, POSSale
 from .models import Customer, CustomerPayment
 # --- PRODUCT MANAGEMENT FORMS ---
 
@@ -79,7 +79,6 @@ class StockOutForm(forms.ModelForm):
         excluded_reasons = [
             StockTransaction.TransactionReason.PURCHASE_ORDER,
             StockTransaction.TransactionReason.RETURN,
-            StockTransaction.TransactionReason.CORRECTION,
             StockTransaction.TransactionReason.INITIAL,
             StockTransaction.TransactionReason.SALE
         ]
@@ -88,13 +87,30 @@ class StockOutForm(forms.ModelForm):
 
 class RefundForm(forms.ModelForm):
     """Strictly for ADDING stock back (Returns)"""
+    pos_sale = forms.ModelChoiceField(
+        queryset=POSSale.objects.none(),
+        label="Receipt ID",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="Select Receipt..."
+    )
     class Meta:
         model = StockTransaction
-        fields = ['quantity', 'notes']
+        fields = ['pos_sale', 'quantity', 'notes']
         widgets = {
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for return (e.g. Defective, Wrong Item)'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        product = kwargs.pop('product', None)
+        super().__init__(*args, **kwargs)
+        if product:
+            self.fields['pos_sale'].queryset = POSSale.objects.filter(
+                items__product=product,
+                items__transaction_type='OUT',
+                items__transaction_reason=StockTransaction.TransactionReason.SALE
+            ).distinct().order_by('-timestamp')
+            self.fields['pos_sale'].label_from_instance = lambda obj: f"{obj.receipt_id} - {obj.timestamp.strftime('%b %d, %Y')}"
 
 # --- SEARCH/FILTER FORMS ---
 
@@ -156,6 +172,21 @@ class ProductHistoryFilterForm(forms.Form):
         required=False, 
         label="User", 
         widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'Select User...'})
+    )
+    
+    action = forms.ChoiceField(
+        choices=[
+            ('', 'All Actions'), 
+            ('+', 'Created'), 
+            ('-', 'Deleted'),
+            ('STOCK', 'Stock Update'),
+            ('STATUS', 'Status Update'),
+            ('DETAILS', 'Details Update'),
+            ('PRICE', 'Price Update'),
+        ],
+        required=False,
+        label="Action",
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
     
     start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
