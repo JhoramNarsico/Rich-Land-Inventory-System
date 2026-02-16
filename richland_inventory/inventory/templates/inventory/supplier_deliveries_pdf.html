@@ -1,42 +1,100 @@
+{% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Supplier Delivery History</title>
     <style>
-        @page { size: letter landscape; margin: 1cm; }
-        body { font-family: "Helvetica", sans-serif; font-size: 9px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; }
-        .header p { margin: 0; font-size: 12px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        th, td { border: 1px solid #ddd; padding: 5px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .po-header { background-color: #e9ecef; font-weight: bold; }
+        @page {
+            size: a4 portrait;
+            margin: 1cm;
+            margin-top: 3.5cm; 
+            margin-bottom: 2cm;
+            
+            @frame header_frame { 
+                -pdf-frame-content: header_content;
+                left: 30pt; width: 535pt; top: 20pt; height: 100pt;
+            }
+            
+            @frame footer_frame { 
+                -pdf-frame-content: footer_content;
+                left: 30pt; width: 535pt; top: 780pt; height: 20pt;
+            }
+        }
+        
+        body { 
+            font-family: Helvetica, sans-serif; 
+            font-size: 9px; 
+            color: #2c3e50; 
+        }
+        
+        .header-table { width: 100%; border-bottom: 2px solid #2799a5; margin-bottom: 10px; }
+        .company-name { font-size: 16px; font-weight: bold; color: #2c3e50; }
+        .report-title { font-size: 20px; font-weight: bold; color: #2799a5; text-align: right; }
+        .report-meta { font-size: 9px; color: #7f8c8d; text-align: right; line-height: 1.4; margin-top: 5px; }
+
+        /* Data Tables */
+        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; -pdf-keep-with-next: false; }
+        table.data-table thead { display: table-header-group; background-color: #2c3e50; color: #ffffff; }
+        table.data-table th { background-color: #2c3e50; color: #ffffff; padding: 5px; font-weight: bold; border: 1px solid #2c3e50; text-transform: uppercase; font-size: 8px; }
+        table.data-table td { border: 1px solid #bdc3c7; padding: 4px; vertical-align: middle; font-size: 8px; }
+        
+        .po-header-table { width: 100%; background-color: #ecf0f1; border: 1px solid #bdc3c7; border-bottom: none; padding: 5px; }
+        .po-title { font-weight: bold; font-size: 10px; color: #2c3e50; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        
+        .footer { text-align: center; font-size: 8px; color: #7f8c8d; border-top: 1px solid #bdc3c7; padding-top: 5px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Supplier Delivery History</h1>
-        <p>Supplier: {{ supplier.name }}</p>
-        <p>Generated on: {{ today|date:"F d, Y" }}</p>
+    <!-- HEADER -->
+    <div id="header_content">
+        <table class="header-table">
+            <tr>
+                <td style="vertical-align: bottom; width: 50%;">
+                    <img src="images/logo.png" style="height: 50px; width: auto;" alt="" />
+                    <br/><span class="company-name">Rich Land Auto Supply</span>
+                </td>
+                <td style="vertical-align: bottom; text-align: right; width: 50%;">
+                    <div class="report-title">SUPPLIER HISTORY</div>
+                    <div class="report-meta">
+                        Supplier: <strong>{{ supplier.name }}</strong><br/>
+                        Generated: {% now "F d, Y h:i A" %}
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
+    <div id="footer_content" class="footer">
+        Confidential Report | Page <pdf:pagenumber> of <pdf:pagecount>
+    </div>
+
+    <!-- CONTENT -->
     {% for po in purchase_orders %}
-    <table>
+    
+    <!-- PO Header Block -->
+    <table class="po-header-table">
+        <tr>
+            <td style="border: none; width: 40%;"><span class="po-title">PO #{{ po.order_id }}</span></td>
+            <td style="border: none; width: 30%;">Date: {{ po.order_date|date:"Y-m-d" }}</td>
+            <td style="border: none; width: 30%; text-align: right;">Status: <strong>{{ po.get_status_display }}</strong></td>
+        </tr>
+    </table>
+
+    <table class="data-table">
         <thead>
-            <tr class="po-header">
-                <th colspan="2">PO ID: {{ po.order_id }}</th>
-                <th colspan="2">Order Date: {{ po.order_date|date:"Y-m-d" }}</th>
-                <th colspan="2">Status: {{ po.get_status_display }}</th>
-            </tr>
             <tr>
-                <th>SKU</th>
-                <th>Product Name</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Line Total</th>
-                <th>Received?</th>
+                <th style="width: 15%;">SKU</th>
+                <th style="width: 40%;">Product Name</th>
+                <th style="width: 10%;" class="text-center">Qty</th>
+                <th style="width: 15%;" class="text-right">Unit Price</th>
+                <th style="width: 15%;" class="text-right">Total</th>
+                <th style="width: 5%;" class="text-center">Rcv</th>
             </tr>
         </thead>
         <tbody>
@@ -44,10 +102,13 @@
             <tr>
                 <td>{{ item.product.sku }}</td>
                 <td>{{ item.product.name }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>₱{{ item.price|floatformat:2 }}</td>
-                <td>₱{{ item.line_total|floatformat:2 }}</td>
-                <td>{% if po.status == 'RECEIVED' %}Yes{% else %}No{% endif %}</td>
+                <td class="text-center">{{ item.quantity|intcomma }}</td>
+                <td class="text-right">{{ item.price|floatformat:2|intcomma }}</td>
+                <td class="text-right bold">
+                    {% widthratio item.price 1 item.quantity as total %}
+                    {{ total|intcomma }}
+                </td>
+                <td class="text-center">{% if po.status == 'RECEIVED' %}Y{% else %}-{% endif %}</td>
             </tr>
             {% empty %}
             <tr><td colspan="6" style="text-align: center;">No items found for this purchase order.</td></tr>

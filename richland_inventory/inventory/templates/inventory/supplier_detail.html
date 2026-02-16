@@ -19,15 +19,11 @@
         </div>
         <div class="col-auto">
             <div class="btn-toolbar">
-                <a href="{% url 'inventory:supplier_deliveries_import' supplier.pk %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-upload me-2"></i> Import
-                </a>
-                <div class="btn-group mx-2">
+                <div class="btn-group me-2">
                     <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-download me-2"></i> Export
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="?export=csv">Export as CSV</a></li>
                         <li><a class="dropdown-item" href="?export=excel">Export as Excel</a></li>
                         <li><a class="dropdown-item" href="?export=word">Export as Word</a></li>
                         <li><hr class="dropdown-divider"></li>

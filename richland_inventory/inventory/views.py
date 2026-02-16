@@ -3,14 +3,8 @@
 import csv
 import json
 import uuid
-import io
 from datetime import timedelta, datetime
 from decimal import Decimal
-
-# External Libraries for Exporting
-from openpyxl import Workbook, load_workbook
-from docx import Document
-from docx.shared import Inches
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse, JsonResponse
@@ -49,6 +43,11 @@ from .forms import (
     CustomerForm, CustomerPaymentForm
 )
 from .utils import render_to_pdf
+from .exports import (
+    generate_sow_history_export, generate_expense_report, generate_customer_list_export,
+    generate_customer_statement, generate_inventory_csv, generate_supplier_deliveries_export
+)
+from openpyxl import load_workbook # Kept for imports
 from core.cache_utils import clear_dashboard_cache
 
 def hydraulic_sow_create(request, pk):
@@ -102,95 +101,11 @@ def export_sow_history(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     format_type = request.GET.get('format', 'pdf')
     sows = customer.sows.all()
-    filename = f"SOW_History_{slugify(customer.name)}_{timezone.now().strftime('%Y%m%d')}"
-
-    if format_type == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Date', 'Application', 'Hose Type', 'Diameter', 'Length', 'Pressure', 'Fitting A', 'Fitting B', 'Notes'])
-        for sow in sows:
-            writer.writerow([
-                sow.date_created.strftime('%Y-%m-%d'),
-                sow.application,
-                sow.hose_type,
-                sow.diameter,
-                sow.length,
-                sow.pressure,
-                sow.fitting_a,
-                sow.fitting_b,
-                sow.notes
-            ])
+    
+    response = generate_sow_history_export(customer, sows, format_type, request)
+    if response:
         return response
-
-    elif format_type == 'excel':
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "SOW History"
-        ws.append(["SOW HISTORY", f"Customer: {customer.name}", f"Date: {timezone.now().strftime('%Y-%m-%d')}"])
-        ws.append([])
-        headers = ['Date', 'Application', 'Hose Type', 'Diameter', 'Length', 'Pressure', 'Fitting A', 'Fitting B', 'Notes']
-        ws.append(headers)
-        for sow in sows:
-            ws.append([
-                sow.date_created.strftime('%Y-%m-%d'),
-                sow.application,
-                sow.hose_type,
-                sow.diameter,
-                sow.length,
-                sow.pressure,
-                sow.fitting_a,
-                sow.fitting_b,
-                sow.notes
-            ])
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
-        wb.save(response)
-        return response
-
-    elif format_type == 'word':
-        document = Document()
-        document.add_heading(f'Hydraulic SOW History', 0)
-        p = document.add_paragraph()
-        p.add_run(f'Customer: {customer.name}\n').bold = True
-        p.add_run(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
-
-        table = document.add_table(rows=1, cols=5)
-        table.style = 'Table Grid'
-        hdr_cells = table.rows[0].cells
-        hdr_cells[0].text = 'Date'
-        hdr_cells[1].text = 'Application'
-        hdr_cells[2].text = 'Hose Details'
-        hdr_cells[3].text = 'Fittings'
-        hdr_cells[4].text = 'Notes'
-
-        for sow in sows:
-            row_cells = table.add_row().cells
-            row_cells[0].text = sow.date_created.strftime('%Y-%m-%d')
-            row_cells[1].text = sow.application
-            row_cells[2].text = f"{sow.hose_type}\n{sow.diameter}\" x {sow.length}mm\n{sow.pressure} PSI"
-            row_cells[3].text = f"A: {sow.fitting_a}\nB: {sow.fitting_b}"
-            row_cells[4].text = sow.notes
-
-        f = io.BytesIO()
-        document.save(f)
-        f.seek(0)
-        response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
-        return response
-
-    else: # PDF
-        context = {
-            'customer': customer,
-            'sows': sows,
-            'today': timezone.now(),
-        }
-        pdf = render_to_pdf('inventory/sow_history_pdf.html', context, request=request)
-        if pdf:
-            response = HttpResponse(pdf, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-            return response
-        return HttpResponse("Error Generating PDF", status=500)
+    return HttpResponse("Error Generating Export", status=500)
 
 @login_required
 def import_sow_history(request, pk):
@@ -287,64 +202,9 @@ class ExpenseListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
     def export_expenses(self, request, format_type):
         expenses = self.get_queryset().order_by('expense_date')
-        filename = f"Expense_Report_{timezone.now().strftime('%Y%m%d')}"
-
-        if format_type == 'csv':
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-            writer = csv.writer(response)
-            writer.writerow(['Date', 'Category', 'Description', 'Amount', 'Recorded By'])
-            for expense in expenses:
-                writer.writerow([
-                    expense.expense_date,
-                    expense.category.name if expense.category else 'N/A',
-                    expense.description,
-                    expense.amount,
-                    expense.recorded_by.username if expense.recorded_by else 'N/A'
-                ])
+        response = generate_expense_report(expenses, format_type, request)
+        if response:
             return response
-        
-        elif format_type == 'word':
-            document = Document()
-            document.add_heading('Expense Report', 0)
-            total = expenses.aggregate(total=Sum('amount'))['total'] or 0
-            p = document.add_paragraph()
-            p.add_run(f"Total Expenses: {total:,.2f}\n").bold = True
-            p.add_run(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
-
-            table = document.add_table(rows=1, cols=4, style='Table Grid')
-            hdr_cells = table.rows[0].cells
-            hdr_cells[0].text = 'Date'
-            hdr_cells[1].text = 'Category'
-            hdr_cells[2].text = 'Description'
-            hdr_cells[3].text = 'Amount'
-            
-            for expense in expenses:
-                row_cells = table.add_row().cells
-                row_cells[0].text = expense.expense_date.strftime('%Y-%m-%d')
-                row_cells[1].text = expense.category.name if expense.category else ''
-                row_cells[2].text = expense.description
-                row_cells[3].text = f"{expense.amount:,.2f}"
-
-            f = io.BytesIO()
-            document.save(f)
-            f.seek(0)
-            response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
-            return response
-
-        elif format_type == 'pdf':
-            context = {
-                'expenses': expenses,
-                'total_expenses': expenses.aggregate(total=Sum('amount'))['total'] or 0,
-                'today': timezone.now(),
-            }
-            pdf = render_to_pdf('inventory/expense_report_pdf.html', context, request=request)
-            if pdf:
-                response = HttpResponse(pdf, content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-                return response
-        
         messages.error(request, "Could not generate report. Invalid format specified.")
         return redirect('inventory:expense_list')
 
@@ -499,72 +359,10 @@ class CustomerListView(LoginRequiredMixin, ListView):
 
     def export_customers(self, format_type):
         customers = self.get_queryset()
-        filename = f"Customer_List_{timezone.now().strftime('%Y%m%d')}"
-
-        if format_type == 'csv':
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-            writer = csv.writer(response)
-            writer.writerow(['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Credit Limit', 'Current Balance'])
-            for customer in customers:
-                writer.writerow([
-                    customer.name, customer.email, customer.phone, customer.address,
-                    customer.tax_id, customer.credit_limit, customer.get_balance()
-                ])
+        response = generate_customer_list_export(customers, format_type, self.request)
+        if response:
             return response
-
-        elif format_type == 'excel':
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Customers"
-            ws.append(['Customer List', f"Date: {timezone.now().strftime('%Y-%m-%d')}"])
-            ws.append([])
-            headers = ['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Credit Limit', 'Current Balance']
-            ws.append(headers)
-            for customer in customers:
-                ws.append([
-                    customer.name, customer.email, customer.phone, customer.address,
-                    customer.tax_id, f"{customer.credit_limit:.2f}", f"{customer.get_balance():.2f}"
-                ])
-            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
-            wb.save(response)
-            return response
-
-        elif format_type == 'word':
-            document = Document()
-            document.add_heading('Customer List', 0)
-            document.add_paragraph(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
-            table = document.add_table(rows=1, cols=4, style='Table Grid')
-            hdr_cells = table.rows[0].cells
-            hdr_cells[0].text = 'Name'
-            hdr_cells[1].text = 'Contact'
-            hdr_cells[2].text = 'Address'
-            hdr_cells[3].text = 'Credit Info'
-            for customer in customers:
-                row_cells = table.add_row().cells
-                row_cells[0].text = customer.name
-                row_cells[1].text = f"{customer.email or 'N/A'}\n{customer.phone or 'N/A'}"
-                row_cells[2].text = customer.address or 'N/A'
-                row_cells[3].text = f"Limit: {customer.credit_limit:,.2f}\nBalance: {customer.get_balance():,.2f}"
-            f = io.BytesIO()
-            document.save(f)
-            f.seek(0)
-            response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
-            return response
-
-        elif format_type == 'pdf':
-            context = {'customers': customers, 'today': timezone.now(), 'request': self.request}
-            pdf = render_to_pdf('inventory/customer_list_pdf.html', context)
-            if pdf:
-                response = HttpResponse(pdf, content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-                return response
-            messages.error(self.request, "Error generating PDF report.")
-            return redirect('inventory:customer_list')
-
-        messages.error(self.request, "Invalid export format specified.")
+        messages.error(self.request, "Error generating export.")
         return redirect('inventory:customer_list')
 
 class CustomerCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
@@ -862,105 +660,10 @@ def export_statement(request, pk):
         item['balance'] = running_balance
         final_data.append(item)
 
-    filename = f"Statement_{slugify(customer.name)}_{timezone.now().strftime('%Y%m%d')}"
-
-    # 1. CSV EXPORT
-    if format_type == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Date', 'Reference', 'Description', 'Charge', 'Payment', 'Balance'])
-        for row in final_data:
-            charge = row['amount'] if not row['is_credit'] else ''
-            pay = row['amount'] if row['is_credit'] else ''
-            writer.writerow([row['date'].strftime('%Y-%m-%d'), row['ref'], row['desc'], charge, pay, row['balance']])
+    response = generate_customer_statement(customer, final_data, running_balance, format_type, request)
+    if response:
         return response
-
-    # 2. EXCEL EXPORT
-    elif format_type == 'excel':
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Statement"
-        
-        ws.append(["BILLING STATEMENT"])
-        ws.append([f"Customer: {customer.name}"])
-        ws.append([f"Date: {timezone.now().strftime('%Y-%m-%d')}"])
-        ws.append([]) # spacer
-        
-        headers = ['Date', 'Reference', 'Description', 'Charge', 'Payment', 'Balance']
-        ws.append(headers)
-        
-        for row in final_data:
-            charge = row['amount'] if not row['is_credit'] else None
-            pay = row['amount'] if row['is_credit'] else None
-            ws.append([
-                row['date'].strftime('%Y-%m-%d'), 
-                row['ref'], 
-                row['desc'], 
-                charge, 
-                pay, 
-                row['balance']
-            ])
-            
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
-        wb.save(response)
-        return response
-
-    # 3. WORD EXPORT
-    elif format_type == 'word':
-        document = Document()
-        document.add_heading(f'Billing Statement', 0)
-        
-        p = document.add_paragraph()
-        p.add_run(f'Customer: {customer.name}\n').bold = True
-        p.add_run(f'Address: {customer.address}\n')
-        p.add_run(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
-
-        table = document.add_table(rows=1, cols=4)
-        table.style = 'Table Grid'
-        hdr_cells = table.rows[0].cells
-        hdr_cells[0].text = 'Date'
-        hdr_cells[1].text = 'Description'
-        hdr_cells[2].text = 'Amount'
-        hdr_cells[3].text = 'Balance'
-        
-        for row in final_data:
-            row_cells = table.add_row().cells
-            row_cells[0].text = row['date'].strftime('%Y-%m-%d')
-            row_cells[1].text = f"{row['desc']} ({row['ref']})"
-            
-            amt_str = f"{row['amount']:,.2f}"
-            if row['is_credit']:
-                amt_str = f"({amt_str})" # Parenthesis for payments
-                
-            row_cells[2].text = amt_str
-            row_cells[3].text = f"{row['balance']:,.2f}"
-
-        # Footer total
-        document.add_paragraph(f"\nTotal Outstanding Balance: {running_balance:,.2f}")
-
-        f = io.BytesIO()
-        document.save(f)
-        f.seek(0)
-        response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
-        return response
-
-    # 4. PDF EXPORT (Default)
-    else:
-        context = {
-            'customer': customer,
-            'ledger': final_data,
-            'today': timezone.now(),
-            'current_balance': running_balance
-        }
-        pdf = render_to_pdf('inventory/statement_pdf.html', context, request=request)
-        if pdf:
-            response = HttpResponse(pdf, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-            return response
-        return HttpResponse("Error Generating PDF", status=500)
+    return HttpResponse("Error Generating Export", status=500)
 
 # --- PRODUCT MANAGEMENT (UI) ---
 
@@ -984,6 +687,19 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             product_status = form.cleaned_data.get('product_status')
             if product_status:
                 queryset = queryset.filter(status=product_status)
+            
+            stock_status = form.cleaned_data.get('stock_status')
+            if stock_status:
+                if stock_status == 'in_stock':
+                    queryset = queryset.filter(quantity__gt=10)
+                elif stock_status == 'low_stock':
+                    queryset = queryset.filter(quantity__gt=0, quantity__lte=10)
+                elif stock_status == 'out_of_stock':
+                    queryset = queryset.filter(quantity=0)
+
+            sort_by = form.cleaned_data.get('sort_by')
+            if sort_by:
+                queryset = queryset.order_by(sort_by)
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -1304,14 +1020,8 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return super().get(request, *args, **kwargs)
 
     def export_inventory_csv(self):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="inventory_snapshot.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Product', 'SKU', 'Category', 'Quantity', 'Price', 'Status'])
         products = Product.objects.select_related('category').all()
-        for p in products:
-            writer.writerow([p.name, p.sku, p.category.name if p.category else 'N/A', p.quantity, p.price, p.get_status_display()])
-        return response
+        return generate_inventory_csv(products)
 
     def export_transactions_pdf(self, request):
         form = TransactionReportForm(request.GET)
@@ -1576,67 +1286,10 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     def export_deliveries(self, format_type):
         supplier = self.object
         purchase_orders = self.get_purchase_orders()
-        filename = f"Deliveries_{slugify(supplier.name)}_{timezone.now().strftime('%Y%m%d')}"
-
-        if format_type == 'csv':
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-            writer = csv.writer(response)
-            writer.writerow(['PO ID', 'Order Date', 'Status', 'Product SKU', 'Product Name', 'Quantity', 'Price per Item'])
-            for po in purchase_orders:
-                for item in po.items.all():
-                    writer.writerow([po.order_id, po.order_date.strftime('%Y-%m-%d'), po.get_status_display(), item.product.sku, item.product.name, item.quantity, item.price])
+        response = generate_supplier_deliveries_export(supplier, purchase_orders, format_type, self.request)
+        if response:
             return response
-
-        elif format_type == 'excel':
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Deliveries"
-            ws.append([f"Delivery History for {supplier.name}", f"Date: {timezone.now().strftime('%Y-%m-%d')}"])
-            ws.append([])
-            headers = ['PO ID', 'Order Date', 'Status', 'Product SKU', 'Product Name', 'Quantity', 'Price per Item', 'Line Total']
-            ws.append(headers)
-            for po in purchase_orders:
-                for item in po.items.all():
-                    ws.append([po.order_id, po.order_date.strftime('%Y-%m-%d'), po.get_status_display(), item.product.sku, item.product.name, item.quantity, f"{item.price:.2f}", f"{item.line_total:.2f}"])
-            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
-            wb.save(response)
-            return response
-
-        elif format_type == 'word':
-            document = Document()
-            document.add_heading(f'Delivery History for {supplier.name}', 0)
-            document.add_paragraph(f'Date Generated: {timezone.now().strftime("%B %d, %Y")}')
-            for po in purchase_orders:
-                document.add_heading(f'PO ID: {po.order_id} ({po.order_date.strftime("%Y-%m-%d")})', level=2)
-                if not po.items.exists():
-                    document.add_paragraph('No items in this purchase order.')
-                    continue
-                table = document.add_table(rows=1, cols=4, style='Table Grid')
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Product'; hdr_cells[1].text = 'Quantity'; hdr_cells[2].text = 'Unit Price'; hdr_cells[3].text = 'Line Total'
-                for item in po.items.all():
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = f"{item.product.name}\n({item.product.sku})"; row_cells[1].text = str(item.quantity); row_cells[2].text = f"₱{item.price:,.2f}"; row_cells[3].text = f"₱{item.line_total:,.2f}"
-            f = io.BytesIO()
-            document.save(f)
-            f.seek(0)
-            response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
-            return response
-
-        elif format_type == 'pdf':
-            context = {'supplier': supplier, 'purchase_orders': purchase_orders, 'today': timezone.now(), 'request': self.request}
-            pdf = render_to_pdf('inventory/supplier_deliveries_pdf.html', context)
-            if pdf:
-                response = HttpResponse(pdf, content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
-                return response
-            messages.error(self.request, "Error generating PDF report.")
-            return redirect('inventory:supplier_detail', pk=supplier.pk)
-
-        messages.error(self.request, "Invalid export format specified.")
+        messages.error(self.request, "Error generating export.")
         return redirect('inventory:supplier_detail', pk=supplier.pk)
 
 @login_required
