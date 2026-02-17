@@ -20,8 +20,10 @@ urlpatterns = [
     path('product/<slug:slug>/refund/', views.product_refund, name='product_refund'),
     
     # AJAX
-    path('category/add/ajax/', views.add_category_ajax, name='add_category_ajax'),
+    path('ajax/category/add/', views.add_category_ajax, name='add_category_ajax'),
+    path('ajax/expense-category/add/', views.add_expense_category_ajax, name='add_expense_category_ajax'),
     path('products/search/', views.search_products, name='product_search'),
+    path('api/sales-chart-data/', views.sales_chart_data, name='sales_chart_data'),
 
     # --- HISTORY & AUDIT ---
     path('history/', views.ProductHistoryListView.as_view(), name='product_history_list'),

@@ -271,16 +271,33 @@ class CategoryCreateForm(forms.ModelForm):
 # --- EXPENSE FORMS ---
 
 class ExpenseForm(forms.ModelForm):
+    category = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Category'}),
+        label="Category"
+    )
+
     class Meta:
         model = Expense
         fields = ['category', 'description', 'amount', 'expense_date', 'receipt']
         widgets = {
-            'category': forms.Select(attrs={'class': 'form-select searchable-select'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control'}),
             'expense_date': DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'receipt': forms.FileInput(attrs={'class': 'form-control'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.category:
+            self.initial['category'] = self.instance.category.name
+
+    def clean_category(self):
+        name = self.cleaned_data.get('category')
+        if name:
+            category, _ = ExpenseCategory.objects.get_or_create(name=name.strip())
+            return category
+        return None
 
 class ExpenseFilterForm(forms.Form):
     q = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search description...'}))

@@ -229,7 +229,11 @@
                     <div class="card border-0 shadow-sm">
                         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 fw-bold text-dark">Hydraulic Scope of Work (SOW)</h6>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" id="sowSearch" class="form-control border-start-0 ps-0" placeholder="Search jobs...">
+                        </div>
                         <a href="{% url 'inventory:customer_sow_import' pk=customer.pk %}" class="btn btn-sm btn-outline-secondary">
                             <i class="fas fa-file-import"></i>
                         </a>
@@ -240,6 +244,7 @@
                             <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
                                 <li><a class="dropdown-item" href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=pdf"><i class="fas fa-file-pdf text-danger me-2"></i>PDF</a></li>
                                 <li><a class="dropdown-item" href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=excel"><i class="fas fa-file-excel text-success me-2"></i>Excel</a></li>
+                                <li><a class="dropdown-item" href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=word"><i class="fas fa-file-word text-primary me-2"></i>Word</a></li>
                             </ul>
                         </div>
                     </div>
@@ -248,31 +253,48 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
                             <tr>
-                                <th class="ps-4 text-secondary small text-uppercase">Date</th>
+                                <th class="ps-4 text-secondary small text-uppercase">Date / Time</th>
                                 <th class="text-secondary small text-uppercase">Application</th>
-                                <th class="text-secondary small text-uppercase">Specs</th>
+                                <th class="text-secondary small text-uppercase">Hose Details</th>
                                 <th class="text-secondary small text-uppercase">Fittings</th>
-                                <th class="text-secondary small text-uppercase pe-4">Notes</th>
+                                <th class="text-end text-secondary small text-uppercase">Cost</th>
+                                <th class="text-secondary small text-uppercase">Notes</th>
+                                <th class="text-secondary small text-uppercase pe-4">Created By</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="sowTableBody">
                             {% for sow in sows %}
                             <tr>
-                                <td class="ps-4 text-nowrap">{{ sow.date_created|date:"M d, Y" }}</td>
+                                <td class="ps-4 text-nowrap">
+                                    <div>{{ sow.date_created|date:"M d, Y" }}</div>
+                                    <div class="small text-muted">{{ sow.date_created|date:"h:i A" }}</div>
+                                </td>
                                 <td class="fw-medium">{{ sow.application|default:"-" }}</td>
                                 <td>
-                                    <div class="small fw-bold">{{ sow.hose_type }}</div>
-                                    <div class="small text-muted">{{ sow.diameter }}" x {{ sow.length }}mm</div>
+                                    <div class="small fw-bold">{{ sow.hose_type|default:"-" }}</div>
+                                    <div class="small text-muted">
+                                        &Oslash; {{ sow.diameter|default:"?" }}" &nbsp;&bull;&nbsp;
+                                        L: {{ sow.length|default:"?" }}mm &nbsp;&bull;&nbsp;
+                                        P: {{ sow.pressure|default:"?" }} PSI
+                                    </div>
                                 </td>
                                 <td class="small">
-                                    <div><span class="text-muted">A:</span> {{ sow.fitting_a }}</div>
-                                    <div><span class="text-muted">B:</span> {{ sow.fitting_b }}</div>
+                                    <div><span class="text-muted">A:</span> {{ sow.fitting_a|default:"-" }}</div>
+                                    <div><span class="text-muted">B:</span> {{ sow.fitting_b|default:"-" }}</div>
                                 </td>
-                                <td class="small text-muted pe-4">{{ sow.notes|truncatechars:30 }}</td>
+                                <td class="text-end fw-bold font-monospace">
+                                    {% if sow.cost %}
+                                        ₱{{ sow.cost|floatformat:2|intcomma }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="small text-muted">{{ sow.notes|truncatechars:30 }}</td>
+                                <td class="small text-muted pe-4">{{ sow.created_by.username|default:"N/A" }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fas fa-tools fa-2x mb-3 opacity-25"></i>
                                     <p class="mb-0">No job sheets found.</p>
                                 </td>
@@ -291,15 +313,15 @@
 
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('ledgerSearch');
-        const tableBody = document.getElementById('ledgerTableBody');
-
+    function setupTableSearch(inputId, tableBodyId) {
+        const searchInput = document.getElementById(inputId);
+        const tableBody = document.getElementById(tableBodyId);
+        
         if (searchInput && tableBody) {
             searchInput.addEventListener('keyup', function() {
                 const searchTerm = this.value.toLowerCase();
                 const rows = tableBody.getElementsByTagName('tr');
-
+    
                 for (let i = 0; i < rows.length; i++) {
                     const row = rows[i];
                     const text = row.textContent.toLowerCase();
@@ -307,6 +329,10 @@
                 }
             });
         }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        setupTableSearch('ledgerSearch', 'ledgerTableBody');
+        setupTableSearch('sowSearch', 'sowTableBody');
     });
 </script>
 {% endblock %}

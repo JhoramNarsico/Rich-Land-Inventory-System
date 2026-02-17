@@ -67,6 +67,7 @@ def hydraulic_sow_create(request, pk):
         # Extract data from the manual HTML form in the template
         HydraulicSow.objects.create(
             customer=customer,
+            created_by=request.user,
             hose_type=request.POST.get('hose_type', ''),
             diameter=request.POST.get('diameter', ''),
             length=request.POST.get('length') or None,
@@ -76,6 +77,7 @@ def hydraulic_sow_create(request, pk):
             fitting_b=request.POST.get('fitting_b', ''),
             orientation=request.POST.get('orientation') or None,
             protection=request.POST.get('protection', ''),
+            cost=request.POST.get('cost') or None,
             notes=request.POST.get('notes', '')
         )
         messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
@@ -100,7 +102,7 @@ def hydraulic_sow_import(request):
 def export_sow_history(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     format_type = request.GET.get('format', 'pdf')
-    sows = customer.sows.all()
+    sows = customer.sows.select_related('created_by').all()
     
     response = generate_sow_history_export(customer, sows, format_type, request)
     if response:
@@ -139,13 +141,17 @@ def import_sow_history(request, pk):
             count = 0
             with transaction.atomic():
                 for row in data:
+                    cost_val = row.get('cost', 0)
+                    if cost_val is None or cost_val == '': cost_val = 0
                     # Basic mapping, assuming CSV headers match model fields or close to it
                     HydraulicSow.objects.create(
                         customer=customer,
+                        created_by=request.user,
                         hose_type=row.get('hose_type', ''),
                         diameter=row.get('diameter', ''),
                         length=row.get('length') or None,
                         pressure=row.get('pressure') or None,
+                        cost=Decimal(str(cost_val)),
                         application=row.get('application', ''),
                         fitting_a=row.get('fitting_a', ''),
                         fitting_b=row.get('fitting_b', ''),
@@ -473,7 +479,7 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         credit_limit = self.object.credit_limit
         context['current_balance'] = current_balance
         context['available_credit'] = credit_limit - current_balance
-        context['sows'] = self.object.sows.all()
+        context['sows'] = self.object.sows.select_related('created_by').all()
         return context
 
 @login_required
@@ -1459,6 +1465,15 @@ def add_category_ajax(request):
         cat = form.save()
         return JsonResponse({'status': 'success', 'category': {'id': cat.id, 'name': cat.name}})
     return JsonResponse({'status': 'error'}, status=400)
+
+@login_required
+@require_POST
+def add_expense_category_ajax(request):
+    name = request.POST.get('name')
+    if name:
+        cat, created = ExpenseCategory.objects.get_or_create(name=name)
+        return JsonResponse({'status': 'success', 'category': {'id': cat.id, 'name': cat.name}})
+    return JsonResponse({'status': 'error', 'message': 'Category name is required.'}, status=400)
 
 @login_required
 def search_products(request):

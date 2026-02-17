@@ -1,31 +1,93 @@
+{% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <title>Expense Report</title>
     <style>
-        @page { size: letter; margin: 1cm; }
-        body { font-family: sans-serif; font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-        th { background-color: #f2f2f2; font-size: 11px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; }
-        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; }
-        .total { text-align: right; font-weight: bold; font-size: 12px; padding-top: 10px; }
+        @page {
+            size: a4 portrait;
+            margin: 1cm;
+            margin-top: 3.5cm; 
+            margin-bottom: 2cm;
+            
+            @frame header_frame { 
+                -pdf-frame-content: header_content;
+                left: 30pt; width: 535pt; top: 20pt; height: 100pt;
+            }
+            
+            @frame footer_frame { 
+                -pdf-frame-content: footer_content;
+                left: 30pt; width: 535pt; top: 780pt; height: 20pt;
+            }
+        }
+        
+        body { 
+            font-family: Helvetica, sans-serif; 
+            font-size: 9px; 
+            color: #2c3e50; 
+        }
+        
+        .header-table { width: 100%; border-bottom: 2px solid #2799a5; margin-bottom: 10px; }
+        .company-name { font-size: 16px; font-weight: bold; color: #2c3e50; }
+        .report-title { font-size: 20px; font-weight: bold; color: #2799a5; text-align: right; }
+        .report-meta { font-size: 9px; color: #7f8c8d; text-align: right; line-height: 1.4; margin-top: 5px; }
+
+        .summary-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .summary-table td { padding: 4px; }
+
+        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.data-table thead { display: table-header-group; }
+        table.data-table th { background-color: #2c3e50; color: #ffffff; padding: 5px; font-weight: bold; border: 1px solid #2c3e50; text-transform: uppercase; font-size: 8px; }
+        table.data-table td { border: 1px solid #bdc3c7; padding: 4px; vertical-align: middle; font-size: 8px; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        
+        .footer { text-align: center; font-size: 8px; color: #7f8c8d; border-top: 1px solid #bdc3c7; padding-top: 5px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Expense Report</h1>
-        <p>Generated on: {{ today|date:"F d, Y" }}</p>
+    <!-- HEADER -->
+    <div id="header_content">
+        <table class="header-table">
+            <tr>
+                <td style="vertical-align: bottom; width: 50%;">
+                    <img src="images/logo.png" style="height: 50px; width: auto;" alt="" />
+                    <br/><span class="company-name">Rich Land Auto Supply</span>
+                </td>
+                <td style="vertical-align: bottom; text-align: right; width: 50%;">
+                    <div class="report-title">EXPENSE REPORT</div>
+                    <div class="report-meta">
+                        Generated: {% now "F d, Y h:i A" %}
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
-    <table>
+    <div id="footer_content" class="footer">
+        Confidential Report | Page <pdf:pagenumber> of <pdf:pagecount>
+    </div>
+
+    <!-- CONTENT -->
+    <table class="summary-table">
+        <tr>
+            <td class="bold text-right" style="width: 80%;">Total Expenses for Period:</td>
+            <td class="text-right bold" style="font-size: 12px; width: 20%;">PHP {{ total_expenses|floatformat:2|intcomma }}</td>
+        </tr>
+    </table>
+
+    <table class="data-table">
         <thead>
             <tr>
                 <th style="width: 15%;">Date</th>
                 <th style="width: 20%;">Category</th>
-                <th>Description</th>
-                <th style="width: 20%; text-align: right;">Amount</th>
+                <th style="width: 35%;">Description</th>
+                <th style="width: 15%;" class="text-right">Amount</th>
+                <th style="width: 15%;">Recorded By</th>
             </tr>
         </thead>
         <tbody>
@@ -34,11 +96,13 @@
                 <td>{{ expense.expense_date|date:"Y-m-d" }}</td>
                 <td>{{ expense.category.name|default:"N/A" }}</td>
                 <td>{{ expense.description }}</td>
-                <td style="text-align: right;">{{ expense.amount|floatformat:2 }}</td>
+                <td class="text-right bold">PHP {{ expense.amount|floatformat:2|intcomma }}</td>
+                <td>{{ expense.recorded_by.username|default:"N/A" }}</td>
             </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center">No expenses recorded for this period.</td></tr>
             {% endfor %}
         </tbody>
     </table>
-    <div class="total">Total Expenses: {{ total_expenses|floatformat:2 }}</div>
 </body>
 </html>

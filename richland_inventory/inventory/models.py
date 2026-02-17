@@ -87,6 +87,7 @@ class CustomerPayment(models.Model):
 class HydraulicSow(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='sows')
     date_created = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     
     hose_type = models.CharField(max_length=100, blank=True)
     diameter = models.CharField(max_length=50, blank=True)
@@ -98,6 +99,7 @@ class HydraulicSow(models.Model):
     fitting_b = models.CharField(max_length=100, blank=True)
     orientation = models.IntegerField(null=True, blank=True, help_text="Angle in degrees")
     protection = models.CharField(max_length=50, blank=True)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Cost of the customization service.")
     
     notes = models.TextField(blank=True)
 
