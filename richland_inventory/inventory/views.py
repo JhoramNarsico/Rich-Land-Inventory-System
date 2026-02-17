@@ -306,7 +306,7 @@ def import_expenses(request):
     return render(request, 'inventory/expense_import.html')
 
 # DRF & Swagger Imports
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, filters
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 from .serializers import ProductSerializer, CategorySerializer
@@ -1371,6 +1371,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'sku']
 
 # --- AJAX HELPERS ---
 
@@ -1382,6 +1384,17 @@ def add_category_ajax(request):
         cat = form.save()
         return JsonResponse({'status': 'success', 'category': {'id': cat.id, 'name': cat.name}})
     return JsonResponse({'status': 'error'}, status=400)
+
+@login_required
+def search_products(request):
+    """AJAX endpoint for searching products by name or SKU."""
+    query = request.GET.get('q', '')
+    if query:
+        products = Product.objects.filter(
+            Q(name__icontains=query) | Q(sku__icontains=query)
+        ).filter(status=Product.Status.ACTIVE).values('id', 'name', 'sku', 'price', 'quantity')[:20]
+        return JsonResponse({'results': list(products)})
+    return JsonResponse({'results': []})
 
 @login_required
 def sales_chart_data(request):

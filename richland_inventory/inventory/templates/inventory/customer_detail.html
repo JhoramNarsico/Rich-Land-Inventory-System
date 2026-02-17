@@ -22,6 +22,9 @@
             <a href="{% url 'inventory:customer_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Back
             </a>
+            <a href="{% url 'inventory:pos_dashboard' %}?customer_id={{ customer.pk }}" class="btn btn-outline-danger">
+                <i class="fas fa-cash-register me-2"></i>POS Charge
+            </a>
             <a href="{% url 'inventory:hydraulic_sow_create' pk=customer.pk %}" class="btn btn-outline-info">
                 <i class="fas fa-tools me-2"></i>New SOW
             </a>
@@ -131,11 +134,6 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link fw-bold text-dark" id="sow-tab" data-bs-toggle="tab" data-bs-target="#sow-pane" type="button" role="tab" aria-controls="sow-pane" aria-selected="false">
                         <i class="fas fa-tools me-2 text-secondary"></i>Hydraulic Jobs
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold text-dark" id="charge-tab" data-bs-toggle="tab" data-bs-target="#charge-pane" type="button" role="tab" aria-controls="charge-pane" aria-selected="false">
-                        <i class="fas fa-cart-plus me-2 text-secondary"></i>New Charge
                     </button>
                 </li>
             </ul>
@@ -268,152 +266,8 @@
                 </div>
             </div>
                 </div>
-
-                <!-- NEW CHARGE TAB PANE -->
-                <div class="tab-pane fade" id="charge-pane" role="tabpanel" aria-labelledby="charge-tab">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-white border-bottom py-3">
-                            <h6 class="mb-0 fw-bold text-dark">Select Items to Charge</h6>
-                        </div>
-                        <div class="card-body p-0">
-                            <!-- Search -->
-                            <div class="p-3 border-bottom bg-light">
-                                <input type="text" id="chargeSearch" class="form-control" placeholder="Search products by name or SKU...">
-                            </div>
-                            
-                            <!-- Table -->
-                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                                <table class="table table-hover align-middle mb-0" id="chargeTable">
-                                    <thead class="bg-light sticky-top">
-                                        <tr>
-                                            <th class="ps-4" style="width: 50px;">#</th>
-                                            <th>Product</th>
-                                            <th class="text-end">Price</th>
-                                            <th class="text-center">Stock</th>
-                                            <th class="text-center" style="width: 120px;">Qty</th>
-                                            <th class="text-end pe-4">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for product in products %}
-                                        <tr>
-                                            <td class="ps-4">
-                                                <input type="checkbox" class="form-check-input product-select" 
-                                                       data-id="{{ product.id }}" 
-                                                       data-name="{{ product.name }}" 
-                                                       data-price="{{ product.price }}">
-                                            </td>
-                                            <td>
-                                                <div class="fw-bold">{{ product.name }}</div>
-                                                <small class="text-muted">{{ product.sku }}</small>
-                                            </td>
-                                            <td class="text-end">₱{{ product.price|floatformat:2 }}</td>
-                                            <td class="text-center">
-                                                <span class="badge {% if product.quantity > 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
-                                                    {{ product.quantity }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <input type="number" class="form-control form-control-sm text-center product-qty" value="1" min="1" max="{{ product.quantity }}" disabled>
-                                            </td>
-                                            <td class="text-end pe-4 fw-bold product-subtotal">₱0.00</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Footer / Form -->
-                            <div class="p-4 bg-light border-top">
-                                <form action="#" method="post" id="chargeForm">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="amount" id="finalAmount">
-                                    <input type="hidden" name="description" id="finalDescription">
-                                    
-                                    <div class="row g-3 align-items-end">
-                                        <div class="col-md-6">
-                                            <label class="form-label small fw-bold text-muted">Reference / Invoice No.</label>
-                                            <input type="text" name="reference_number" class="form-control" placeholder="Optional">
-                                        </div>
-                                        <div class="col-md-6 text-end">
-                                            <div class="small text-muted text-uppercase fw-bold mb-1">Total Amount</div>
-                                            <div class="display-6 fw-bold text-danger" id="displayTotal">₱0.00</div>
-                                        </div>
-                                        <div class="col-12 text-end mt-3">
-                                            <button type="submit" class="btn btn-danger fw-bold" id="submitChargeBtn" disabled>
-                                                <i class="fas fa-plus-circle me-2"></i>Process Charge
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('chargeSearch');
-        const tableRows = document.querySelectorAll('#chargeTable tbody tr');
-        const checkboxes = document.querySelectorAll('.product-select');
-        const qtyInputs = document.querySelectorAll('.product-qty');
-        const displayTotal = document.getElementById('displayTotal');
-        const finalAmount = document.getElementById('finalAmount');
-        const finalDescription = document.getElementById('finalDescription');
-        const submitBtn = document.getElementById('submitChargeBtn');
-
-        // 1. Search Functionality
-        searchInput.addEventListener('input', function() {
-            const term = this.value.toLowerCase().trim();
-            tableRows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(term) ? '' : 'none';
-            });
-        });
-
-        // 2. Calculation Logic
-        function updateCalculations() {
-            let total = 0;
-            let items = [];
-
-            checkboxes.forEach((cb, index) => {
-                const row = cb.closest('tr');
-                const qtyInput = row.querySelector('.product-qty');
-                const subtotalEl = row.querySelector('.product-subtotal');
-                
-                if (cb.checked) {
-                    qtyInput.disabled = false;
-                    const price = parseFloat(cb.dataset.price);
-                    const qty = parseInt(qtyInput.value) || 1;
-                    const sub = price * qty;
-                    
-                    total += sub;
-                    subtotalEl.innerText = '₱' + sub.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    items.push(`${cb.dataset.name} (x${qty})`);
-                } else {
-                    qtyInput.disabled = true;
-                    subtotalEl.innerText = '₱0.00';
-                }
-            });
-
-            displayTotal.innerText = '₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            finalAmount.value = total.toFixed(2);
-            finalDescription.value = items.join(', ');
-            submitBtn.disabled = total <= 0;
-        }
-
-        // 3. Event Listeners
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', updateCalculations);
-        });
-
-        qtyInputs.forEach(input => {
-            input.addEventListener('input', updateCalculations);
-        });
-    });
-</script>
 {% endblock %}

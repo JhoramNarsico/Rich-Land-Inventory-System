@@ -21,6 +21,7 @@ urlpatterns = [
     
     # AJAX
     path('category/add/ajax/', views.add_category_ajax, name='add_category_ajax'),
+    path('products/search/', views.search_products, name='product_search'),
 
     # --- HISTORY & AUDIT ---
     path('history/', views.ProductHistoryListView.as_view(), name='product_history_list'),

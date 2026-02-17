@@ -163,6 +163,11 @@
     <div class="cart-wrapper">
         <div class="cart-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>Current Order</h5>
+            <div class="w-50">
+                <select id="customerSelect" class="form-select form-select-sm">
+                    <option value="">Walk-in Customer</option>
+                </select>
+            </div>
             <button class="btn btn-sm btn-outline-danger" onclick="clearCart()" title="Clear Cart">
                 <i class="fas fa-trash-alt"></i>
             </button>
@@ -194,18 +199,29 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
+                <!-- Payment Method Toggle -->
+                <div class="mb-4 text-center">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="paymentMethod" id="pmCash" value="CASH" checked onchange="togglePaymentMethod()">
+                        <label class="btn btn-outline-success" for="pmCash"><i class="fas fa-money-bill-wave me-2"></i>Cash</label>
+                        
+                        <input type="radio" class="btn-check" name="paymentMethod" id="pmCredit" value="CREDIT" onchange="togglePaymentMethod()">
+                        <label class="btn btn-outline-danger" for="pmCredit"><i class="fas fa-file-invoice-dollar me-2"></i>Charge / Credit</label>
+                    </div>
+                </div>
+
                 <div class="text-center mb-4">
                     <small class="text-uppercase text-muted fw-bold">Amount Due</small>
                     <h1 class="fw-bold text-dark" id="modalTotalAmount">₱0.00</h1>
                 </div>
-                <div class="mb-4">
+                <div class="mb-4" id="cashInputGroup">
                     <label class="form-label fw-bold">Cash Tendered</label>
                     <div class="input-group input-group-lg">
                         <span class="input-group-text bg-light">₱</span>
                         <input type="number" id="amountPaidInput" class="form-control fw-bold" placeholder="0.00" step="0.01">
                     </div>
                 </div>
-                <div class="alert alert-light border d-flex justify-content-between">
+                <div class="alert alert-light border d-flex justify-content-between" id="changeGroup">
                     <span class="fw-bold text-muted">Change:</span>
                     <span class="fw-bold text-success fs-5" id="changeDisplay">₱0.00</span>
                 </div>
@@ -228,6 +244,8 @@
 <script>
     // --- DATA & STATE ---
     const allProducts = JSON.parse('{{ products_json|safe }}');
+    const allCustomers = JSON.parse('{{ customers_json|safe }}');
+    const preselectedCustomerId = '{{ preselected_customer_id|default:"" }}';
     let cart = [];
     let currentTotal = 0;
     const csrfToken = '{{ csrf_token }}';
@@ -236,6 +254,7 @@
     const gridEl = document.getElementById('productGrid');
     const cartEl = document.getElementById('cartContainer');
     const totalDisplay = document.getElementById('cartTotalDisplay');
+    const customerSelect = document.getElementById('customerSelect');
     const payBtn = document.getElementById('payBtn');
 
     // Modal Elements
@@ -249,6 +268,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
         renderProducts(allProducts);
+        renderCustomers();
         renderCategories();
         document.getElementById('productSearch').addEventListener('input', (e) => handleSearch(e.target.value));
         if (paidInput) paidInput.addEventListener('input', calculateChange);
@@ -419,14 +439,49 @@
         renderProducts(searchedProducts.filter(p => p.quantity > 0));
     }
 
+    // --- CUSTOMER LOGIC ---
+    function renderCustomers() {
+        allCustomers.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.id;
+            option.text = c.name;
+            customerSelect.appendChild(option);
+        });
+        if (preselectedCustomerId) {
+            customerSelect.value = preselectedCustomerId;
+        }
+    }
+
     // --- PAYMENT & CHECKOUT LOGIC (No changes needed) ---
     function openPaymentModal() {
         modalTotal.innerText = totalDisplay.innerText;
         paidInput.value = '';
         changeDisplay.innerText = '₱0.00';
         confirmBtn.disabled = true;
+        
+        // Reset to Cash by default unless pre-selected customer implies credit preference? 
+        // For now, default to Cash, user can switch.
+        document.getElementById('pmCash').checked = true;
+        togglePaymentMethod();
+        
         paymentModal.show();
         setTimeout(() => paidInput.focus(), 500);
+    }
+
+    function togglePaymentMethod() {
+        const isCredit = document.getElementById('pmCredit').checked;
+        const cashInputGroup = document.getElementById('cashInputGroup');
+        const changeGroup = document.getElementById('changeGroup');
+        
+        if (isCredit) {
+            cashInputGroup.style.display = 'none';
+            changeGroup.style.display = 'none';
+            confirmBtn.disabled = false; // Credit doesn't need cash validation
+        } else {
+            cashInputGroup.style.display = 'block';
+            changeGroup.style.display = 'flex';
+            calculateChange(); // Re-validate cash
+        }
     }
 
     function calculateChange() {
@@ -449,11 +504,25 @@
         confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         confirmBtn.disabled = true;
         const amountPaid = parseFloat(paidInput.value);
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+        const customerId = customerSelect.value;
+
+        if (paymentMethod === 'CREDIT' && !customerId) {
+            alert("Please select a customer for Charge/Credit transactions.");
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = 'Complete Sale';
+            return;
+        }
 
         fetch("{% url 'inventory:pos_checkout' %}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ items: cart, amount_paid: amountPaid })
+            body: JSON.stringify({ 
+                items: cart, 
+                amount_paid: amountPaid,
+                payment_method: paymentMethod,
+                customer_id: customerId
+            })
         })
         .then(res => res.json())
         .then(data => {
