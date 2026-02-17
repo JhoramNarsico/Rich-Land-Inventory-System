@@ -491,6 +491,12 @@ def customer_payment(request, pk):
             if amount > outstanding + Decimal('0.001'): # Add tolerance
                 messages.error(request, f"Payment of {amount:,.2f} exceeds the outstanding amount of {outstanding:,.2f} for invoice {sale_paid.receipt_id}.")
                 return redirect('inventory:customer_detail', pk=pk)
+        else:
+            # General payment: Check against total customer balance
+            current_balance = customer.get_balance()
+            if amount > current_balance + Decimal('0.001'):
+                messages.error(request, f"Payment of {amount:,.2f} exceeds the total outstanding balance of {current_balance:,.2f}.")
+                return redirect('inventory:customer_detail', pk=pk)
 
         payment.customer = customer
         payment.recorded_by = request.user

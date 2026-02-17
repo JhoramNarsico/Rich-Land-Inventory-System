@@ -24,16 +24,15 @@ class CustomerPaymentForm(forms.ModelForm):
     sale_paid = ModelChoiceField(
         queryset=POSSale.objects.none(),
         required=False,
-        label="Apply to Invoice (Optional)",
+        label="Apply to Invoice",
         widget=forms.Select(attrs={'class': 'form-select'}),
         empty_label="-- General Payment --"
     )
     class Meta:
         model = CustomerPayment
-        fields = ['sale_paid', 'amount', 'reference_number', 'notes']
+        fields = ['sale_paid', 'amount', 'notes']
         widgets = {
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
-            'reference_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Check #, Transaction ID, etc.'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Payment details...'}),
         }
 
