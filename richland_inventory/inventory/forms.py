@@ -2,7 +2,7 @@
 
 from django import forms
 from django.contrib.auth.models import User
-from django.forms import DateInput
+from django.forms import DateInput, ModelChoiceField
 from .models import Product, StockTransaction, Category, Supplier, PurchaseOrder, Expense, ExpenseCategory, POSSale
 from .models import Customer, CustomerPayment
 # --- PRODUCT MANAGEMENT FORMS ---
@@ -21,14 +21,41 @@ class CustomerForm(forms.ModelForm):
         }
 
 class CustomerPaymentForm(forms.ModelForm):
+    sale_paid = ModelChoiceField(
+        queryset=POSSale.objects.none(),
+        required=False,
+        label="Apply to Invoice (Optional)",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="-- General Payment --"
+    )
     class Meta:
         model = CustomerPayment
-        fields = ['amount', 'reference_number', 'notes']
+        fields = ['sale_paid', 'amount', 'reference_number', 'notes']
         widgets = {
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
             'reference_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Check #, Transaction ID, etc.'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Payment details...'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        customer = kwargs.pop('customer', None)
+        super().__init__(*args, **kwargs)
+        if customer:
+            from django.db.models import Sum, F, DecimalField, Value
+            from django.db.models.functions import Coalesce
+
+            # Get all credit sales for the customer that are not fully paid
+            unpaid_sales = POSSale.objects.filter(
+                customer=customer,
+                payment_method='CREDIT'
+            ).annotate(
+                paid_amount=Coalesce(Sum('payments_received__amount'), Value(0, output_field=DecimalField()))
+            ).filter(
+                paid_amount__lt=F('total_amount')
+            )
+
+            self.fields['sale_paid'].queryset = unpaid_sales
+            self.fields['sale_paid'].label_from_instance = lambda obj: f"{obj.receipt_id} (Outstanding: {obj.total_amount - obj.paid_amount:,.2f})"
 
 class ProductCreateForm(forms.ModelForm):
     class Meta:

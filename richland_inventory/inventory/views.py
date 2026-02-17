@@ -16,8 +16,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value
-from django.db.models.functions import TruncDate, TruncDay, TruncHour, TruncMinute
-from django.urls import reverse_lazy
+from django.db.models.functions import TruncDate, TruncDay, TruncHour, TruncMinute, Coalesce
+from django.urls import reverse_lazy, reverse
 from django.shortcuts import redirect, get_object_or_404, render
 from django.utils import timezone
 from django.utils.text import slugify
@@ -401,50 +401,70 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         customer = self.object
         
-        # 1. Fetch Sales (Credit)
-        sales = list(customer.purchases.filter(payment_method='CREDIT').annotate(
-            txn_type=Value('INVOICE', output_field=models.CharField())
-        ).values('timestamp', 'receipt_id', 'total_amount', 'txn_type'))
+        # Ensure legacy customers have a unique ID generated
+        if not customer.customer_id:
+            customer.save()
+        
+        # 1. Fetch Sales (Credit) with payment status
+        sales_qs = customer.purchases.filter(payment_method='CREDIT').annotate(
+            paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
+        ).annotate(
+            outstanding=F('total_amount') - F('paid_amount')
+        )
         
         # 2. Fetch Payments
         payments = list(customer.payments.annotate(
             txn_type=Value('PAYMENT', output_field=models.CharField())
-        ).values('payment_date', 'reference_number', 'amount', 'txn_type'))
+        ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id'))
         
         # 3. Combine and Normalize
         ledger = []
-        for s in sales:
+        for s in sales_qs:
+            status = "UNPAID"
+            # Use a small tolerance for floating point comparisons
+            if s.outstanding <= Decimal('0.001'):
+                status = "PAID"
+            elif s.paid_amount > 0:
+                status = "PARTIALLY PAID"
+
             ledger.append({
-                'date': s['timestamp'],
-                'ref': s['receipt_id'],
-                'description': 'Credit Purchase',
-                'debit': s['total_amount'],
+                'date': s.timestamp,
+                'ref': s.receipt_id,
+                'description': f'Credit Purchase ({status})',
+                'debit': s.total_amount,
                 'credit': 0,
-                'type': 'SALE'
+                'type': 'SALE',
+                'view_url': reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': s.receipt_id})
             })
         for p in payments:
-             ledger.append({
+            desc = 'Payment Received'
+            view_url = None
+            if p['sale_paid__receipt_id']:
+                desc += f" (for {p['sale_paid__receipt_id']})"
+                view_url = reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': p['sale_paid__receipt_id']})
+            ledger.append({
                 'date': p['payment_date'],
                 'ref': p['reference_number'],
-                'description': 'Payment Received',
+                'description': desc,
                 'debit': 0,
                 'credit': p['amount'],
-                'type': 'PAYMENT'
+                'type': 'PAYMENT',
+                'view_url': view_url
             })
             
         # 4. Sort by date
         ledger.sort(key=lambda x: x['date'])
-        
+
         # 5. Calculate Running Balance
         balance = 0
         for entry in ledger:
             balance += (entry['debit'] - entry['credit'])
             entry['balance'] = balance
-            
+
         context['ledger'] = ledger
         
         # Add payment form and financial summary to context
-        context['payment_form'] = CustomerPaymentForm()
+        context['payment_form'] = CustomerPaymentForm(customer=customer)
         current_balance = self.object.get_balance()
         credit_limit = self.object.credit_limit
         context['current_balance'] = current_balance
@@ -456,15 +476,29 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
 @require_POST
 def customer_payment(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
-    form = CustomerPaymentForm(request.POST)
+    form = CustomerPaymentForm(request.POST, customer=customer)
     if form.is_valid():
         payment = form.save(commit=False)
+
+        sale_paid = form.cleaned_data.get('sale_paid')
+        amount = form.cleaned_data.get('amount')
+
+        if sale_paid:
+            # Check for overpayment on a specific invoice
+            paid_so_far = sale_paid.payments_received.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            outstanding = sale_paid.total_amount - paid_so_far
+            
+            if amount > outstanding + Decimal('0.001'): # Add tolerance
+                messages.error(request, f"Payment of {amount:,.2f} exceeds the outstanding amount of {outstanding:,.2f} for invoice {sale_paid.receipt_id}.")
+                return redirect('inventory:customer_detail', pk=pk)
+
         payment.customer = customer
         payment.recorded_by = request.user
         payment.save()
         messages.success(request, "Payment recorded successfully.")
     else:
-        messages.error(request, "Error recording payment.")
+        error_str = " ".join([f"{field.replace('_', ' ').title()}: {error}" for field, err_list in form.errors.items() for error in err_list])
+        messages.error(request, f"Error recording payment. {error_str if error_str else 'Please check your input.'}")
     return redirect('inventory:customer_detail', pk=pk)
 
 @login_required
@@ -1002,6 +1036,13 @@ class POSReceiptDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
     def get_object(self):
         return get_object_or_404(POSSale, receipt_id=self.kwargs['receipt_id'])
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['items'] = self.object.items.select_related('product').annotate(
+            line_total=ExpressionWrapper(F('quantity') * F('selling_price'), output_field=DecimalField())
+        )
+        return context
+
 # --- ANALYTICS & REPORTS ---
 
 @method_decorator(xframe_options_exempt, name='dispatch')
@@ -1202,6 +1243,12 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Ensure displayed customers have unique IDs generated
+        for customer in context['customers']:
+            if not customer.customer_id:
+                customer.save()
+
         context['filter_form'] = self.filter_form
         query_params = self.request.GET.copy()
         if 'page' in query_params:

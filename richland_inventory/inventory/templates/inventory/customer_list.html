@@ -78,14 +78,14 @@
                     {% for customer in customers %}
                     <tr>
                         <!-- Name & Avatar -->
-                        <td class="ps-4">
+                        <td class="ps-4 position-relative">
                             <div class="d-flex align-items-center">
                                 <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-3 fw-bold" style="width: 40px; height: 40px; font-size: 1.1rem;">
                                     {{ customer.name|slice:":1"|upper }}
                                 </div>
                                 <div>
                                     <a href="{% url 'inventory:customer_detail' customer.pk %}" class="fw-bold text-dark text-decoration-none stretched-link">{{ customer.name }}</a>
-                                    <div class="small text-muted">ID: #{{ customer.pk|stringformat:"04d" }}</div>
+                                    <div class="small text-muted">ID: {{ customer.customer_id }}</div>
                                 </div>
                             </div>
                         </td>

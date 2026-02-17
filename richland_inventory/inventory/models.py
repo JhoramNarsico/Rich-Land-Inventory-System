@@ -20,9 +20,14 @@ def generate_supplier_id():
     """Generates a unique Supplier ID like 'SUP-1A2B3C4D'"""
     return f"SUP-{uuid.uuid4().hex[:8].upper()}"
 
+def generate_customer_id():
+    """Generates a unique Customer ID like 'CUST-1A2B3C4D'"""
+    return f"CUST-{uuid.uuid4().hex[:8].upper()}"
+
 # --- CUSTOMER & BILLING MODELS (NEW) ---
 
 class Customer(models.Model):
+    customer_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
     name = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True)
@@ -55,12 +60,18 @@ class Customer(models.Model):
     def get_absolute_url(self):
         return reverse('inventory:customer_detail', kwargs={'pk': self.pk})
 
+    def save(self, *args, **kwargs):
+        if not self.customer_id:
+            self.customer_id = generate_customer_id()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
 class CustomerPayment(models.Model):
     """Tracks payments made by customers towards their balance"""
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='payments')
+    sale_paid = models.ForeignKey('POSSale', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments_received', help_text="The specific credit sale this payment is for.")
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     payment_date = models.DateTimeField(default=timezone.now)
     reference_number = models.CharField(max_length=50, blank=True, help_text="Check No., Transaction ID, or Receipt No.")
