@@ -145,7 +145,11 @@
                     <div class="card border-0 shadow-sm mb-4">
                         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 fw-bold text-dark">Financial Transactions</h6>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" id="ledgerSearch" class="form-control border-start-0 ps-0" placeholder="Search date, ref, description...">
+                        </div>
                         <a href="{% url 'inventory:customer_ledger_import' pk=customer.pk %}" class="btn btn-sm btn-outline-secondary">
                             <i class="fas fa-file-import"></i>
                         </a>
@@ -173,10 +177,13 @@
                                 <th class="text-secondary small text-uppercase pe-4">Processed By</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="ledgerTableBody">
                             {% for entry in ledger %}
                             <tr>
-                                <td class="ps-4 text-nowrap">{{ entry.date|date:"M d, Y" }}</td>
+                                <td class="ps-4 text-nowrap">
+                                    <div>{{ entry.date|date:"M d, Y" }}</div>
+                                    <div class="small text-muted">{{ entry.date|date:"h:i A" }}</div>
+                                </td>
                                 <td class="font-monospace small text-muted">
                                     {% if entry.view_url %}
                                         <a href="{{ entry.view_url }}" class="text-decoration-none fw-bold">{{ entry.ref|default:"-" }}</a>
@@ -279,4 +286,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('ledgerSearch');
+        const tableBody = document.getElementById('ledgerTableBody');
+
+        if (searchInput && tableBody) {
+            searchInput.addEventListener('keyup', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = tableBody.getElementsByTagName('tr');
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}
