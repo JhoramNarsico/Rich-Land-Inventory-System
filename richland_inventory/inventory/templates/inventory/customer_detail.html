@@ -1,278 +1,419 @@
 {% extends "base.html" %}
+{% load humanize %}
 
-{% block title %}Customer Details: {{ customer.name }}{% endblock %}
+{% block title %}{{ customer.name }} - Customer Details{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <!-- Page Header -->
-    <div
-        class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2"><i class="fas fa-user-tie me-2"></i>{{ customer.name }}</h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            <a href="{% url 'inventory:customer_list' %}" class="btn btn-sm btn-outline-secondary me-2">
-                <i class="fas fa-arrow-left me-1"></i> Back to List
+<div class="container-fluid pb-5">
+    
+    <!-- 1. HEADER & ACTIONS -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small text-uppercase fw-bold">
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:customer_list' %}" class="text-decoration-none text-muted">Customers</a></li>
+                    <li class="breadcrumb-item active text-primary" aria-current="page">Profile</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-dark mb-0">{{ customer.name }}</h2>
+        </div>
+        
+        <div class="btn-group">
+            <a href="{% url 'inventory:customer_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back
             </a>
-            <a href="{% url 'inventory:hydraulic_sow_create' pk=customer.pk %}" class="btn btn-sm btn-info text-white me-2">
-                <i class="fas fa-tools me-1"></i> New Hose SOW
+            <a href="{% url 'inventory:hydraulic_sow_create' pk=customer.pk %}" class="btn btn-outline-info">
+                <i class="fas fa-tools me-2"></i>New SOW
             </a>
-            <a href="{% url 'inventory:customer_update' pk=customer.pk %}" class="btn btn-sm btn-primary">
-                <i class="fas fa-edit me-1"></i> Edit Customer
+            <a href="{% url 'inventory:customer_update' pk=customer.pk %}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Edit Profile
             </a>
         </div>
     </div>
 
-    <!-- Financial Summary Cards -->
-    <div class="row">
-        <div class="col-md-4 mb-3">
-            <div class="card text-white bg-danger">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-0">Current Balance</h5>
-                            <p class="card-text fs-4 fw-bold">₱{{ current_balance|floatformat:2 }}</p>
-                        </div>
-                        <i class="fas fa-file-invoice-dollar fa-2x text-white-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card text-dark bg-warning">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-0">Credit Limit</h5>
-                            <p class="card-text fs-4 fw-bold">₱{{ customer.credit_limit|floatformat:2 }}</p>
-                        </div>
-                        <i class="fas fa-credit-card fa-2x text-dark-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-0">Available Credit</h5>
-                            <p class="card-text fs-4 fw-bold">₱{{ available_credit|floatformat:2 }}</p>
-                        </div>
-                        <i class="fas fa-chart-line fa-2x text-white-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Left Column: Customer Info & Payment Form -->
+    <div class="row g-4">
+        <!-- LEFT COLUMN: INFO & PAYMENT -->
         <div class="col-lg-4">
-            <!-- Customer Details Card -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-address-card me-2"></i>Contact Information</h5>
+            
+            <!-- PROFILE CARD -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body text-center pt-5 pb-4">
+                    <div class="avatar-initials bg-primary-subtle text-primary rounded-circle mx-auto mb-3 d-flex justify-content-center align-items-center fw-bold" style="width: 80px; height: 80px; font-size: 2rem;">
+                        {{ customer.name|slice:":1"|upper }}
+                    </div>
+                    <h4 class="fw-bold mb-1">{{ customer.name }}</h4>
+                    <p class="text-muted small mb-4">Customer ID: #{{ customer.pk|stringformat:"04d" }}</p>
+                    
+                    <div class="d-flex justify-content-center gap-2 mb-4">
+                        {% if customer.email %}
+                            <a href="mailto:{{ customer.email }}" class="btn btn-sm btn-light border rounded-pill px-3"><i class="fas fa-envelope me-2"></i>Email</a>
+                        {% endif %}
+                        {% if customer.phone %}
+                            <a href="tel:{{ customer.phone }}" class="btn btn-sm btn-light border rounded-pill px-3"><i class="fas fa-phone me-2"></i>Call</a>
+                        {% endif %}
+                    </div>
+
+                    <div class="border-top pt-4 text-start">
+                        <div class="mb-3">
+                            <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Address</small>
+                            <div class="fw-medium text-dark">{{ customer.address|default:"-"|linebreaksbr }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Tax ID / TIN</small>
+                            <div class="fw-medium text-dark font-monospace">{{ customer.tax_id|default:"-" }}</div>
+                        </div>
+                    </div>
                 </div>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <i class="fas fa-envelope fa-fw me-2 text-muted"></i>
-                        {{ customer.email|default:"N/A" }}
-                    </li>
-                    <li class="list-group-item">
-                        <i class="fas fa-phone fa-fw me-2 text-muted"></i>
-                        {{ customer.phone|default:"N/A" }}
-                    </li>
-                    <li class="list-group-item">
-                        <i class="fas fa-id-card fa-fw me-2 text-muted"></i>
-                        {{ customer.tax_id|default:"N/A" }}
-                    </li>
-                    <li class="list-group-item">
-                        <i class="fas fa-map-marker-alt fa-fw me-2 text-muted"></i>
-                        {{ customer.address|default:"N/A"|linebreaksbr }}
-                    </li>
-                </ul>
             </div>
 
-            <!-- Record Payment Card -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-success-subtle">
-                    <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Record Payment</h5>
+            <!-- BALANCE SUMMARY -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h6 class="text-uppercase text-muted fw-bold small mb-3">Financial Status</h6>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="display-6 fw-bold {% if current_balance > 0 %}text-danger{% elif current_balance < 0 %}text-success{% else %}text-dark{% endif %}">
+                                ₱{{ current_balance|floatformat:2|intcomma }}
+                            </div>
+                            <div class="small text-muted mt-1">Outstanding Balance</div>
+                        </div>
+                        <div class="icon-box bg-light rounded-circle p-3 text-secondary">
+                            <i class="fas fa-wallet fa-2x"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
+            </div>
+
+            <!-- RECORD PAYMENT -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold text-success"><i class="fas fa-money-bill-wave me-2"></i>Record Payment</h6>
+                </div>
+                <div class="card-body p-4">
                     <form action="{% url 'inventory:customer_payment' pk=customer.pk %}" method="post">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label for="{{ payment_form.amount.id_for_label }}" class="form-label">Amount</label>
+                            <label class="form-label small fw-bold text-muted">Amount Received</label>
                             <div class="input-group">
-                                <span class="input-group-text">₱</span>
-                                <input type="number" step="0.01" name="{{ payment_form.amount.name }}"
-                                    id="{{ payment_form.amount.id_for_label }}" class="form-control" required>
+                                <span class="input-group-text bg-light border-end-0 fw-bold text-success">₱</span>
+                                <input type="number" step="0.01" name="{{ payment_form.amount.name }}" class="form-control border-start-0 ps-1" required placeholder="0.00">
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="{{ payment_form.reference_number.id_for_label }}" class="form-label">Reference
-                                #</label>
-                            <input type="text" name="{{ payment_form.reference_number.name }}"
-                                id="{{ payment_form.reference_number.id_for_label }}" class="form-control"
-                                placeholder="e.g., Check No., OR #">
+                            <label class="form-label small fw-bold text-muted">Reference No.</label>
+                            <input type="text" name="{{ payment_form.reference_number.name }}" class="form-control" placeholder="OR#, Check#, etc.">
                         </div>
                         <div class="mb-3">
-                            <label for="{{ payment_form.notes.id_for_label }}" class="form-label">Notes
-                                (Optional)</label>
-                            <textarea name="{{ payment_form.notes.name }}" id="{{ payment_form.notes.id_for_label }}"
-                                class="form-control" rows="2"></textarea>
+                            <label class="form-label small fw-bold text-muted">Notes</label>
+                            <textarea name="{{ payment_form.notes.name }}" class="form-control" rows="2" placeholder="Optional remarks..."></textarea>
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-success"><i class="fas fa-plus-circle me-1"></i>Add
-                                Payment</button>
+                            <button type="submit" class="btn btn-success fw-bold">
+                                <i class="fas fa-check-circle me-2"></i>Submit Payment
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
+
         </div>
 
-        <!-- Right Column: Ledger & Exports -->
+        <!-- RIGHT COLUMN: LEDGER & SOW -->
         <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>Customer Ledger</h5>
-                    <div class="btn-group">
-                        <a href="{% url 'inventory:customer_ledger_import' pk=customer.pk %}"
-                            class="btn btn-sm btn-outline-success">
-                            <i class="fas fa-file-import me-1"></i> Import
+            
+            <!-- SUB-NAVIGATION TABS -->
+            <ul class="nav nav-tabs mb-3" id="customerTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold text-dark" id="ledger-tab" data-bs-toggle="tab" data-bs-target="#ledger-pane" type="button" role="tab" aria-controls="ledger-pane" aria-selected="true">
+                        <i class="fas fa-history me-2 text-secondary"></i>Transaction Ledger
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold text-dark" id="sow-tab" data-bs-toggle="tab" data-bs-target="#sow-pane" type="button" role="tab" aria-controls="sow-pane" aria-selected="false">
+                        <i class="fas fa-tools me-2 text-secondary"></i>Hydraulic Jobs
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold text-dark" id="charge-tab" data-bs-toggle="tab" data-bs-target="#charge-pane" type="button" role="tab" aria-controls="charge-pane" aria-selected="false">
+                        <i class="fas fa-cart-plus me-2 text-secondary"></i>New Charge
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="customerTabContent">
+                <!-- LEDGER TAB PANE -->
+                <div class="tab-pane fade show active" id="ledger-pane" role="tabpanel" aria-labelledby="ledger-tab">
+                    <!-- LEDGER CARD -->
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-bold text-dark">Financial Transactions</h6>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'inventory:customer_ledger_import' pk=customer.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-file-import"></i>
                         </a>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
-                                id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-download me-1"></i> Export
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Export
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=pdf"><i
-                                            class="fas fa-file-pdf fa-fw me-2 text-danger"></i>PDF</a></li>
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=excel"><i
-                                            class="fas fa-file-excel fa-fw me-2 text-success"></i>Excel</a></li>
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=csv"><i
-                                            class="fas fa-file-csv fa-fw me-2 text-info"></i>CSV</a></li>
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=word"><i
-                                            class="fas fa-file-word fa-fw me-2 text-primary"></i>Word</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                                <li><a class="dropdown-item" href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=pdf"><i class="fas fa-file-pdf text-danger me-2"></i>PDF Statement</a></li>
+                                <li><a class="dropdown-item" href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=excel"><i class="fas fa-file-excel text-success me-2"></i>Excel</a></li>
                             </ul>
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Reference</th>
-                                    <th>Description</th>
-                                    <th class="text-end">Charge (Debit)</th>
-                                    <th class="text-end">Payment (Credit)</th>
-                                    <th class="text-end">Balance</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for entry in ledger %}
-                                <tr>
-                                    <td>{{ entry.date|date:"Y-m-d" }}</td>
-                                    <td>{{ entry.ref|default:"-" }}</td>
-                                    <td>
-                                        {% if entry.type == 'SALE' %}
-                                        <span class="badge bg-warning-subtle text-warning-emphasis">Credit Sale</span>
-                                        {% else %}
-                                        <span class="badge bg-success-subtle text-success-emphasis">Payment</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end text-danger">
-                                        {% if entry.debit > 0 %}₱{{ entry.debit|floatformat:2 }}{% endif %}
-                                    </td>
-                                    <td class="text-end text-success">
-                                        {% if entry.credit > 0 %}₱{{ entry.credit|floatformat:2 }}{% endif %}
-                                    </td>
-                                    <td class="text-end fw-bold">₱{{ entry.balance|floatformat:2 }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center py-5 text-muted">No transactions found for this
-                                        customer.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 text-secondary small text-uppercase">Date</th>
+                                <th class="text-secondary small text-uppercase">Ref</th>
+                                <th class="text-secondary small text-uppercase">Description</th>
+                                <th class="text-end text-secondary small text-uppercase">Debit</th>
+                                <th class="text-end text-secondary small text-uppercase">Credit</th>
+                                <th class="text-end text-secondary small text-uppercase pe-4">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in ledger %}
+                            <tr>
+                                <td class="ps-4 text-nowrap">{{ entry.date|date:"M d, Y" }}</td>
+                                <td class="font-monospace small text-muted">{{ entry.ref|default:"-" }}</td>
+                                <td>
+                                    {% if entry.type == 'SALE' %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">Sale</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle rounded-pill">Payment</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-danger font-monospace">
+                                    {% if entry.debit > 0 %}₱{{ entry.debit|floatformat:2|intcomma }}{% else %}-{% endif %}
+                                </td>
+                                <td class="text-end text-success font-monospace">
+                                    {% if entry.credit > 0 %}₱{{ entry.credit|floatformat:2|intcomma }}{% else %}-{% endif %}
+                                </td>
+                                <td class="text-end fw-bold font-monospace pe-4">₱{{ entry.balance|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fas fa-book-open fa-2x mb-3 opacity-25"></i>
+                                    <p class="mb-0">No transactions recorded.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
+                </div>
 
-            <!-- Hydraulic SOW History -->
-            <div class="card shadow-sm mt-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Hydraulic SOW History</h5>
-                    <div class="btn-group">
-                        <a href="{% url 'inventory:customer_sow_import' pk=customer.pk %}"
-                            class="btn btn-sm btn-outline-success">
-                            <i class="fas fa-file-import me-1"></i> Import
+                <!-- SOW TAB PANE -->
+                <div class="tab-pane fade" id="sow-pane" role="tabpanel" aria-labelledby="sow-tab">
+                    <!-- SOW HISTORY -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-bold text-dark">Hydraulic Scope of Work (SOW)</h6>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'inventory:customer_sow_import' pk=customer.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-file-import"></i>
                         </a>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button"
-                                id="sowExportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-download me-1"></i> Export
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Export
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sowExportDropdown">
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=pdf"><i
-                                            class="fas fa-file-pdf fa-fw me-2 text-danger"></i>PDF</a></li>
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=excel"><i
-                                            class="fas fa-file-excel fa-fw me-2 text-success"></i>Excel</a></li>
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=csv"><i
-                                            class="fas fa-file-csv fa-fw me-2 text-info"></i>CSV</a></li>
-                                <li><a class="dropdown-item"
-                                        href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=word"><i
-                                            class="fas fa-file-word fa-fw me-2 text-primary"></i>Word</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                                <li><a class="dropdown-item" href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=pdf"><i class="fas fa-file-pdf text-danger me-2"></i>PDF</a></li>
+                                <li><a class="dropdown-item" href="{% url 'inventory:customer_sow_export' pk=customer.pk %}?format=excel"><i class="fas fa-file-excel text-success me-2"></i>Excel</a></li>
                             </ul>
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Application</th>
-                                    <th>Hose Type</th>
-                                    <th>Fittings</th>
-                                    <th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for sow in sows %}
-                                <tr>
-                                    <td>{{ sow.date_created|date:"Y-m-d" }}</td>
-                                    <td>{{ sow.application|default:"-" }}</td>
-                                    <td>{{ sow.hose_type }} ({{ sow.diameter }}" x {{ sow.length }}mm)</td>
-                                    <td>
-                                        <small class="d-block">A: {{ sow.fitting_a }}</small>
-                                        <small class="d-block">B: {{ sow.fitting_b }}</small>
-                                    </td>
-                                    <td><small class="text-muted">{{ sow.notes|truncatechars:30 }}</small></td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5" class="text-center py-3 text-muted">No job sheets found.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 text-secondary small text-uppercase">Date</th>
+                                <th class="text-secondary small text-uppercase">Application</th>
+                                <th class="text-secondary small text-uppercase">Specs</th>
+                                <th class="text-secondary small text-uppercase">Fittings</th>
+                                <th class="text-secondary small text-uppercase pe-4">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sow in sows %}
+                            <tr>
+                                <td class="ps-4 text-nowrap">{{ sow.date_created|date:"M d, Y" }}</td>
+                                <td class="fw-medium">{{ sow.application|default:"-" }}</td>
+                                <td>
+                                    <div class="small fw-bold">{{ sow.hose_type }}</div>
+                                    <div class="small text-muted">{{ sow.diameter }}" x {{ sow.length }}mm</div>
+                                </td>
+                                <td class="small">
+                                    <div><span class="text-muted">A:</span> {{ sow.fitting_a }}</div>
+                                    <div><span class="text-muted">B:</span> {{ sow.fitting_b }}</div>
+                                </td>
+                                <td class="small text-muted pe-4">{{ sow.notes|truncatechars:30 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fas fa-tools fa-2x mb-3 opacity-25"></i>
+                                    <p class="mb-0">No job sheets found.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+                </div>
+
+                <!-- NEW CHARGE TAB PANE -->
+                <div class="tab-pane fade" id="charge-pane" role="tabpanel" aria-labelledby="charge-tab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white border-bottom py-3">
+                            <h6 class="mb-0 fw-bold text-dark">Select Items to Charge</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Search -->
+                            <div class="p-3 border-bottom bg-light">
+                                <input type="text" id="chargeSearch" class="form-control" placeholder="Search products by name or SKU...">
+                            </div>
+                            
+                            <!-- Table -->
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-hover align-middle mb-0" id="chargeTable">
+                                    <thead class="bg-light sticky-top">
+                                        <tr>
+                                            <th class="ps-4" style="width: 50px;">#</th>
+                                            <th>Product</th>
+                                            <th class="text-end">Price</th>
+                                            <th class="text-center">Stock</th>
+                                            <th class="text-center" style="width: 120px;">Qty</th>
+                                            <th class="text-end pe-4">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for product in products %}
+                                        <tr>
+                                            <td class="ps-4">
+                                                <input type="checkbox" class="form-check-input product-select" 
+                                                       data-id="{{ product.id }}" 
+                                                       data-name="{{ product.name }}" 
+                                                       data-price="{{ product.price }}">
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">{{ product.name }}</div>
+                                                <small class="text-muted">{{ product.sku }}</small>
+                                            </td>
+                                            <td class="text-end">₱{{ product.price|floatformat:2 }}</td>
+                                            <td class="text-center">
+                                                <span class="badge {% if product.quantity > 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                                                    {{ product.quantity }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control form-control-sm text-center product-qty" value="1" min="1" max="{{ product.quantity }}" disabled>
+                                            </td>
+                                            <td class="text-end pe-4 fw-bold product-subtotal">₱0.00</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Footer / Form -->
+                            <div class="p-4 bg-light border-top">
+                                <form action="#" method="post" id="chargeForm">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="amount" id="finalAmount">
+                                    <input type="hidden" name="description" id="finalDescription">
+                                    
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold text-muted">Reference / Invoice No.</label>
+                                            <input type="text" name="reference_number" class="form-control" placeholder="Optional">
+                                        </div>
+                                        <div class="col-md-6 text-end">
+                                            <div class="small text-muted text-uppercase fw-bold mb-1">Total Amount</div>
+                                            <div class="display-6 fw-bold text-danger" id="displayTotal">₱0.00</div>
+                                        </div>
+                                        <div class="col-12 text-end mt-3">
+                                            <button type="submit" class="btn btn-danger fw-bold" id="submitChargeBtn" disabled>
+                                                <i class="fas fa-plus-circle me-2"></i>Process Charge
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('chargeSearch');
+        const tableRows = document.querySelectorAll('#chargeTable tbody tr');
+        const checkboxes = document.querySelectorAll('.product-select');
+        const qtyInputs = document.querySelectorAll('.product-qty');
+        const displayTotal = document.getElementById('displayTotal');
+        const finalAmount = document.getElementById('finalAmount');
+        const finalDescription = document.getElementById('finalDescription');
+        const submitBtn = document.getElementById('submitChargeBtn');
+
+        // 1. Search Functionality
+        searchInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase().trim();
+            tableRows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        });
+
+        // 2. Calculation Logic
+        function updateCalculations() {
+            let total = 0;
+            let items = [];
+
+            checkboxes.forEach((cb, index) => {
+                const row = cb.closest('tr');
+                const qtyInput = row.querySelector('.product-qty');
+                const subtotalEl = row.querySelector('.product-subtotal');
+                
+                if (cb.checked) {
+                    qtyInput.disabled = false;
+                    const price = parseFloat(cb.dataset.price);
+                    const qty = parseInt(qtyInput.value) || 1;
+                    const sub = price * qty;
+                    
+                    total += sub;
+                    subtotalEl.innerText = '₱' + sub.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    items.push(`${cb.dataset.name} (x${qty})`);
+                } else {
+                    qtyInput.disabled = true;
+                    subtotalEl.innerText = '₱0.00';
+                }
+            });
+
+            displayTotal.innerText = '₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            finalAmount.value = total.toFixed(2);
+            finalDescription.value = items.join(', ');
+            submitBtn.disabled = total <= 0;
+        }
+
+        // 3. Event Listeners
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateCalculations);
+        });
+
+        qtyInputs.forEach(input => {
+            input.addEventListener('input', updateCalculations);
+        });
+    });
+</script>
 {% endblock %}

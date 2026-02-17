@@ -40,7 +40,7 @@ from .forms import (
     StockTransactionForm, ProductFilterForm, TransactionFilterForm, 
     TransactionReportForm, ProductHistoryFilterForm, CategoryCreateForm, 
     PurchaseOrderFilterForm, StockOutForm, AnalyticsFilterForm, RefundForm, 
-    CustomerForm, CustomerPaymentForm
+    CustomerForm, CustomerPaymentForm, CustomerFilterForm
 )
 from .utils import render_to_pdf
 from .exports import (
@@ -332,23 +332,25 @@ class CustomerListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Customer.objects.all().order_by('name')
-        self.q = self.request.GET.get('q')
-        if self.q:
-            qs = qs.filter(
-                Q(name__icontains=self.q) | 
-                Q(email__icontains=self.q) | 
-                Q(phone__icontains=self.q) | 
-                Q(address__icontains=self.q)
-            )
+        self.filter_form = CustomerFilterForm(self.request.GET)
+        if self.filter_form.is_valid():
+            q = self.filter_form.cleaned_data.get('q')
+            if q:
+                qs = qs.filter(
+                    Q(name__icontains=q) | 
+                    Q(email__icontains=q) | 
+                    Q(phone__icontains=q) | 
+                    Q(address__icontains=q)
+                )
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['filter_form'] = self.filter_form
         query_params = self.request.GET.copy()
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
-        context['q'] = self.q or ''
         return context
 
     def get(self, request, *args, **kwargs):

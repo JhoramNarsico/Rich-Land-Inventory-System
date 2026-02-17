@@ -1,120 +1,182 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}Customers | Rich Land Inventory{% endblock %}
+{% block title %}Customers{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <!-- 1. HEADER & ACTIONS -->
-    <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Customers</h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            <a href="{% url 'inventory:customer_import' %}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-upload"></i> Import
+<div class="container-fluid pb-5">
+    
+    <!-- 1. HEADER -->
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Customer Directory</h2>
+            <p class="text-muted small mb-0">Manage client profiles, credit limits, and ledgers.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- Import -->
+            <a href="{% url 'inventory:customer_import' %}" class="btn btn-outline-secondary shadow-sm">
+                <i class="fas fa-file-import me-2"></i>Import
             </a>
-            <div class="btn-group mx-2">
-                <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-download"></i> Export
+            
+            <!-- Export Dropdown -->
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary shadow-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-download me-2"></i>Export
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="?{% if query_params %}{{ query_params }}&{% endif %}export=csv">Export as CSV</a></li>
-                    <li><a class="dropdown-item" href="?{% if query_params %}{{ query_params }}&{% endif %}export=excel">Export as Excel</a></li>
-                    <li><a class="dropdown-item" href="?{% if query_params %}{{ query_params }}&{% endif %}export=word">Export as Word</a></li>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                    <li><a class="dropdown-item" href="?{{ query_params }}&export=csv"><i class="fas fa-file-csv text-success me-2"></i>CSV</a></li>
+                    <li><a class="dropdown-item" href="?{{ query_params }}&export=excel"><i class="fas fa-file-excel text-success me-2"></i>Excel</a></li>
+                    <li><a class="dropdown-item" href="?{{ query_params }}&export=word"><i class="fas fa-file-word text-primary me-2"></i>Word</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="?{% if query_params %}{{ query_params }}&{% endif %}export=pdf">Export as PDF</a></li>
+                    <li><a class="dropdown-item" href="?{{ query_params }}&export=pdf"><i class="fas fa-file-pdf text-danger me-2"></i>PDF</a></li>
                 </ul>
             </div>
-            <a href="{% url 'inventory:customer_create' %}" class="btn btn-sm btn-primary">
-                <i class="fas fa-plus"></i> Add Customer
+
+            <!-- Add Button -->
+            <a href="{% url 'inventory:customer_create' %}" class="btn btn-primary shadow-sm">
+                <i class="fas fa-user-plus me-2"></i>New Customer
             </a>
         </div>
     </div>
 
-    <!-- 2. SEARCH FORM -->
-    <form method="get" class="mb-3">
-        <div class="input-group">
-            <input type="text" name="q" class="form-control" placeholder="Search by name, email, phone, or address..." value="{{ q }}">
-            <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+    <!-- 2. SEARCH & FILTER BAR -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3 bg-white rounded-3">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-6 col-lg-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search customers by name, email, or phone..." value="{{ q|default:'' }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </div>
+                {% if q %}
+                <div class="col-auto">
+                    <a href="{% url 'inventory:customer_list' %}" class="btn btn-light border" title="Clear Search"><i class="fas fa-times"></i></a>
+                </div>
+                {% endif %}
+            </form>
         </div>
-    </form>
+    </div>
 
     <!-- 3. CUSTOMER TABLE -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th class="border-0 ps-3">Name</th>
-                            <th class="border-0">Phone</th>
-                            <th class="border-0">Email</th>
-                            <th class="border-0">Balance</th>
-                            <th class="border-0 text-end pe-3">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for customer in customers %}
-                        <tr>
-                            <td class="ps-3">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-initials bg-light text-primary rounded-circle me-2 d-flex justify-content-center align-items-center" style="width: 32px; height: 32px; font-weight: 600;">
-                                        {{ customer.name|slice:":1"|upper }}
-                                    </div>
-                                    <a href="{% url 'inventory:customer_detail' customer.pk %}" class="text-dark fw-medium text-decoration-none">
-                                        {{ customer.name }}
-                                    </a>
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 text-uppercase text-secondary small" style="width: 30%;">Customer</th>
+                        <th class="text-uppercase text-secondary small" style="width: 20%;">Contact Info</th>
+                        <th class="text-uppercase text-secondary small" style="width: 20%;">Location</th>
+                        <th class="text-end text-uppercase text-secondary small" style="width: 15%;">Balance</th>
+                        <th class="text-end text-uppercase text-secondary small pe-4" style="width: 15%;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white">
+                    {% for customer in customers %}
+                    <tr>
+                        <!-- Name & Avatar -->
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-3 fw-bold" style="width: 40px; height: 40px; font-size: 1.1rem;">
+                                    {{ customer.name|slice:":1"|upper }}
                                 </div>
-                            </td>
-                            <td>{{ customer.phone|default:"-" }}</td>
-                            <td>{{ customer.email|default:"-" }}</td>
-                            <td>
-                                {% if customer.get_balance > 0 %}
-                                    <span class="badge bg-danger">PHP {{ customer.get_balance|floatformat:2 }}</span>
-                                {% else %}
-                                    <span class="badge bg-success">PHP {{ customer.get_balance|floatformat:2 }}</span>
+                                <div>
+                                    <a href="{% url 'inventory:customer_detail' customer.pk %}" class="fw-bold text-dark text-decoration-none stretched-link">{{ customer.name }}</a>
+                                    <div class="small text-muted">ID: #{{ customer.pk|stringformat:"04d" }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <!-- Contact -->
+                        <td>
+                            <div class="d-flex flex-column small">
+                                {% if customer.email %}
+                                    <span class="text-dark mb-1"><i class="fas fa-envelope text-muted me-2" style="width: 16px;"></i>{{ customer.email }}</span>
                                 {% endif %}
-                            </td>
-                            <td class="text-end pe-3">
-                                <a href="{% url 'inventory:customer_detail' customer.pk %}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-eye"></i> View
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">
-                                <p class="mb-0">No customers found.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                {% if customer.phone %}
+                                    <span class="text-muted"><i class="fas fa-phone text-muted me-2" style="width: 16px;"></i>{{ customer.phone }}</span>
+                                {% else %}
+                                    <span class="text-muted fst-italic">No contact info</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Address -->
+                        <td>
+                            <span class="text-muted small text-truncate d-block" style="max-width: 200px;" title="{{ customer.address }}">
+                                {{ customer.address|default:"-" }}
+                            </span>
+                        </td>
+
+                        <!-- Balance -->
+                        <td class="text-end">
+                            {% if customer.get_balance > 0 %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3">
+                                    ₱{{ customer.get_balance|floatformat:2|intcomma }}
+                                </span>
+                                <div class="small text-danger mt-1 fw-bold" style="font-size: 0.7rem;">OUTSTANDING</div>
+                            {% elif customer.get_balance < 0 %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">
+                                    -₱{{ customer.get_balance|floatformat:2|intcomma|cut:"-" }}
+                                </span>
+                                <div class="small text-success mt-1 fw-bold" style="font-size: 0.7rem;">OVERPAYMENT</div>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border rounded-pill px-3">
+                                    ₱0.00
+                                </span>
+                                <div class="small text-muted mt-1" style="font-size: 0.7rem;">CLEARED</div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="text-end pe-4" style="position: relative; z-index: 2;">
+                            <a href="{% url 'inventory:customer_detail' customer.pk %}" class="btn btn-sm btn-outline-secondary">
+                                View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="text-muted mb-2"><i class="fas fa-users fa-3x opacity-25"></i></div>
+                            <p class="text-muted fw-medium">No customers found.</p>
+                            {% if q %}
+                                <a href="{% url 'inventory:customer_list' %}" class="btn btn-sm btn-outline-primary">Clear Search</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
     <!-- 4. PAGINATION -->
     {% if is_paginated %}
-    <div class="d-flex justify-content-center mt-4">
+    <div class="d-flex justify-content-center mt-5">
         <nav aria-label="Page navigation">
             <ul class="pagination shadow-sm">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}">Previous</a>
+                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}">Previous</a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                    <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
                 {% endif %}
                 {% for i in paginator.page_range %}
                     {% if page_obj.number == i %}
-                        <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
                     {% else %}
-                        <li class="page-item"><a class="page-link" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
+                        <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
                     {% endif %}
                 {% endfor %}
                 {% if page_obj.has_next %}
-                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a></li>
+                    <li class="page-item"><a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a></li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                    <li class="page-item disabled"><span class="page-link border-0">Next</span></li>
                 {% endif %}
             </ul>
         </nav>

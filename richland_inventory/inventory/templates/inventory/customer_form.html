@@ -15,6 +15,9 @@
                     <form method="post" novalidate>
                         {% csrf_token %}
 
+                        <!-- Hidden field for credit_limit to prevent validation errors -->
+                        <input type="hidden" name="credit_limit" value="{{ form.credit_limit.value|default_if_none:'0' }}">
+
                         {% if form.non_field_errors %}
                             <div class="alert alert-danger">
                                 {% for error in form.non_field_errors %}
@@ -27,7 +30,7 @@
                             <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
                             <input type="text" name="{{ form.name.name }}" id="{{ form.name.id_for_label }}"
                                    class="form-control {% if form.name.errors %}is-invalid{% endif %}"
-                                   value="{{ form.name.value|default_if_none:'' }}" required>
+                                   value="{{ form.name.value|default_if_none:'' }}" autocomplete="name" required>
                             {% for error in form.name.errors %}
                                 <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
@@ -40,7 +43,7 @@
                                     <span class="input-group-text"><i class="fas fa-envelope"></i></span>
                                     <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}"
                                            class="form-control {% if form.email.errors %}is-invalid{% endif %}"
-                                           value="{{ form.email.value|default_if_none:'' }}">
+                                           value="{{ form.email.value|default_if_none:'' }}" autocomplete="email">
                                 </div>
                                 {% for error in form.email.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
@@ -52,7 +55,7 @@
                                     <span class="input-group-text"><i class="fas fa-phone"></i></span>
                                     <input type="text" name="{{ form.phone.name }}" id="{{ form.phone.id_for_label }}"
                                            class="form-control {% if form.phone.errors %}is-invalid{% endif %}"
-                                           value="{{ form.phone.value|default_if_none:'' }}">
+                                           value="{{ form.phone.value|default_if_none:'' }}" autocomplete="tel">
                                 </div>
                                 {% for error in form.phone.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
@@ -64,34 +67,21 @@
                             <label for="{{ form.address.id_for_label }}" class="form-label">{{ form.address.label }}</label>
                             <textarea name="{{ form.address.name }}" id="{{ form.address.id_for_label }}"
                                       class="form-control {% if form.address.errors %}is-invalid{% endif %}"
-                                      rows="3">{{ form.address.value|default_if_none:'' }}</textarea>
+                                      rows="3" autocomplete="street-address">{{ form.address.value|default_if_none:'' }}</textarea>
                             {% for error in form.address.errors %}
                                 <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-12 mb-3">
                                 <label for="{{ form.tax_id.id_for_label }}" class="form-label">{{ form.tax_id.label }}</label>
                                 <input type="text" name="{{ form.tax_id.name }}" id="{{ form.tax_id.id_for_label }}"
                                        class="form-control {% if form.tax_id.errors %}is-invalid{% endif %}"
-                                       value="{{ form.tax_id.value|default_if_none:'' }}">
+                                       value="{{ form.tax_id.value|default_if_none:'' }}" autocomplete="off">
                                 <div class="form-text">{{ form.tax_id.help_text }}</div>
                                 {% for error in form.tax_id.errors %}
                                     <div class="invalid-feedback">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.credit_limit.id_for_label }}" class="form-label">{{ form.credit_limit.label }}</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">₱</span>
-                                    <input type="number" step="0.01" name="{{ form.credit_limit.name }}" id="{{ form.credit_limit.id_for_label }}"
-                                           class="form-control {% if form.credit_limit.errors %}is-invalid{% endif %}"
-                                           value="{{ form.credit_limit.value|default_if_none:'0.00' }}">
-                                </div>
-                                <div class="form-text">{{ form.credit_limit.help_text }}</div>
-                                {% for error in form.credit_limit.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
                                 {% endfor %}
                             </div>
                         </div>

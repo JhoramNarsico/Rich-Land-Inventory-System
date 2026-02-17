@@ -11,11 +11,24 @@ class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
         fields = ['name', 'email', 'phone', 'address', 'tax_id', 'credit_limit']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name or Company Name'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'email@example.com'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Billing Address'}),
+            'tax_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tax Identification Number'}),
+            'credit_limit': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
 
 class CustomerPaymentForm(forms.ModelForm):
     class Meta:
         model = CustomerPayment
         fields = ['amount', 'reference_number', 'notes']
+        widgets = {
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'reference_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Check #, Transaction ID, etc.'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Payment details...'}),
+        }
 
 class ProductCreateForm(forms.ModelForm):
     class Meta:
@@ -113,6 +126,12 @@ class RefundForm(forms.ModelForm):
             self.fields['pos_sale'].label_from_instance = lambda obj: f"{obj.receipt_id} - {obj.timestamp.strftime('%b %d, %Y')}"
 
 # --- SEARCH/FILTER FORMS ---
+
+class CustomerFilterForm(forms.Form):
+    q = forms.CharField(
+        required=False, 
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search Name, Email, Phone...'})
+    )
 
 class ProductFilterForm(forms.Form):
     STOCK_STATUS_CHOICES = (("", "All Stock Levels"), ("in_stock", "In Stock (>10)"), ("low_stock", "Low Stock (1-10)"), ("out_of_stock", "Out of Stock"))
