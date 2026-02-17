@@ -406,16 +406,16 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
             customer.save()
         
         # 1. Fetch Sales (Credit) with payment status
-        sales_qs = customer.purchases.filter(payment_method='CREDIT').annotate(
+        sales_qs = customer.purchases.filter(payment_method='CREDIT').select_related('cashier').annotate(
             paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
         ).annotate(
             outstanding=F('total_amount') - F('paid_amount')
         )
         
         # 2. Fetch Payments
-        payments = list(customer.payments.annotate(
+        payments = list(customer.payments.select_related('recorded_by', 'sale_paid').annotate(
             txn_type=Value('PAYMENT', output_field=models.CharField())
-        ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id'))
+        ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id', 'recorded_by__username', 'notes'))
         
         # 3. Combine and Normalize
         ledger = []
@@ -434,7 +434,8 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
                 'debit': s.total_amount,
                 'credit': 0,
                 'type': 'SALE',
-                'view_url': reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': s.receipt_id})
+                'view_url': reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': s.receipt_id}),
+                'user': s.cashier.username if s.cashier else 'N/A'
             })
         for p in payments:
             desc = 'Payment Received'
@@ -442,6 +443,8 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
             if p['sale_paid__receipt_id']:
                 desc += f" (for {p['sale_paid__receipt_id']})"
                 view_url = reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': p['sale_paid__receipt_id']})
+            if p['notes']:
+                desc += f" - {p['notes']}"
             ledger.append({
                 'date': p['payment_date'],
                 'ref': p['reference_number'],
@@ -449,7 +452,8 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
                 'debit': 0,
                 'credit': p['amount'],
                 'type': 'PAYMENT',
-                'view_url': view_url
+                'view_url': view_url,
+                'user': p.get('recorded_by__username') or 'N/A'
             })
             
         # 4. Sort by date
@@ -899,10 +903,14 @@ def pos_dashboard(request):
     customers = Customer.objects.values('id', 'name', 'credit_limit')
     customers_json = json.dumps(list(customers), cls=DjangoJSONEncoder)
     
+    # Get pre-selected customer from URL
+    preselected_customer_id = request.GET.get('customer_id')
+
     context = {
         'page_title': 'Point of Sale',
         'products_json': products_json,
         'customers_json': customers_json,
+        'preselected_customer_id': preselected_customer_id,
     }
     return render(request, 'inventory/pos.html', context)
 
@@ -1249,12 +1257,6 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Ensure displayed customers have unique IDs generated
-        for customer in context['customers']:
-            if not customer.customer_id:
-                customer.save()
-
         context['filter_form'] = self.filter_form
         query_params = self.request.GET.copy()
         if 'page' in query_params:

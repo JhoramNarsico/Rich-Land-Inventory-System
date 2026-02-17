@@ -458,10 +458,13 @@
         paidInput.value = '';
         changeDisplay.innerText = '₱0.00';
         confirmBtn.disabled = true;
-        
-        // Reset to Cash by default unless pre-selected customer implies credit preference? 
-        // For now, default to Cash, user can switch.
-        document.getElementById('pmCash').checked = true;
+
+        const customerId = customerSelect.value;
+        if (customerId) {
+            document.getElementById('pmCredit').checked = true;
+        } else {
+            document.getElementById('pmCash').checked = true;
+        }
         togglePaymentMethod();
         
         paymentModal.show();

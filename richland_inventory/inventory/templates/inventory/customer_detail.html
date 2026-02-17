@@ -169,7 +169,8 @@
                                 <th class="text-secondary small text-uppercase">Description</th>
                                 <th class="text-end text-secondary small text-uppercase">Debit</th>
                                 <th class="text-end text-secondary small text-uppercase">Credit</th>
-                                <th class="text-end text-secondary small text-uppercase pe-4">Balance</th>
+                                <th class="text-end text-secondary small text-uppercase">Balance</th>
+                                <th class="text-secondary small text-uppercase pe-4">Processed By</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -189,6 +190,7 @@
                                     {% else %}
                                         <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle rounded-pill">Payment</span>
                                     {% endif %}
+                                    <div class="small text-muted mt-1">{{ entry.description }}</div>
                                 </td>
                                 <td class="text-end text-danger font-monospace">
                                     {% if entry.debit > 0 %}₱{{ entry.debit|floatformat:2|intcomma }}{% else %}-{% endif %}
@@ -196,11 +198,12 @@
                                 <td class="text-end text-success font-monospace">
                                     {% if entry.credit > 0 %}₱{{ entry.credit|floatformat:2|intcomma }}{% else %}-{% endif %}
                                 </td>
-                                <td class="text-end fw-bold font-monospace pe-4">₱{{ entry.balance|floatformat:2|intcomma }}</td>
+                                <td class="text-end fw-bold font-monospace">₱{{ entry.balance|floatformat:2|intcomma }}</td>
+                                <td class="small text-muted pe-4">{{ entry.user }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fas fa-book-open fa-2x mb-3 opacity-25"></i>
                                     <p class="mb-0">No transactions recorded.</p>
                                 </td>
