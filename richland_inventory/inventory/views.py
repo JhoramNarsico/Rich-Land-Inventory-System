@@ -672,41 +672,61 @@ def export_statement(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     format_type = request.GET.get('format', 'pdf')
     
-    # --- DATA PREPARATION ---
-    sales = customer.purchases.filter(payment_method='CREDIT')
-    payments = customer.payments.all()
+    # --- DATA PREPARATION (aligned with CustomerDetailView) ---
+    # 1. Fetch Sales (Credit) with payment status
+    sales_qs = customer.purchases.filter(payment_method='CREDIT').select_related('cashier').annotate(
+        paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
+    ).annotate(
+        outstanding=F('total_amount') - F('paid_amount')
+    )
     
-    ledger_items = []
-    for s in sales:
-        ledger_items.append({
-            'date': s.timestamp, 
-            'ref': s.receipt_id, 
-            'desc': 'Charge (Credit Sale)', 
-            'amount': s.total_amount, 
-            'is_credit': False # Debit column
+    # 2. Fetch Payments
+    payments = list(customer.payments.select_related('recorded_by', 'sale_paid').annotate(
+        txn_type=Value('PAYMENT', output_field=models.CharField())
+    ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id', 'recorded_by__username', 'notes'))
+    
+    # 3. Combine and Normalize
+    ledger = []
+    for s in sales_qs:
+        status = "UNPAID"
+        if s.outstanding <= Decimal('0.001'):
+            status = "PAID"
+        elif s.paid_amount > 0:
+            status = "PARTIALLY PAID"
+
+        ledger.append({
+            'date': s.timestamp,
+            'ref': s.receipt_id,
+            'description': f'Credit Purchase ({status})',
+            'debit': s.total_amount,
+            'credit': Decimal('0'),
+            'user': s.cashier.username if s.cashier else 'N/A'
         })
     for p in payments:
-        ledger_items.append({
-            'date': p.payment_date, 
-            'ref': p.reference_number, 
-            'desc': 'Payment Received', 
-            'amount': p.amount, 
-            'is_credit': True # Credit column
+        desc = 'Payment Received'
+        if p['sale_paid__receipt_id']:
+            desc += f" (for {p['sale_paid__receipt_id']})"
+        if p['notes']:
+            desc += f" - {p['notes']}"
+        ledger.append({
+            'date': p['payment_date'],
+            'ref': p['reference_number'],
+            'description': desc,
+            'debit': Decimal('0'),
+            'credit': p['amount'],
+            'user': p.get('recorded_by__username') or 'N/A'
         })
-    
-    ledger_items.sort(key=lambda x: x['date'])
-    
-    running_balance = 0
-    final_data = []
-    for item in ledger_items:
-        if item['is_credit']:
-            running_balance -= item['amount']
-        else:
-            running_balance += item['amount']
-        item['balance'] = running_balance
-        final_data.append(item)
+        
+    # 4. Sort by date
+    ledger.sort(key=lambda x: x['date'])
 
-    response = generate_customer_statement(customer, final_data, running_balance, format_type, request)
+    # 5. Calculate Running Balance
+    balance = Decimal('0')
+    for entry in ledger:
+        balance += (entry['debit'] - entry['credit'])
+        entry['balance'] = balance
+
+    response = generate_customer_statement(customer, ledger, balance, format_type, request)
     if response:
         return response
     return HttpResponse("Error Generating Export", status=500)

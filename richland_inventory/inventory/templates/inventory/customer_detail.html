@@ -160,6 +160,7 @@
                             <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
                                 <li><a class="dropdown-item" href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=pdf"><i class="fas fa-file-pdf text-danger me-2"></i>PDF Statement</a></li>
                                 <li><a class="dropdown-item" href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=excel"><i class="fas fa-file-excel text-success me-2"></i>Excel</a></li>
+                                <li><a class="dropdown-item" href="{% url 'inventory:customer_statement_export' pk=customer.pk %}?format=word"><i class="fas fa-file-word text-primary me-2"></i>Word</a></li>
                             </ul>
                         </div>
                     </div>

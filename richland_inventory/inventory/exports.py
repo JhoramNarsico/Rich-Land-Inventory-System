@@ -367,26 +367,75 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
         writer = csv.writer(response)
         writer.writerow(['Date', 'Reference', 'Description', 'Charge', 'Payment', 'Balance'])
         for row in final_data:
-            charge = row['amount'] if not row['is_credit'] else ''
-            pay = row['amount'] if row['is_credit'] else ''
-            writer.writerow([row['date'].strftime('%Y-%m-%d'), row['ref'], row['desc'], charge, pay, row['balance']])
+            charge = row.get('debit') if row.get('debit') and row.get('debit') > 0 else ''
+            pay = row.get('credit') if row.get('credit') and row.get('credit') > 0 else ''
+            desc = row.get('description') or row.get('desc')
+            writer.writerow([row['date'].strftime('%Y-%m-%d'), row['ref'], desc, charge, pay, row['balance']])
         return response
 
     elif format_type == 'excel':
         wb = Workbook()
         ws = wb.active
         ws.title = "Statement"
+        ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.5, bottom=0.5)
+
+        # Styles
+        title_font = Font(name='Arial', size=18, bold=True, color="2C3E50")
+        subtitle_font = Font(name='Arial', size=14, bold=True, color="2799A5")
+        info_font = Font(name='Arial', size=10, color="7F8C8D")
+        header_font = Font(name='Arial', size=10, bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+        total_font = Font(name='Arial', size=11, bold=True)
+        thin_border = Border(left=Side(style='thin', color="BDC3C7"), right=Side(style='thin', color="BDC3C7"), top=Side(style='thin', color="BDC3C7"), bottom=Side(style='thin', color="BDC3C7"))
+
+        # Report Header
         add_excel_logo(ws)
-        ws['B1'] = "BILLING STATEMENT"; ws['B1'].font = Font(bold=True, size=12)
-        ws['B2'] = f"Customer: {customer.name}"
-        ws['B3'] = f"Date: {timezone.now().strftime('%Y-%m-%d')}"
-        ws.append([]) 
-        headers = ['Date', 'Reference', 'Description', 'Charge', 'Payment', 'Balance']
-        ws.append(headers)
-        for row in final_data:
-            charge = row['amount'] if not row['is_credit'] else None
-            pay = row['amount'] if row['is_credit'] else None
-            ws.append([row['date'].strftime('%Y-%m-%d'), row['ref'], row['desc'], charge, pay, row['balance']])
+        ws.merge_cells('B1:D1'); ws['B1'] = "Rich Land Auto Supply"; ws['B1'].font = title_font; ws['B1'].alignment = Alignment(horizontal='left', vertical='center')
+        ws.merge_cells('E1:G1'); ws['E1'] = "CUSTOMER STATEMENT"; ws['E1'].font = subtitle_font; ws['E1'].alignment = Alignment(horizontal='right', vertical='center')
+        ws.merge_cells('E2:G2'); ws['E2'] = f"Customer: {customer.name}"; ws['E2'].font = info_font; ws['E2'].alignment = Alignment(horizontal='right')
+        ws.merge_cells('E3:G3'); ws['E3'] = f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"; ws['E3'].font = info_font; ws['E3'].alignment = Alignment(horizontal='right')
+        ws.row_dimensions[1].height = 30
+
+        # Table Headers
+        current_row = 5
+        headers = ['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance', 'Processed By']
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=current_row, column=col_num)
+            cell.value = header
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = thin_border
+        
+        # Data Rows
+        for row_data in final_data:
+            current_row += 1
+            
+            debit = row_data.get('debit') if row_data.get('debit') and row_data.get('debit') > 0 else None
+            credit = row_data.get('credit') if row_data.get('credit') and row_data.get('credit') > 0 else None
+            desc = row_data.get('description') or row_data.get('desc', '')
+            
+            ws.cell(row=current_row, column=1, value=row_data['date'].strftime('%Y-%m-%d'))
+            ws.cell(row=current_row, column=2, value=row_data.get('ref', '-'))
+            ws.cell(row=current_row, column=3, value=desc)
+            ws.cell(row=current_row, column=4, value=debit).number_format = '#,##0.00'
+            ws.cell(row=current_row, column=5, value=credit).number_format = '#,##0.00'
+            ws.cell(row=current_row, column=6, value=row_data['balance']).number_format = '#,##0.00'
+            ws.cell(row=current_row, column=7, value=row_data.get('user', 'N/A'))
+
+            for col in range(1, 8):
+                ws.cell(row=current_row, column=col).border = thin_border
+
+        # Total Row
+        current_row += 2
+        total_label_cell = ws[f'E{current_row}']; total_label_cell.value = "Total Balance Due:"; total_label_cell.font = total_font; total_label_cell.alignment = Alignment(horizontal='right')
+        total_value_cell = ws[f'F{current_row}']; total_value_cell.value = running_balance; total_value_cell.font = total_font; total_value_cell.number_format = '"PHP" #,##0.00'
+
+        # Column Widths
+        ws.column_dimensions['A'].width = 12; ws.column_dimensions['B'].width = 15; ws.column_dimensions['C'].width = 45
+        ws.column_dimensions['D'].width = 15; ws.column_dimensions['E'].width = 15; ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 18
+
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
         wb.save(response)
@@ -395,38 +444,86 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
     elif format_type == 'word':
         document = Document()
         setup_word_document_margins(document)
+        # Switch to Landscape to match Supplier Detail design and fit more columns
+        section = document.sections[0]
+        section.orientation = WD_ORIENT.LANDSCAPE
+        section.page_width = Inches(11)
+        section.page_height = Inches(8.5)
         
-        create_header(document, "BILLING STATEMENT", [
+        create_header(document, "CUSTOMER STATEMENT", [
             f"Customer: {customer.name}",
             f"Address: {customer.address or 'N/A'}",
-            f"Generated: {timezone.now().strftime('%B %d, %Y')}"
-        ])
+            f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
+        ], width_inches=10.5)
 
-        table = document.add_table(rows=1, cols=4)
+        # Table with 7 columns
+        table = document.add_table(rows=1, cols=7)
         table.style = 'Table Grid'
         table.autofit = False
-        table.columns[0].width = Inches(1.1) # Date
-        table.columns[1].width = Inches(4.1) # Description
-        table.columns[2].width = Inches(1.3) # Amount
-        table.columns[3].width = Inches(1.3) # Balance
+        
+        # Set column widths (Total approx 10.5 inches)
+        widths = [Inches(1.0), Inches(1.2), Inches(3.3), Inches(1.0), Inches(1.0), Inches(1.2), Inches(1.8)]
+        for i, width in enumerate(widths):
+            table.columns[i].width = width
 
-        style_table_header(table.rows[0], ['Date', 'Description', 'Amount', 'Balance'])
+        # Header Row Styling
+        headers = ['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance', 'Processed By']
+        hdr_cells = table.rows[0].cells
+        for i, text in enumerate(headers):
+            set_cell_background(hdr_cells[i], "2C3E50")
+            hdr_cells[i].text = ""
+            p = hdr_cells[i].paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run(text)
+            run.font.name = 'Arial'
+            run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+            run.bold = True
+            run.font.size = Pt(9)
+
+        # Repeat header on new pages
+        tr = table.rows[0]._tr
+        trPr = tr.get_or_add_trPr()
+        tblHeader = parse_xml(r'<w:tblHeader %s/>' % nsdecls('w'))
+        trPr.append(tblHeader)
         
         for row in final_data:
             row_cells = table.add_row().cells
+            
+            # Helper to set text and font
+            def set_cell_text(cell, text, align=WD_ALIGN_PARAGRAPH.LEFT, bold=False):
+                cell.text = text
+                p = cell.paragraphs[0]
+                p.alignment = align
+                for run in p.runs:
+                    run.font.name = 'Arial'
+                    run.font.size = Pt(9)
+                    if bold: run.bold = True
+
             row_cells[0].text = row['date'].strftime('%Y-%m-%d')
-            row_cells[1].text = f"{row['desc']} ({row['ref']})"
-            amt_str = f"{row['amount']:,.2f}"
-            if row['is_credit']:
-                amt_str = f"({amt_str})"
-            row_cells[2].text = amt_str
-            row_cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            row_cells[3].text = f"{row['balance']:,.2f}"
-            row_cells[3].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            set_cell_text(row_cells[0], row['date'].strftime('%Y-%m-%d'))
+            
+            set_cell_text(row_cells[1], row.get('ref', '-') or '-')
+            
+            desc = row.get('description') or row.get('desc')
+            set_cell_text(row_cells[2], desc)
+            
+            debit_str = f"{row['debit']:,.2f}" if row.get('debit') and row.get('debit') > 0 else "-"
+            set_cell_text(row_cells[3], debit_str, WD_ALIGN_PARAGRAPH.RIGHT)
+            
+            credit_str = f"{row['credit']:,.2f}" if row.get('credit') and row.get('credit') > 0 else "-"
+            set_cell_text(row_cells[4], credit_str, WD_ALIGN_PARAGRAPH.RIGHT)
+            
+            set_cell_text(row_cells[5], f"{row['balance']:,.2f}", WD_ALIGN_PARAGRAPH.RIGHT, bold=True)
+            
+            set_cell_text(row_cells[6], row.get('user', 'N/A'))
 
         p = document.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        p.add_run(f"\nTotal Outstanding Balance: {running_balance:,.2f}").bold = True
+        run = p.add_run(f"\nTotal Outstanding Balance: PHP {running_balance:,.2f}")
+        run.bold = True
+        run.font.name = 'Arial'
+        run.font.size = Pt(12)
+        run.font.color.rgb = RGBColor(0x2C, 0x3E, 0x50)
 
         f = io.BytesIO()
         document.save(f)
