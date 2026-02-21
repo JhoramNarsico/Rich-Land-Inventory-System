@@ -54,7 +54,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold text-dark">
                 Total for Period: <span class="text-danger">₱{{ total_expenses|floatformat:2|intcomma }}</span>
@@ -113,9 +113,6 @@
                         <td class="text-end pe-4">
                             <a href="{% url 'inventory:expense_update' pk=expense.pk %}" class="btn btn-sm btn-light border" title="Edit">
                                 <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'inventory:expense_delete' pk=expense.pk %}" class="btn btn-sm btn-light border" title="Delete">
-                                <i class="fas fa-trash text-danger"></i>
                             </a>
                         </td>
                     </tr>

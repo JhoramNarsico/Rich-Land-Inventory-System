@@ -4,13 +4,13 @@ import csv
 import json
 import uuid
 from datetime import timedelta, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.conf import settings
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
@@ -64,8 +64,16 @@ def hydraulic_sow_create(request, pk):
         return response
 
     if request.method == 'POST':
-        # Extract data from the manual HTML form in the template
-        HydraulicSow.objects.create(
+        # Parse cost safely for logic
+        cost_input = request.POST.get('cost')
+        cost_decimal = Decimal('0.00')
+        if cost_input:
+            try:
+                cost_decimal = Decimal(str(cost_input))
+            except (ValueError, TypeError, InvalidOperation):
+                pass
+
+        sow = HydraulicSow.objects.create(
             customer=customer,
             created_by=request.user,
             hose_type=request.POST.get('hose_type', ''),
@@ -77,15 +85,83 @@ def hydraulic_sow_create(request, pk):
             fitting_b=request.POST.get('fitting_b', ''),
             orientation=request.POST.get('orientation') or None,
             protection=request.POST.get('protection', ''),
-            cost=request.POST.get('cost') or None,
+            cost=cost_decimal if cost_decimal > 0 else None,
             notes=request.POST.get('notes', '')
         )
-        messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
+
+        if request.POST.get('charge_account') and cost_decimal > 0:
+            # Create Ledger Entry (POSSale)
+            receipt_id = f"SOW-{sow.id}"
+            POSSale.objects.create(
+                receipt_id=receipt_id,
+                customer=customer,
+                cashier=request.user,
+                payment_method='CREDIT',
+                total_amount=cost_decimal,
+                amount_paid=0,
+                change_given=0,
+                notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
+            )
+            messages.success(request, f"Hydraulic SOW saved and charged ₱{cost_decimal} to account.")
+        else:
+            messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
+            
         return redirect('inventory:customer_detail', pk=pk)
 
     return render(request, 'inventory/hydraulic_sow_form.html', {
-        'customer': customer
+        'customer': customer,
+        'page_title': 'Create Hydraulic SOW',
+        'is_charged': False,
     })
+
+@login_required
+def hydraulic_sow_update(request, pk, sow_pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    sow = get_object_or_404(HydraulicSow, pk=sow_pk, customer=customer)
+
+    if request.method == 'POST':
+        # Update SOW fields
+        sow.hose_type = request.POST.get('hose_type', '')
+        sow.diameter = request.POST.get('diameter', '')
+        sow.length = request.POST.get('length') or None
+        sow.pressure = request.POST.get('pressure') or None
+        sow.application = request.POST.get('application', '')
+        sow.fitting_a = request.POST.get('fitting_a', '')
+        sow.fitting_b = request.POST.get('fitting_b', '')
+        sow.orientation = request.POST.get('orientation') or None
+        sow.protection = request.POST.get('protection', '')
+        sow.notes = request.POST.get('notes', '')
+
+        cost_input = request.POST.get('cost')
+        cost_decimal = Decimal('0.00')
+        if cost_input:
+            try:
+                cost_decimal = Decimal(str(cost_input))
+            except (ValueError, TypeError, InvalidOperation):
+                pass
+        sow.cost = cost_decimal if cost_decimal > 0 else None
+        sow.save()
+
+        # Handle charging logic
+        charge_to_account = request.POST.get('charge_account')
+        ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
+
+        if ledger_entry:
+            if ledger_entry.total_amount != cost_decimal:
+                ledger_entry.total_amount = cost_decimal
+                ledger_entry.save()
+                messages.success(request, f"SOW updated. Associated charge was adjusted to ₱{cost_decimal:,.2f}.")
+            else:
+                messages.success(request, "SOW updated. No changes to the associated charge.")
+        elif charge_to_account and cost_decimal > 0:
+            POSSale.objects.create(receipt_id=f"SOW-{sow.id}", customer=customer, cashier=request.user, payment_method='CREDIT', total_amount=cost_decimal, notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})")
+            messages.success(request, f"SOW updated and a new charge of ₱{cost_decimal:,.2f} was added to the account.")
+        else:
+            messages.success(request, "Hydraulic SOW updated successfully.")
+        return redirect('inventory:customer_detail', pk=pk)
+
+    ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
+    return render(request, 'inventory/hydraulic_sow_form.html', {'customer': customer, 'sow': sow, 'page_title': f'Edit Hydraulic SOW {sow.sow_id or sow.id}', 'is_charged': ledger_entry is not None})
 
 def hydraulic_sow_import(request):
     if request.method == 'POST':
@@ -102,8 +178,21 @@ def hydraulic_sow_import(request):
 def export_sow_history(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     format_type = request.GET.get('format', 'pdf')
+    sow_q = request.GET.get('sow_q', '')
+
     sows = customer.sows.select_related('created_by').all()
     
+    if sow_q:
+        q_sow = Q(sow_id__icontains=sow_q) | \
+                Q(hose_type__icontains=sow_q) | \
+                Q(application__icontains=sow_q) | \
+                Q(notes__icontains=sow_q) | \
+                Q(fitting_a__icontains=sow_q) | \
+                Q(fitting_b__icontains=sow_q)
+        if sow_q.isdigit():
+            q_sow |= Q(id=sow_q)
+        sows = sows.filter(q_sow)
+
     response = generate_sow_history_export(customer, sows, format_type, request)
     if response:
         return response
@@ -244,12 +333,16 @@ class ExpenseUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
         context['page_title'] = "Edit Expense"
         return context
 
-class ExpenseDeleteView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, DeleteView):
+class ExpenseDeleteView(LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin, SuccessMessageMixin, DeleteView):
     model = Expense
     template_name = 'inventory/expense_confirm_delete.html'
     success_url = reverse_lazy('inventory:expense_list')
     success_message = "Expense deleted successfully."
     permission_required = 'inventory.delete_expense'
+
+    def test_func(self):
+        expense = self.get_object()
+        return self.request.user == expense.recorded_by or self.request.user.is_superuser
 
 @login_required
 @permission_required('inventory.add_expense', raise_exception=True)
@@ -411,6 +504,8 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         if not customer.customer_id:
             customer.save()
         
+        ledger_q = self.request.GET.get('ledger_q', '')
+
         # 1. Fetch Sales (Credit) with payment status
         sales_qs = customer.purchases.filter(payment_method='CREDIT').select_related('cashier').annotate(
             paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
@@ -419,7 +514,32 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         )
         
         # 2. Fetch Payments
-        payments = list(customer.payments.select_related('recorded_by', 'sale_paid').annotate(
+        payments_qs = customer.payments.select_related('recorded_by', 'sale_paid')
+
+        if ledger_q:
+            query_lower = ledger_q.lower()
+            q_sales = Q(receipt_id__icontains=ledger_q) | Q(notes__icontains=ledger_q)
+            q_payments = Q(reference_number__icontains=ledger_q) | Q(notes__icontains=ledger_q)
+
+            # Amount Search
+            try:
+                amount_val = Decimal(ledger_q.replace(',', ''))
+                q_sales |= Q(total_amount=amount_val)
+                q_payments |= Q(amount=amount_val)
+            except (ValueError, TypeError, InvalidOperation):
+                pass
+
+            # Keyword Search (Type/Description)
+            if any(k in query_lower for k in ['sale', 'credit', 'purchase']):
+                q_sales = Q() # Include all sales
+            
+            if 'payment' in query_lower:
+                q_payments = Q() # Include all payments
+
+            sales_qs = sales_qs.filter(q_sales)
+            payments_qs = payments_qs.filter(q_payments)
+
+        payments = list(payments_qs.annotate(
             txn_type=Value('PAYMENT', output_field=models.CharField())
         ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id', 'recorded_by__username', 'notes'))
         
@@ -479,7 +599,31 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         credit_limit = self.object.credit_limit
         context['current_balance'] = current_balance
         context['available_credit'] = credit_limit - current_balance
-        context['sows'] = self.object.sows.select_related('created_by').all()
+        
+        # SOW Filtering
+        sow_q = self.request.GET.get('sow_q', '')
+        sows_qs = self.object.sows.select_related('created_by').all()
+
+        if sow_q:
+            q_sow = Q(sow_id__icontains=sow_q) | \
+                    Q(hose_type__icontains=sow_q) | \
+                    Q(application__icontains=sow_q) | \
+                    Q(notes__icontains=sow_q) | \
+                    Q(fitting_a__icontains=sow_q) | \
+                    Q(fitting_b__icontains=sow_q)
+            if sow_q.isdigit():
+                q_sow |= Q(id=sow_q)
+            sows_qs = sows_qs.filter(q_sow)
+
+        context['sows'] = sows_qs
+        context['sow_q'] = sow_q
+        
+        context['ledger_q'] = ledger_q
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            query_params.pop('page')
+        context['query_params'] = query_params.urlencode()
+
         return context
 
 @login_required
@@ -678,6 +822,8 @@ def export_statement(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     format_type = request.GET.get('format', 'pdf')
     
+    ledger_q = request.GET.get('ledger_q', '')
+
     # --- DATA PREPARATION (aligned with CustomerDetailView) ---
     # 1. Fetch Sales (Credit) with payment status
     sales_qs = customer.purchases.filter(payment_method='CREDIT').select_related('cashier').annotate(
@@ -687,7 +833,32 @@ def export_statement(request, pk):
     )
     
     # 2. Fetch Payments
-    payments = list(customer.payments.select_related('recorded_by', 'sale_paid').annotate(
+    payments_qs = customer.payments.select_related('recorded_by', 'sale_paid')
+
+    if ledger_q:
+        query_lower = ledger_q.lower()
+        q_sales = Q(receipt_id__icontains=ledger_q) | Q(notes__icontains=ledger_q)
+        q_payments = Q(reference_number__icontains=ledger_q) | Q(notes__icontains=ledger_q)
+
+        # Amount Search
+        try:
+            amount_val = Decimal(ledger_q.replace(',', ''))
+            q_sales |= Q(total_amount=amount_val)
+            q_payments |= Q(amount=amount_val)
+        except (ValueError, TypeError, InvalidOperation):
+            pass
+
+        # Keyword Search (Type/Description)
+        if any(k in query_lower for k in ['sale', 'credit', 'purchase']):
+            q_sales = Q() # Include all sales
+        
+        if 'payment' in query_lower:
+            q_payments = Q() # Include all payments
+
+        sales_qs = sales_qs.filter(q_sales)
+        payments_qs = payments_qs.filter(q_payments)
+
+    payments = list(payments_qs.annotate(
         txn_type=Value('PAYMENT', output_field=models.CharField())
     ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id', 'recorded_by__username', 'notes'))
     

@@ -24,6 +24,10 @@ def generate_customer_id():
     """Generates a unique Customer ID like 'CUST-1A2B3C4D'"""
     return f"CUST-{uuid.uuid4().hex[:8].upper()}"
 
+def generate_sow_id():
+    """Generates a unique SOW ID like 'JOB-1A2B3C4D'"""
+    return f"JOB-{uuid.uuid4().hex[:8].upper()}"
+
 # --- CUSTOMER & BILLING MODELS (NEW) ---
 
 class Customer(models.Model):
@@ -85,6 +89,7 @@ class CustomerPayment(models.Model):
         return f"Payment {self.amount} - {self.customer.name}"
 
 class HydraulicSow(models.Model):
+    sow_id = models.CharField(max_length=20, unique=True, editable=False, null=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='sows')
     date_created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -106,8 +111,13 @@ class HydraulicSow(models.Model):
     class Meta:
         ordering = ['-date_created']
 
+    def save(self, *args, **kwargs):
+        if not self.sow_id:
+            self.sow_id = generate_sow_id()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"SOW #{self.pk} - {self.customer.name}"
+        return f"{self.sow_id} - {self.customer.name}"
 
 # --- EXPENSE TRACKING ---
 

@@ -61,6 +61,7 @@ urlpatterns = [
     path('customers/<int:pk>/payment/', views.customer_payment, name='customer_payment'),
     path('customers/<int:pk>/export/', views.export_statement, name='customer_statement_export'),
     path('customers/<int:pk>/sow/new/', views.hydraulic_sow_create, name='hydraulic_sow_create'),
+    path('customers/<int:pk>/sow/<int:sow_pk>/update/', views.hydraulic_sow_update, name='hydraulic_sow_update'),
     path('sow/import/', views.hydraulic_sow_import, name='hydraulic_sow_import'),
     path('customers/<int:pk>/sow/export/', views.export_sow_history, name='customer_sow_export'),
     path('customers/<int:pk>/sow/import/', views.import_sow_history, name='customer_sow_import'),

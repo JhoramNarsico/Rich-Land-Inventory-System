@@ -74,6 +74,7 @@
     <table class="data-table">
         <thead>
             <tr>
+                <th style="width: 10%;">Job ID</th>
                 <th style="width: 12%;">Date</th>
                 <th style="width: 15%;">Application</th>
                 <th style="width: 23%;">Hose Details</th>
@@ -86,6 +87,7 @@
         <tbody>
             {% for sow in sows %}
             <tr>
+                <td><strong>{{ sow.sow_id|default:sow.id }}</strong></td>
                 <td>
                     {{ sow.date_created|date:"Y-m-d" }}<br>
                     <span style="color: #7f8c8d;">{{ sow.date_created|date:"h:i A" }}</span>
@@ -101,7 +103,7 @@
                 <td>{{ sow.created_by.username|default:"N/A" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="text-center">No Hydraulic SOW records found for this customer.</td></tr>
+            <tr><td colspan="8" class="text-center">No Hydraulic SOW records found for this customer.</td></tr>
             {% endfor %}
         </tbody>
     </table>

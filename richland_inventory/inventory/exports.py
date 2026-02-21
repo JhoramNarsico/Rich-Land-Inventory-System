@@ -120,9 +120,10 @@ def generate_sow_history_export(customer, sows, format_type, request):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
         writer = csv.writer(response)
-        writer.writerow(['Date', 'Application', 'Hose Type', 'Diameter', 'Length', 'Pressure', 'Fitting A', 'Fitting B', 'Cost', 'Notes'])
+        writer.writerow(['Job ID', 'Date', 'Application', 'Hose Type', 'Diameter', 'Length', 'Pressure', 'Fitting A', 'Fitting B', 'Cost', 'Notes'])
         for sow in sows:
             writer.writerow([
+                sow.sow_id or sow.id,
                 sow.date_created.strftime('%Y-%m-%d'),
                 sow.application,
                 sow.hose_type,
@@ -161,7 +162,7 @@ def generate_sow_history_export(customer, sows, format_type, request):
 
         # Table Headers
         current_row = 5
-        headers = ['Date', 'Application', 'Hose Details', 'Fittings', 'Cost', 'Notes', 'Created By']
+        headers = ['Job ID', 'Date', 'Application', 'Hose Details', 'Fittings', 'Cost', 'Notes', 'Created By']
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=current_row, column=col_num)
             cell.value = header
@@ -180,15 +181,16 @@ def generate_sow_history_export(customer, sows, format_type, request):
             hose_details = f"{sow.hose_type or '-'} | Ø {sow.diameter or '?'} | L: {sow.length or '?'}mm | P: {sow.pressure or '?'} PSI"
             fittings = f"A: {sow.fitting_a or '-'} | B: {sow.fitting_b or '-'}"
 
-            ws.cell(row=current_row, column=1, value=sow.date_created.strftime('%Y-%m-%d %H:%M'))
-            ws.cell(row=current_row, column=2, value=sow.application or '-')
-            ws.cell(row=current_row, column=3, value=hose_details)
-            ws.cell(row=current_row, column=4, value=fittings)
-            ws.cell(row=current_row, column=5, value=sow.cost).number_format = '#,##0.00'
-            ws.cell(row=current_row, column=6, value=sow.notes or '-')
-            ws.cell(row=current_row, column=7, value=sow.created_by.username if sow.created_by else 'N/A')
+            ws.cell(row=current_row, column=1, value=sow.sow_id or sow.id)
+            ws.cell(row=current_row, column=2, value=sow.date_created.strftime('%Y-%m-%d %H:%M'))
+            ws.cell(row=current_row, column=3, value=sow.application or '-')
+            ws.cell(row=current_row, column=4, value=hose_details)
+            ws.cell(row=current_row, column=5, value=fittings)
+            ws.cell(row=current_row, column=6, value=sow.cost).number_format = '#,##0.00'
+            ws.cell(row=current_row, column=7, value=sow.notes or '-')
+            ws.cell(row=current_row, column=8, value=sow.created_by.username if sow.created_by else 'N/A')
 
-            for col in range(1, 8):
+            for col in range(1, 9):
                 ws.cell(row=current_row, column=col).border = thin_border
 
         # Total Row
@@ -197,9 +199,9 @@ def generate_sow_history_export(customer, sows, format_type, request):
         total_value_cell = ws[f'E{current_row}']; total_value_cell.value = total_cost; total_value_cell.font = total_font; total_value_cell.number_format = '"PHP" #,##0.00'
 
         # Column Widths
-        ws.column_dimensions['A'].width = 18; ws.column_dimensions['B'].width = 25; ws.column_dimensions['C'].width = 35
-        ws.column_dimensions['D'].width = 35; ws.column_dimensions['E'].width = 15; ws.column_dimensions['F'].width = 30
-        ws.column_dimensions['G'].width = 18
+        ws.column_dimensions['A'].width = 15; ws.column_dimensions['B'].width = 18; ws.column_dimensions['C'].width = 25
+        ws.column_dimensions['D'].width = 35; ws.column_dimensions['E'].width = 35; ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 30; ws.column_dimensions['H'].width = 18
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
@@ -220,17 +222,17 @@ def generate_sow_history_export(customer, sows, format_type, request):
             f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
         ], width_inches=10.5)
 
-        table = document.add_table(rows=1, cols=7)
+        table = document.add_table(rows=1, cols=8)
         table.style = 'Table Grid'
         table.autofit = False 
         
         # Set column widths (Total approx 10.5 inches)
-        widths = [Inches(1.0), Inches(1.5), Inches(2.5), Inches(2.0), Inches(0.8), Inches(1.5), Inches(1.2)]
+        widths = [Inches(1.0), Inches(1.0), Inches(1.5), Inches(2.0), Inches(1.5), Inches(0.8), Inches(1.5), Inches(1.2)]
         for i, width in enumerate(widths):
             table.columns[i].width = width
 
         hdr_cells = table.rows[0].cells
-        headers = ['Date', 'Application', 'Hose Details', 'Fittings', 'Cost', 'Notes', 'Created By']
+        headers = ['Job ID', 'Date', 'Application', 'Hose Details', 'Fittings', 'Cost', 'Notes', 'Created By']
         for i, text in enumerate(headers):
             set_cell_background(hdr_cells[i], "2C3E50")
             hdr_cells[i].text = ""
@@ -260,13 +262,14 @@ def generate_sow_history_export(customer, sows, format_type, request):
                 p = cell.paragraphs[0]; p.alignment = align
                 for run in p.runs: run.font.name = 'Arial'; run.font.size = Pt(8); run.bold = bold
 
-            set_cell_text(row_cells[0], sow.date_created.strftime('%Y-%m-%d\n%H:%M'))
-            set_cell_text(row_cells[1], sow.application or '-')
-            set_cell_text(row_cells[2], f"{sow.hose_type or '-'}\nØ {sow.diameter or '?'} | L: {sow.length or '?'}mm | P: {sow.pressure or '?'} PSI")
-            set_cell_text(row_cells[3], f"A: {sow.fitting_a or '-'}\nB: {sow.fitting_b or '-'}")
-            set_cell_text(row_cells[4], f"{sow.cost:,.2f}" if sow.cost else "-", WD_ALIGN_PARAGRAPH.RIGHT, bold=True)
-            set_cell_text(row_cells[5], sow.notes or '-')
-            set_cell_text(row_cells[6], sow.created_by.username if sow.created_by else 'N/A')
+            set_cell_text(row_cells[0], sow.sow_id or str(sow.id))
+            set_cell_text(row_cells[1], sow.date_created.strftime('%Y-%m-%d\n%H:%M'))
+            set_cell_text(row_cells[2], sow.application or '-')
+            set_cell_text(row_cells[3], f"{sow.hose_type or '-'}\nØ {sow.diameter or '?'} | L: {sow.length or '?'}mm | P: {sow.pressure or '?'} PSI")
+            set_cell_text(row_cells[4], f"A: {sow.fitting_a or '-'}\nB: {sow.fitting_b or '-'}")
+            set_cell_text(row_cells[5], f"{sow.cost:,.2f}" if sow.cost else "-", WD_ALIGN_PARAGRAPH.RIGHT, bold=True)
+            set_cell_text(row_cells[6], sow.notes or '-')
+            set_cell_text(row_cells[7], sow.created_by.username if sow.created_by else 'N/A')
 
         p = document.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         run = p.add_run(f"\nTotal Service Cost: PHP {total_cost:,.2f}"); run.bold = True; run.font.name = 'Arial'; run.font.size = Pt(11)
