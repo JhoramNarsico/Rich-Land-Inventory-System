@@ -37,17 +37,17 @@
     <!-- TABS NAVIGATION -->
     <ul class="nav nav-tabs mb-4 border-bottom-0" id="analyticsTab" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active border-0 border-bottom border-3 border-primary fw-bold text-dark bg-transparent" id="financial-tab" data-bs-toggle="tab" data-bs-target="#financial-pane" type="button" role="tab">
+            <button class="nav-link active border-0 border-bottom border-3 fw-bold bg-transparent" id="financial-tab" data-bs-toggle="tab" data-bs-target="#financial-pane" type="button" role="tab">
                 <i class="fas fa-chart-line me-2"></i>Financial Overview
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link border-0 border-bottom border-3 border-transparent fw-bold text-muted bg-transparent" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane" type="button" role="tab">
+            <button class="nav-link border-0 border-bottom border-3 fw-bold bg-transparent" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane" type="button" role="tab">
                 <i class="fas fa-boxes me-2"></i>Inventory & Operations
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link border-0 border-bottom border-3 border-transparent fw-bold text-muted bg-transparent" id="reference-tab" data-bs-toggle="tab" data-bs-target="#reference-pane" type="button" role="tab">
+            <button class="nav-link border-0 border-bottom border-3 fw-bold bg-transparent" id="reference-tab" data-bs-toggle="tab" data-bs-target="#reference-pane" type="button" role="tab">
                 <i class="fas fa-info-circle me-2"></i>Reference
             </button>
         </li>
@@ -317,7 +317,38 @@
     Chart.defaults.color = '#6c757d';
 
     document.addEventListener("DOMContentLoaded", function() {
-        
+
+        // --- Tab Styling Logic ---
+        const tabButtons = document.querySelectorAll('#analyticsTab button[data-bs-toggle="tab"]');
+        const colorMap = {
+            'financial-tab': 'border-primary',
+            'inventory-tab': 'border-success',
+            'reference-tab': 'border-info'
+        };
+
+        function styleTabs() {
+            tabButtons.forEach(btn => {
+                // Always reset styles first
+                btn.classList.remove('text-dark', 'border-primary', 'border-success', 'border-info');
+                btn.classList.add('text-muted', 'border-transparent');
+
+                // Then, apply active styles only to the tab with the .active class
+                if (btn.classList.contains('active')) {
+                    btn.classList.remove('text-muted', 'border-transparent');
+                    btn.classList.add('text-dark');
+                    if (colorMap[btn.id]) {
+                        btn.classList.add(colorMap[btn.id]);
+                    }
+                }
+            });
+        }
+
+        // Set initial styles on page load
+        styleTabs();
+
+        // Add a single listener to restyle whenever a tab is shown
+        document.getElementById('analyticsTab').addEventListener('shown.bs.tab', styleTabs);
+
         // 1. Category
         const catLabels = JSON.parse('{{ cat_labels|safe }}');
         const catValues = JSON.parse('{{ cat_values|safe }}');
