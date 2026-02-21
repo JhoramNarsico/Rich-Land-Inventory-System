@@ -246,8 +246,8 @@
 {% block extra_js %}
 <script>
     // --- DATA & STATE ---
-    const allProducts = JSON.parse('{{ products_json|safe }}');
-    const allCustomers = JSON.parse('{{ customers_json|safe }}');
+    const allProducts = {{ products_json|safe }};
+    const allCustomers = {{ customers_json|safe }};
     const preselectedCustomerId = '{{ preselected_customer_id|default:"" }}';
     let cart = [];
     let currentTotal = 0;

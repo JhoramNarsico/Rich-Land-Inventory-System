@@ -232,6 +232,7 @@ class Command(BaseCommand):
                     StockTransaction.objects.create(
                         product=item_to_return.product, transaction_type='IN', transaction_reason='RETURN',
                         quantity=1, selling_price=item_to_return.selling_price,
+                        pos_sale=sale_to_return, # Link return to original sale
                         user=user,
                         timestamp=sale_to_return.timestamp + timedelta(days=random.randint(1,3)),
                         notes=f"Return for {sale_to_return.receipt_id}"

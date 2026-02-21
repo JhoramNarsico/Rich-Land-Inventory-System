@@ -1598,7 +1598,7 @@ def analytics_dashboard(request):
         )
     )
     
-    total_revenue = pos_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    gross_sales_val = pos_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
     total_expenses = expenses_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
     total_refunds_val = stock_metrics['refunds_val'] or Decimal('0.00')
@@ -1612,8 +1612,13 @@ def analytics_dashboard(request):
     charges_count = charges_qs.count()
     total_charges_val = charges_qs.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
 
-    gross_sales = total_revenue + total_refunds_val
-    net_income = total_revenue - total_expenses
+    # Correct Financial Logic
+    # Gross Sales = Total money from sales (before refunds)
+    # Net Revenue = Gross Sales - Refunds
+    # Net Income  = Net Revenue - Expenses
+    
+    net_revenue_val = gross_sales_val - total_refunds_val
+    net_income = net_revenue_val - total_expenses
     
 
     # 4. Chart Data Preparation
@@ -1674,10 +1679,10 @@ def analytics_dashboard(request):
         'period_name': period_name,
         
         # KPIs
-        'total_revenue': total_revenue,
+        'total_revenue': net_revenue_val, # Template label is "Net Revenue"
+        'gross_sales': gross_sales_val,   # Template label is "Gross"
         'total_expenses': total_expenses,
         'net_income': net_income,
-        'gross_sales': gross_sales,
         'total_units': total_units,
         'total_refunds': total_refunds_val,
         'total_loss': total_loss,
