@@ -16,7 +16,7 @@ from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
 from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value
-from django.db.models.functions import TruncDate, TruncDay, TruncHour, TruncMinute, Coalesce
+from django.db.models.functions import TruncDate, Coalesce
 from django.urls import reverse_lazy, reverse
 from django.shortcuts import redirect, get_object_or_404, render
 from django.utils import timezone
@@ -52,6 +52,7 @@ from core.cache_utils import clear_dashboard_cache
 
 def hydraulic_sow_create(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
+    next_url = request.GET.get('next')
     
     # Handle Export Requests (PDF, Word, Excel, CSV)
     export_format = request.GET.get('format')
@@ -89,22 +90,37 @@ def hydraulic_sow_create(request, pk):
             notes=request.POST.get('notes', '')
         )
 
-        if request.POST.get('charge_account') and cost_decimal > 0:
+        if cost_decimal > 0:
+            payment_method = request.POST.get('payment_method', 'CREDIT')
+            amount_paid = Decimal('0')
+            
+            if payment_method == 'CASH':
+                amount_paid_input = request.POST.get('amount_paid')
+                if amount_paid_input:
+                    try:
+                        amount_paid = Decimal(amount_paid_input)
+                    except:
+                        pass
+
             # Create Ledger Entry (POSSale)
-            receipt_id = f"SOW-{sow.id}"
+            receipt_id = sow.sow_id
             POSSale.objects.create(
                 receipt_id=receipt_id,
                 customer=customer,
                 cashier=request.user,
-                payment_method='CREDIT',
+                payment_method=payment_method,
                 total_amount=cost_decimal,
-                amount_paid=0,
-                change_given=0,
+                amount_paid=amount_paid,
+                change_given=(amount_paid - cost_decimal) if payment_method == 'CASH' else 0,
                 notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
             )
-            messages.success(request, f"Hydraulic SOW saved and charged ₱{cost_decimal} to account.")
+            messages.success(request, f"Hydraulic SOW saved. Receipt generated.")
+            return redirect('inventory:pos_receipt_detail', receipt_id=receipt_id)
         else:
             messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
+            
+        if next_url:
+            return redirect(next_url)
             
         return redirect('inventory:customer_detail', pk=pk)
 
@@ -112,12 +128,17 @@ def hydraulic_sow_create(request, pk):
         'customer': customer,
         'page_title': 'Create Hydraulic SOW',
         'is_charged': False,
+        'next_url': next_url,
     })
 
 @login_required
 def hydraulic_sow_update(request, pk, sow_pk):
     customer = get_object_or_404(Customer, pk=pk)
     sow = get_object_or_404(HydraulicSow, pk=sow_pk, customer=customer)
+    
+    # Ensure SOW ID exists (for legacy records)
+    if not sow.sow_id:
+        sow.save()
 
     if request.method == 'POST':
         # Update SOW fields
@@ -144,7 +165,9 @@ def hydraulic_sow_update(request, pk, sow_pk):
 
         # Handle charging logic
         charge_to_account = request.POST.get('charge_account')
-        ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
+        ledger_entry = POSSale.objects.filter(receipt_id=sow.sow_id).first()
+        if not ledger_entry:
+            ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
 
         if ledger_entry:
             if ledger_entry.total_amount != cost_decimal:
@@ -154,13 +177,15 @@ def hydraulic_sow_update(request, pk, sow_pk):
             else:
                 messages.success(request, "SOW updated. No changes to the associated charge.")
         elif charge_to_account and cost_decimal > 0:
-            POSSale.objects.create(receipt_id=f"SOW-{sow.id}", customer=customer, cashier=request.user, payment_method='CREDIT', total_amount=cost_decimal, notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})")
+            POSSale.objects.create(receipt_id=sow.sow_id, customer=customer, cashier=request.user, payment_method='CREDIT', total_amount=cost_decimal, notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})")
             messages.success(request, f"SOW updated and a new charge of ₱{cost_decimal:,.2f} was added to the account.")
         else:
             messages.success(request, "Hydraulic SOW updated successfully.")
         return redirect('inventory:customer_detail', pk=pk)
 
-    ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
+    ledger_entry = POSSale.objects.filter(receipt_id=sow.sow_id).first()
+    if not ledger_entry:
+        ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
     return render(request, 'inventory/hydraulic_sow_form.html', {'customer': customer, 'sow': sow, 'page_title': f'Edit Hydraulic SOW {sow.sow_id or sow.id}', 'is_charged': ledger_entry is not None})
 
 def hydraulic_sow_import(request):
@@ -267,16 +292,31 @@ class ExpenseListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = Expense.objects.select_related('category', 'recorded_by').all()
-        self.filter_form = ExpenseFilterForm(self.request.GET)
+        
+        today = timezone.now().date()
+        default_month = str(today.month)
+        default_year = str(today.year)
+        
+        data = self.request.GET.copy()
+        
+        if not self.request.GET:
+            data['month'] = default_month
+            data['year'] = default_year
+        
+        self.filter_form = ExpenseFilterForm(data)
         if self.filter_form.is_valid():
             if self.filter_form.cleaned_data.get('q'):
                 queryset = queryset.filter(description__icontains=self.filter_form.cleaned_data['q'])
             if self.filter_form.cleaned_data.get('category'):
                 queryset = queryset.filter(category=self.filter_form.cleaned_data['category'])
-            if self.filter_form.cleaned_data.get('start_date'):
-                queryset = queryset.filter(expense_date__gte=self.filter_form.cleaned_data['start_date'])
-            if self.filter_form.cleaned_data.get('end_date'):
-                queryset = queryset.filter(expense_date__lte=self.filter_form.cleaned_data['end_date'])
+            
+            m = self.filter_form.cleaned_data.get('month')
+            y = self.filter_form.cleaned_data.get('year')
+            if y:
+                queryset = queryset.filter(expense_date__year=y)
+                if m:
+                    queryset = queryset.filter(expense_date__month=m)
+                
         return queryset.order_by('-expense_date')
 
     def get_context_data(self, **kwargs):
@@ -287,6 +327,22 @@ class ExpenseListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
+        
+        if self.filter_form.is_valid():
+            context['current_month'] = self.filter_form.cleaned_data.get('month')
+            context['current_year'] = self.filter_form.cleaned_data.get('year')
+            
+            if context['current_year'] and not context['current_month']:
+                context['period_name'] = f"Year {context['current_year']}"
+            elif context['current_year'] and context['current_month']:
+                try:
+                    d = datetime(int(context['current_year']), int(context['current_month']), 1)
+                    context['period_name'] = d.strftime('%B %Y')
+                except:
+                    context['period_name'] = "Selected Period"
+            else:
+                context['period_name'] = "All Time"
+                
         return context
 
     def get(self, request, *args, **kwargs):
@@ -319,6 +375,47 @@ class ExpenseCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
         context = super().get_context_data(**kwargs)
         context['page_title'] = "Record New Expense"
         return context
+        
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['target_month'] = self.request.GET.get('month')
+        kwargs['target_year'] = self.request.GET.get('year')
+        return kwargs
+
+    def get_initial(self):
+        initial = super().get_initial()
+        m = self.request.GET.get('month')
+        y = self.request.GET.get('year')
+        if y:
+            try:
+                today = timezone.now().date()
+                if m:
+                    target_date = datetime(int(y), int(m), 1).date()
+                    if target_date.year == today.year and target_date.month == today.month:
+                        initial['expense_date'] = today
+                    else:
+                        initial['expense_date'] = target_date
+                else:
+                    if str(today.year) == str(y):
+                        initial['expense_date'] = today
+                    else:
+                        initial['expense_date'] = datetime(int(y), 1, 1).date()
+            except:
+                pass
+        return initial
+
+    def get_success_url(self):
+        url = reverse_lazy('inventory:expense_list')
+        m = self.request.GET.get('month')
+        y = self.request.GET.get('year')
+        
+        params = []
+        if m: params.append(f"month={m}")
+        if y: params.append(f"year={y}")
+        
+        if params:
+            return f"{url}?{'&'.join(params)}"
+        return url
 
 class ExpenseUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Expense
@@ -430,7 +527,7 @@ class CustomerListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Customer.objects.all().order_by('name')
+        qs = Customer.objects.exclude(name="Walk-in Customer").order_by('name')
         self.filter_form = CustomerFilterForm(self.request.GET)
         if self.filter_form.is_valid():
             q = self.filter_form.cleaned_data.get('q')
@@ -507,7 +604,7 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         ledger_q = self.request.GET.get('ledger_q', '')
 
         # 1. Fetch Sales (Credit) with payment status
-        sales_qs = customer.purchases.filter(payment_method='CREDIT').select_related('cashier').annotate(
+        sales_qs = customer.purchases.all().select_related('cashier').annotate(
             paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
         ).annotate(
             outstanding=F('total_amount') - F('paid_amount')
@@ -530,11 +627,18 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
                 pass
 
             # Keyword Search (Type/Description)
-            if any(k in query_lower for k in ['sale', 'credit', 'purchase']):
-                q_sales = Q() # Include all sales
-            
-            if 'payment' in query_lower:
-                q_payments = Q() # Include all payments
+            if 'debt' in query_lower:
+                q_sales = Q(payment_method='CREDIT', outstanding__gt=0)
+                q_payments = Q(pk__in=[])
+            elif 'sale' in query_lower:
+                q_sales = Q(payment_method='CASH') | Q(payment_method='CREDIT', outstanding__lte=0)
+                q_payments = Q(pk__in=[])
+            elif 'payment' in query_lower:
+                q_sales = Q(pk__in=[])
+                q_payments = Q()
+            elif any(k in query_lower for k in ['credit', 'purchase']):
+                q_sales = Q()
+                # q_payments remains based on text search
 
             sales_qs = sales_qs.filter(q_sales)
             payments_qs = payments_qs.filter(q_payments)
@@ -546,20 +650,33 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         # 3. Combine and Normalize
         ledger = []
         for s in sales_qs:
-            status = "UNPAID"
-            # Use a small tolerance for floating point comparisons
-            if s.outstanding <= Decimal('0.001'):
+            status = "PAID"
+            txn_type = 'SALE'
+            credit_val = Decimal('0')
+
+            if s.payment_method == 'CREDIT':
+                if s.outstanding <= Decimal('0.001'):
+                    status = "PAID"
+                    txn_type = 'SALE' # Paid off debt becomes Sale
+                elif s.paid_amount > 0:
+                    status = "PARTIALLY PAID"
+                    txn_type = 'DEBT'
+                else:
+                    status = "UNPAID"
+                    txn_type = 'DEBT'
+            else:
+                # Cash/Card Sales are effectively paid immediately and are Sales
                 status = "PAID"
-            elif s.paid_amount > 0:
-                status = "PARTIALLY PAID"
+                txn_type = 'SALE'
+                credit_val = s.total_amount # Offset debit so balance doesn't increase
 
             ledger.append({
                 'date': s.timestamp,
                 'ref': s.receipt_id,
-                'description': f'Credit Purchase ({status})',
+                'description': f'{s.get_payment_method_display()} ({status})',
                 'debit': s.total_amount,
-                'credit': 0,
-                'type': 'SALE',
+                'credit': credit_val,
+                'type': txn_type,
                 'view_url': reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': s.receipt_id}),
                 'user': s.cashier.username if s.cashier else 'N/A'
             })
@@ -826,7 +943,7 @@ def export_statement(request, pk):
 
     # --- DATA PREPARATION (aligned with CustomerDetailView) ---
     # 1. Fetch Sales (Credit) with payment status
-    sales_qs = customer.purchases.filter(payment_method='CREDIT').select_related('cashier').annotate(
+    sales_qs = customer.purchases.all().select_related('cashier').annotate(
         paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
     ).annotate(
         outstanding=F('total_amount') - F('paid_amount')
@@ -849,11 +966,18 @@ def export_statement(request, pk):
             pass
 
         # Keyword Search (Type/Description)
-        if any(k in query_lower for k in ['sale', 'credit', 'purchase']):
-            q_sales = Q() # Include all sales
-        
-        if 'payment' in query_lower:
-            q_payments = Q() # Include all payments
+        if 'debt' in query_lower:
+            q_sales = Q(payment_method='CREDIT', outstanding__gt=0)
+            q_payments = Q(pk__in=[])
+        elif 'sale' in query_lower:
+            q_sales = Q(payment_method='CASH') | Q(payment_method='CREDIT', outstanding__lte=0)
+            q_payments = Q(pk__in=[])
+        elif 'payment' in query_lower:
+            q_sales = Q(pk__in=[])
+            q_payments = Q()
+        elif any(k in query_lower for k in ['credit', 'purchase']):
+            q_sales = Q()
+            # q_payments remains based on text search
 
         sales_qs = sales_qs.filter(q_sales)
         payments_qs = payments_qs.filter(q_payments)
@@ -865,18 +989,27 @@ def export_statement(request, pk):
     # 3. Combine and Normalize
     ledger = []
     for s in sales_qs:
-        status = "UNPAID"
-        if s.outstanding <= Decimal('0.001'):
+        status = "PAID"
+        credit_val = Decimal('0')
+
+        if s.payment_method == 'CREDIT':
+            if s.outstanding <= Decimal('0.001'):
+                status = "PAID"
+            elif s.paid_amount > 0:
+                status = "PARTIALLY PAID"
+            else:
+                status = "UNPAID"
+        else:
+            # Cash/Card
             status = "PAID"
-        elif s.paid_amount > 0:
-            status = "PARTIALLY PAID"
+            credit_val = s.total_amount
 
         ledger.append({
             'date': s.timestamp,
             'ref': s.receipt_id,
-            'description': f'Credit Purchase ({status})',
+            'description': f'{s.get_payment_method_display()} ({status})',
             'debit': s.total_amount,
-            'credit': Decimal('0'),
+            'credit': credit_val,
             'user': s.cashier.username if s.cashier else 'N/A'
         })
     for p in payments:
@@ -1076,6 +1209,20 @@ class ProductDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView)
 
 # --- POINT OF SALE (POS) SYSTEM ---
 
+def get_walkin_customer():
+    """Helper to get or create the default Walk-in Customer."""
+    customer, created = Customer.objects.get_or_create(
+        name="Walk-in Customer",
+        defaults={
+            'email': '',
+            'phone': '',
+            'address': 'Store Counter',
+            'tax_id': '',
+            'credit_limit': 0
+        }
+    )
+    return customer
+
 @login_required
 @permission_required('inventory.can_adjust_stock', raise_exception=True)
 def pos_dashboard(request):
@@ -1103,13 +1250,25 @@ def pos_dashboard(request):
     # Get pre-selected customer from URL
     preselected_customer_id = request.GET.get('customer_id')
 
+    # Ensure Walk-in Customer exists
+    walkin_customer = get_walkin_customer()
+
     context = {
         'page_title': 'Point of Sale',
         'products_json': products_json,
         'customers_json': customers_json,
         'preselected_customer_id': preselected_customer_id,
+        'walkin_customer': walkin_customer,
     }
     return render(request, 'inventory/pos.html', context)
+
+@login_required
+def pos_sow_create(request):
+    walkin = get_walkin_customer()
+    # Redirect to SOW create with next=pos_dashboard
+    url = reverse('inventory:hydraulic_sow_create', kwargs={'pk': walkin.pk})
+    next_url = reverse('inventory:pos_dashboard')
+    return redirect(f"{url}?next={next_url}")
 
 @login_required
 @require_POST
@@ -1236,7 +1395,30 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_stocktransaction'
     
     def get_queryset(self):
-        return POSSale.objects.select_related('cashier', 'customer').order_by('-timestamp')
+        qs = POSSale.objects.select_related('cashier', 'customer').order_by('-timestamp')
+        q = self.request.GET.get('q')
+        if q:
+            query = Q(receipt_id__icontains=q) | \
+                    Q(customer__name__icontains=q) | \
+                    Q(cashier__username__icontains=q)
+            try:
+                amount_val = Decimal(q.replace(',', ''))
+                query |= Q(total_amount=amount_val)
+            except (ValueError, TypeError, InvalidOperation):
+                pass
+            qs = qs.filter(query)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['q'] = self.request.GET.get('q', '')
+        
+        query_params = self.request.GET.copy()
+        if 'page' in query_params:
+            query_params.pop('page')
+        context['query_params'] = query_params.urlencode()
+        
+        return context
 
 class POSReceiptDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = POSSale
@@ -1343,19 +1525,44 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
 @login_required
 def analytics_dashboard(request):
     # 1. Date Filtering
-    initial_start = timezone.now().date() - timedelta(days=30)
-    initial_end = timezone.now().date()
+    today = timezone.now().date()
     
-    start_date = initial_start
-    end_date = initial_end
+    # Default to current month/year
+    default_month = str(today.month)
+    default_year = str(today.year)
     
-    if 'start_date' in request.GET:
-        filter_form = AnalyticsFilterForm(request.GET)
-        if filter_form.is_valid():
-            start_date = filter_form.cleaned_data.get('start_date') or initial_start
-            end_date = filter_form.cleaned_data.get('end_date') or initial_end
-    else:
-        filter_form = AnalyticsFilterForm(initial={'start_date': initial_start, 'end_date': initial_end})
+    data = request.GET.copy()
+    if not request.GET:
+        data['month'] = default_month
+        data['year'] = default_year
+    
+    filter_form = AnalyticsFilterForm(data)
+    
+    # Determine Date Range & Period Name
+    start_date = today.replace(day=1)
+    end_date = today
+    period_name = start_date.strftime('%B %Y')
+
+    if filter_form.is_valid():
+        m = filter_form.cleaned_data.get('month')
+        y = filter_form.cleaned_data.get('year')
+        
+        if y:
+            year_val = int(y)
+            if m:
+                month_val = int(m)
+                start_date = datetime(year_val, month_val, 1).date()
+                # Calculate last day of month
+                if month_val == 12:
+                    end_date = datetime(year_val + 1, 1, 1).date() - timedelta(days=1)
+                else:
+                    end_date = datetime(year_val, month_val + 1, 1).date() - timedelta(days=1)
+                period_name = start_date.strftime('%B %Y')
+            else:
+                # Full Year
+                start_date = datetime(year_val, 1, 1).date()
+                end_date = datetime(year_val, 12, 31).date()
+                period_name = f"Year {y}"
 
     # Make end_date inclusive (end of the day)
     start_dt = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
@@ -1364,25 +1571,50 @@ def analytics_dashboard(request):
     # 2. Base Querysets
     pos_sales = POSSale.objects.filter(timestamp__range=[start_dt, end_dt])
     stock_txns = StockTransaction.objects.filter(timestamp__range=[start_dt, end_dt])
+    expenses_qs = Expense.objects.filter(expense_date__range=[start_date, end_date])
     
     # 3. KPI Calculations
-    total_revenue = pos_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+    # Optimized: Use conditional aggregation to reduce DB queries
+    stock_metrics = stock_txns.aggregate(
+        refunds_val=Sum(
+            F('quantity') * F('selling_price'),
+            filter=Q(transaction_type='IN', transaction_reason=StockTransaction.TransactionReason.RETURN)
+        ),
+        units_sold=Sum(
+            'quantity',
+            filter=Q(transaction_type='OUT', transaction_reason=StockTransaction.TransactionReason.SALE)
+        ),
+        loss_val=Sum(
+            F('quantity') * F('product__price'),
+            filter=Q(transaction_reason=StockTransaction.TransactionReason.DAMAGE)
+        ),
+        refunds_count=Count(
+            'id',
+            filter=Q(transaction_type='IN', transaction_reason=StockTransaction.TransactionReason.RETURN)
+        ),
+        damages_count=Count(
+            'id',
+            filter=Q(transaction_reason=StockTransaction.TransactionReason.DAMAGE)
+        )
+    )
     
-    total_refunds_val = stock_txns.filter(
-        transaction_type='IN', 
-        transaction_reason=StockTransaction.TransactionReason.RETURN
-    ).aggregate(val=Sum(F('quantity') * F('selling_price')))['val'] or 0
+    total_revenue = pos_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+    total_expenses = expenses_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    total_refunds_val = stock_metrics['refunds_val'] or Decimal('0.00')
+    total_units = stock_metrics['units_sold'] or 0
+    total_loss = stock_metrics['loss_val'] or Decimal('0.00')
+    
+    total_refunds_count = stock_metrics['refunds_count'] or 0
+    total_damages_count = stock_metrics['damages_count'] or 0
+    
+    charges_qs = pos_sales.filter(payment_method='CREDIT')
+    charges_count = charges_qs.count()
+    total_charges_val = charges_qs.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
 
     gross_sales = total_revenue + total_refunds_val
+    net_income = total_revenue - total_expenses
     
-    total_units = stock_txns.filter(
-        transaction_type='OUT', 
-        transaction_reason=StockTransaction.TransactionReason.SALE
-    ).aggregate(qty=Sum('quantity'))['qty'] or 0
-    
-    total_loss = stock_txns.filter(
-        transaction_reason=StockTransaction.TransactionReason.DAMAGE
-    ).aggregate(val=Sum(F('quantity') * F('product__price')))['val'] or 0
 
     # 4. Chart Data Preparation
     # A. Sales by Category
@@ -1401,31 +1633,71 @@ def analytics_dashboard(request):
     prod_labels = [item['product__name'] for item in prod_qs]
     prod_values = [float(item['sales']) for item in prod_qs]
     
-    # C. Daily Sales Trend
-    trend_qs = pos_sales.annotate(date=TruncDate('timestamp')).values('date').annotate(daily_total=Sum('total_amount')).order_by('date')
+    # C. Expenses by Category
+    exp_cat_qs = expenses_qs.values('category__name').annotate(total=Sum('amount')).order_by('-total')
+    exp_cat_labels = [item['category__name'] or 'Uncategorized' for item in exp_cat_qs]
+    exp_cat_values = [float(item['total']) for item in exp_cat_qs]
     
-    date_labels = [item['date'].strftime('%b %d') for item in trend_qs]
-    date_values = [float(item['daily_total']) for item in trend_qs]
+    # D. Financial Trend (Sales vs Expenses)
+    sales_trend = pos_sales.annotate(date=TruncDate('timestamp')).values('date').annotate(daily_total=Sum('total_amount')).order_by('date')
+    sales_map = {item['date']: item['daily_total'] for item in sales_trend}
+
+    exp_trend = expenses_qs.values('expense_date').annotate(daily_total=Sum('amount')).order_by('expense_date')
+    exp_map = {item['expense_date']: item['daily_total'] for item in exp_trend}
+
+    all_dates = sorted(list(set(list(sales_map.keys()) + list(exp_map.keys()))))
+    
+    trend_labels = [d.strftime('%b %d') for d in all_dates]
+    trend_sales_values = [float(sales_map.get(d, 0)) for d in all_dates]
+    trend_expense_values = [float(exp_map.get(d, 0)) for d in all_dates]
+    
+    # E. Sales vs Charges (Payment Method)
+    pay_qs = pos_sales.values('payment_method').annotate(total=Sum('total_amount')).order_by('-total')
+    pay_labels = []
+    pay_values = []
+    for item in pay_qs:
+        method = item['payment_method']
+        if method == 'CREDIT':
+            pay_labels.append('Charges (Credit)')
+        elif method == 'CASH':
+            pay_labels.append('Cash Sales')
+        elif method == 'CARD':
+            pay_labels.append('Card Sales')
+        else:
+            pay_labels.append(method)
+        pay_values.append(float(item['total']))
 
     context = {
         'filter_form': filter_form,
         'start_date': start_date,
         'end_date': end_date,
+        'period_name': period_name,
         
         # KPIs
         'total_revenue': total_revenue,
+        'total_expenses': total_expenses,
+        'net_income': net_income,
         'gross_sales': gross_sales,
         'total_units': total_units,
         'total_refunds': total_refunds_val,
         'total_loss': total_loss,
+        'charges_count': charges_count,
+        'total_charges_val': total_charges_val,
+        'refunds_count': total_refunds_count,
+        'damages_count': total_damages_count,
         
         # Charts (JSON)
         'cat_labels': json.dumps(cat_labels),
         'cat_values': json.dumps(cat_values),
+        'exp_cat_labels': json.dumps(exp_cat_labels),
+        'exp_cat_values': json.dumps(exp_cat_values),
         'prod_labels': json.dumps(prod_labels),
         'prod_values': json.dumps(prod_values),
-        'date_labels': json.dumps(date_labels),
-        'date_values': json.dumps(date_values),
+        'trend_labels': json.dumps(trend_labels),
+        'trend_sales_values': json.dumps(trend_sales_values),
+        'trend_expense_values': json.dumps(trend_expense_values),
+        'pay_labels': json.dumps(pay_labels),
+        'pay_values': json.dumps(pay_values),
     }
     return render(request, 'inventory/analytics.html', context)
 
@@ -1659,24 +1931,11 @@ def search_products(request):
 
 @login_required
 def sales_chart_data(request):
-    period = request.GET.get('period', 'hour')
+    # Removed Hour and Minute sales as requested, defaulting to daily view
     now = timezone.now()
-
-    if period == 'minute':
-        # Last hour, grouped by minute
-        start_time = now - timedelta(hours=1)
-        trunc_func = TruncMinute('timestamp')
-        date_format = '%H:%M'
-    elif period == 'hour':
-        # Last 24 hours, grouped by hour
-        start_time = now - timedelta(hours=24)
-        trunc_func = TruncHour('timestamp')
-        date_format = '%I %p'
-    else:
-        # Last 30 days, grouped by day
-        start_time = now - timedelta(days=30)
-        trunc_func = TruncDate('timestamp')
-        date_format = '%b %d'
+    start_time = now - timedelta(days=30)
+    trunc_func = TruncDate('timestamp')
+    date_format = '%b %d'
 
     # Aggregate sales data
     sales_data = StockTransaction.objects.filter(

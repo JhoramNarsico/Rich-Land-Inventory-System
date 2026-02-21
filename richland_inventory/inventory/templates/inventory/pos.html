@@ -163,10 +163,13 @@
     <div class="cart-wrapper">
         <div class="cart-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>Current Order</h5>
-            <div class="w-50">
+            <div class="w-50 d-flex gap-1">
                 <select id="customerSelect" class="form-select form-select-sm">
                     <option value="">Walk-in Customer</option>
                 </select>
+                <a href="{% url 'inventory:pos_sow_create' %}" class="btn btn-sm btn-outline-primary" title="New Hydraulic Job">
+                    <i class="fas fa-tools"></i>
+                </a>
             </div>
             <button class="btn btn-sm btn-outline-danger" onclick="clearCart()" title="Clear Cart">
                 <i class="fas fa-trash-alt"></i>

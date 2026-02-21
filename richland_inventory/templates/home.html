@@ -145,14 +145,7 @@
         <div class="col-lg-8 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center">
-                    <h5 class="m-0 fw-bold text-dark">Sales Performance</h5>
-                    
-                    <!-- TIME FRAME TOGGLE BUTTONS -->
-                    <div class="btn-group" role="group" aria-label="Time frame">
-                        <button type="button" class="btn btn-sm btn-secondary active" onclick="updateChart('day', this)">Day</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateChart('hour', this)">Hour</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateChart('minute', this)">Minute</button>
-                    </div>
+                    <h5 class="m-0 fw-bold text-dark">Sales Performance (Last 30 Days)</h5>
                 </div>
                 <div class="card-body">
                     <div style="height: 300px;">
@@ -211,8 +204,7 @@ let salesChartInstance = null; // Store the chart instance globally
 
 document.addEventListener('DOMContentLoaded', function () {
     // Load default view (Day) on page load
-    const defaultButton = document.querySelector("button[onclick*='day']");
-    updateChart('day', defaultButton);
+    updateChart('day');
 });
 
 function updateChart(period, btnElement) {

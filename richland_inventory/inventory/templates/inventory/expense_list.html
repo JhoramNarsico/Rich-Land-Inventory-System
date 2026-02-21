@@ -15,7 +15,7 @@
             <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
                 <i class="fas fa-filter me-2"></i>Filters
             </button>
-            <a href="{% url 'inventory:expense_create' %}" class="btn btn-primary shadow-sm">
+            <a href="{% url 'inventory:expense_create' %}?month={{ current_month }}&year={{ current_year }}" class="btn btn-primary shadow-sm">
                 <i class="fas fa-plus me-2"></i>New Expense
             </a>
         </div>
@@ -34,13 +34,13 @@
                         <label class="form-label small fw-bold text-uppercase text-muted">Category</label>
                         {{ filter_form.category }}
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Date Range</label>
-                        <div class="input-group input-group-sm">
-                            {{ filter_form.start_date }}
-                            <span class="input-group-text bg-light border-start-0 border-end-0 text-muted">to</span>
-                            {{ filter_form.end_date }}
-                        </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Month</label>
+                        {{ filter_form.month }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Year</label>
+                        {{ filter_form.year }}
                     </div>
                     <div class="col-md-2 d-flex gap-2">
                         <button type="submit" class="btn btn-primary w-100 shadow-sm" title="Apply Filters">Apply</button>
@@ -57,7 +57,7 @@
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold text-dark">
-                Total for Period: <span class="text-danger">₱{{ total_expenses|floatformat:2|intcomma }}</span>
+                Total for {{ period_name }}: <span class="text-danger">₱{{ total_expenses|floatformat:2|intcomma }}</span>
             </h5>
             <div class="d-flex gap-2">
                 <a href="{% url 'inventory:expense_import' %}" class="btn btn-sm btn-outline-secondary">

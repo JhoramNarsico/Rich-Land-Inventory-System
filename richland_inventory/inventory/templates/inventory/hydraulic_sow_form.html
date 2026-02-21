@@ -29,7 +29,7 @@
                             </div>
                         </div>
                         
-                        <a href="{% url 'inventory:customer_detail' customer.pk %}" class="btn-close" aria-label="Close"></a>
+                        <a href="{{ next_url|default:customer.get_absolute_url }}" class="btn-close" aria-label="Close"></a>
                     </div>
                 </div>
                 
@@ -124,14 +124,37 @@
                                     <input type="number" step="0.01" name="cost" id="id_cost" class="form-control" placeholder="0.00" value="{{ sow.cost|default_if_none:'' }}">
                                 </div>
                             </div>
-                            <div class="col-md-8 mb-3 d-flex align-items-center">
-                                <div class="form-check mt-3">
-                                    <input class="form-check-input" type="checkbox" name="charge_account" id="id_charge_account" {% if is_charged %}checked{% endif %}>
-                                    <label class="form-check-label fw-bold text-primary" for="id_charge_account">
-                                        <i class="fas fa-file-invoice-dollar me-1"></i> Charge to Customer Account
-                                    </label>
-                                    <div class="form-text small">Creates a transaction in the customer's ledger.</div>
+                            
+                            <!-- Payment Section -->
+                            <div class="col-md-8 mb-3">
+                                {% if not is_charged %}
+                                <div class="card bg-light border-0 p-3">
+                                    <h6 class="fw-bold text-dark mb-3 small text-uppercase"><i class="fas fa-cash-register me-2"></i>Payment Details</h6>
+                                    
+                                    <div class="btn-group w-100 mb-3" role="group">
+                                        <input type="radio" class="btn-check" name="payment_method" id="pm_credit" value="CREDIT" checked onchange="togglePaymentFields()">
+                                        <label class="btn btn-outline-primary" for="pm_credit">Charge to Account</label>
+                                        
+                                        <input type="radio" class="btn-check" name="payment_method" id="pm_cash" value="CASH" onchange="togglePaymentFields()">
+                                        <label class="btn btn-outline-success" for="pm_cash">Cash Payment</label>
+                                    </div>
+
+                                    <div id="cash_fields" style="display: none;">
+                                        <div class="input-group mb-2">
+                                            <span class="input-group-text bg-white">Tendered</span>
+                                            <input type="number" step="0.01" name="amount_paid" id="amount_paid" class="form-control" placeholder="0.00">
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center px-1">
+                                            <span class="small fw-bold text-muted">Change:</span>
+                                            <span class="fw-bold text-success" id="change_display">₱0.00</span>
+                                        </div>
+                                    </div>
                                 </div>
+                                {% else %}
+                                <div class="alert alert-success mt-4 mb-0 py-2">
+                                    <i class="fas fa-check-circle me-2"></i> This job has been billed.
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -142,7 +165,7 @@
 
                         <hr class="my-4">
                         <div class="d-flex justify-content-end">
-                            <a href="{% url 'inventory:customer_detail' customer.pk %}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            <a href="{{ next_url|default:customer.get_absolute_url }}" class="btn btn-outline-secondary me-2">Cancel</a>
                             <button type="submit" class="btn btn-primary px-4">
                                 <i class="fas fa-save me-1"></i> Save Scope of Work
                             </button>
@@ -153,4 +176,33 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePaymentFields() {
+        const isCash = document.getElementById('pm_cash').checked;
+        const cashFields = document.getElementById('cash_fields');
+        cashFields.style.display = isCash ? 'block' : 'none';
+        if (isCash) {
+            document.getElementById('amount_paid').focus();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const costInput = document.getElementById('id_cost');
+        const paidInput = document.getElementById('amount_paid');
+        const changeDisplay = document.getElementById('change_display');
+
+        function calculateChange() {
+            const cost = parseFloat(costInput.value) || 0;
+            const paid = parseFloat(paidInput.value) || 0;
+            const change = Math.max(0, paid - cost);
+            changeDisplay.textContent = '₱' + change.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        if(costInput) costInput.addEventListener('input', calculateChange);
+        if(paidInput) paidInput.addEventListener('input', calculateChange);
+    });
+</script>
 {% endblock %}

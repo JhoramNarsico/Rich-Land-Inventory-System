@@ -1,5 +1,6 @@
 # inventory/forms.py
 
+import datetime
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import DateInput, ModelChoiceField
@@ -257,8 +258,22 @@ class TransactionReportForm(forms.Form):
     end_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
 
 class AnalyticsFilterForm(forms.Form):
-    start_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
-    end_date = forms.DateField(required=False, widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    month = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    year = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        months = [
+            ('', 'All Months'),
+            ('1', 'January'), ('2', 'February'), ('3', 'March'), ('4', 'April'),
+            ('5', 'May'), ('6', 'June'), ('7', 'July'), ('8', 'August'),
+            ('9', 'September'), ('10', 'October'), ('11', 'November'), ('12', 'December')
+        ]
+        self.fields['month'].choices = months
+        
+        current_year = datetime.date.today().year
+        years = [(str(y), str(y)) for y in range(current_year - 2, current_year + 3)]
+        self.fields['year'].choices = years
 
 # --- MISC FORMS ---
 
@@ -288,6 +303,8 @@ class ExpenseForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.target_month = kwargs.pop('target_month', None)
+        self.target_year = kwargs.pop('target_year', None)
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk and self.instance.category:
             self.initial['category'] = self.instance.category.name
@@ -299,8 +316,39 @@ class ExpenseForm(forms.ModelForm):
             return category
         return None
 
+    def clean_expense_date(self):
+        date = self.cleaned_data.get('expense_date')
+        if date and self.target_year:
+            try:
+                t_year = int(self.target_year)
+                if date.year != t_year:
+                    raise forms.ValidationError(f"Expense date must be within {t_year}.")
+                
+                if self.target_month:
+                    t_month = int(self.target_month)
+                    if date.month != t_month:
+                        month_name = datetime.date(t_year, t_month, 1).strftime('%B')
+                        raise forms.ValidationError(f"Expense date must be within {month_name} {t_year}.")
+            except (ValueError, TypeError):
+                pass
+        return date
+
 class ExpenseFilterForm(forms.Form):
     q = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search description...'}))
     category = forms.ModelChoiceField(queryset=ExpenseCategory.objects.all(), required=False, label="Category", widget=forms.Select(attrs={'class': 'form-select searchable-select', 'placeholder': 'All Categories'}))
-    start_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
-    end_date = forms.DateField(widget=DateInput(attrs={'type': 'date', 'class': 'form-control'}), required=False)
+    month = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+    year = forms.ChoiceField(choices=[], required=False, widget=forms.Select(attrs={'class': 'form-select'}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        months = [
+            ('', 'All Months'),
+            ('1', 'January'), ('2', 'February'), ('3', 'March'), ('4', 'April'),
+            ('5', 'May'), ('6', 'June'), ('7', 'July'), ('8', 'August'),
+            ('9', 'September'), ('10', 'October'), ('11', 'November'), ('12', 'December')
+        ]
+        self.fields['month'].choices = months
+        
+        current_year = datetime.date.today().year
+        years = [(str(y), str(y)) for y in range(current_year - 2, current_year + 3)]
+        self.fields['year'].choices = years

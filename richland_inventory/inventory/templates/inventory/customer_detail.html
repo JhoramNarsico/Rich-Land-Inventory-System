@@ -198,7 +198,9 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if entry.type == 'SALE' %}
+                                    {% if entry.type == 'DEBT' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Debt</span>
+                                    {% elif entry.type == 'SALE' %}
                                         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">Sale</span>
                                     {% else %}
                                         <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle rounded-pill">Payment</span>
@@ -329,23 +331,6 @@
 
 {% block extra_js %}
 <script>
-    function setupTableSearch(inputId, tableBodyId) {
-        const searchInput = document.getElementById(inputId);
-        const tableBody = document.getElementById(tableBodyId);
-        
-        if (searchInput && tableBody) {
-            searchInput.addEventListener('keyup', function() {
-                const searchTerm = this.value.toLowerCase();
-                const rows = tableBody.getElementsByTagName('tr');
-    
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i];
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(searchTerm) ? '' : 'none';
-                }
-            });
-        }
-    }
     document.addEventListener('DOMContentLoaded', function() {
     });
 </script>

@@ -4,110 +4,307 @@
 {% block title %}Analytics{% endblock %}
 
 {% block content %}
-<div class="container-fluid mb-5">
+<div class="container-fluid pb-5">
     
-    <div class="d-flex justify-content-between align-items-end mb-4">
+    <!-- HEADER & FILTER -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 gap-3">
         <div>
             <h2 class="fw-bold text-dark mb-1">Analytics Dashboard</h2>
             <p class="text-muted small mb-0">
-                Performance from <strong>{{ start_date|date:"M d, Y" }}</strong> to <strong>{{ end_date|date:"M d, Y" }}</strong>
+                Overview of performance for <span class="fw-bold text-primary">{{ period_name }}</span>
             </p>
         </div>
         
-        <form method="get" class="d-flex align-items-end shadow-sm p-2 bg-white rounded border">
-            <div class="me-2">
-                <label class="small text-muted fw-bold">From</label>
-                {{ filter_form.start_date }}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-2">
+                <form method="get" class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0 text-muted">Month</span>
+                        {{ filter_form.month }}
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0 text-muted">Year</span>
+                        {{ filter_form.year }}
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary px-3 fw-bold">
+                        <i class="fas fa-sync-alt me-1"></i> Update
+                    </button>
+                </form>
             </div>
-            <div class="me-2">
-                <label class="small text-muted fw-bold">To</label>
-                {{ filter_form.end_date }}
-            </div>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-filter me-1"></i> Filter
+        </div>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <ul class="nav nav-tabs mb-4 border-bottom-0" id="analyticsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active border-0 border-bottom border-3 border-primary fw-bold text-dark bg-transparent" id="financial-tab" data-bs-toggle="tab" data-bs-target="#financial-pane" type="button" role="tab">
+                <i class="fas fa-chart-line me-2"></i>Financial Overview
             </button>
-        </form>
-    </div>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link border-0 border-bottom border-3 border-transparent fw-bold text-muted bg-transparent" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane" type="button" role="tab">
+                <i class="fas fa-boxes me-2"></i>Inventory & Operations
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link border-0 border-bottom border-3 border-transparent fw-bold text-muted bg-transparent" id="reference-tab" data-bs-toggle="tab" data-bs-target="#reference-pane" type="button" role="tab">
+                <i class="fas fa-info-circle me-2"></i>Reference
+            </button>
+        </li>
+    </ul>
 
-    <!-- KPI CARDS -->
-    <div class="row g-4 mb-4">
-        <!-- Net Revenue -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm border-start border-4 border-primary h-100">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase">Net Revenue</div>
-                    <div class="fs-3 fw-bold text-primary">₱{{ total_revenue|floatformat:2|intcomma }}</div>
-                    <small class="text-muted d-block mt-1">Gross Sales: ₱{{ gross_sales|floatformat:2|intcomma }}</small>
-                </div>
-            </div>
-        </div>
+    <div class="tab-content" id="analyticsTabContent">
         
-        <!-- Units Sold -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm border-start border-4 border-success h-100">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase">Units Sold</div>
-                    <div class="fs-3 fw-bold text-dark">{{ total_units|intcomma }}</div>
-                    <small class="text-muted d-block mt-1">Items moved</small>
+        <!-- TAB 1: FINANCIALS -->
+        <div class="tab-pane fade show active" id="financial-pane" role="tabpanel">
+            <!-- Financial KPIs -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="rounded-3 bg-primary-subtle text-primary p-3 me-3">
+                                <i class="fas fa-wallet fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-bold small mb-1">Net Revenue</h6>
+                                <h3 class="fw-bold text-dark mb-0">₱{{ total_revenue|floatformat:2|intcomma }}</h3>
+                                <small class="text-success fw-bold" style="font-size: 0.75rem;">
+                                    <i class="fas fa-arrow-up"></i> Gross: ₱{{ gross_sales|floatformat:2|intcomma }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="rounded-3 bg-danger-subtle text-danger p-3 me-3">
+                                <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-bold small mb-1">Total Expenses</h6>
+                                <h3 class="fw-bold text-dark mb-0">₱{{ total_expenses|floatformat:2|intcomma }}</h3>
+                                <small class="text-muted" style="font-size: 0.75rem;">Operational Costs</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="rounded-3 bg-success-subtle text-success p-3 me-3">
+                                <i class="fas fa-chart-line fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-bold small mb-1">Net Income</h6>
+                                <h3 class="fw-bold {% if net_income >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">
+                                    ₱{{ net_income|floatformat:2|intcomma }}
+                                </h3>
+                                <small class="text-muted" style="font-size: 0.75rem;">Profit Margin</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Refunds -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm border-start border-4 border-warning h-100">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase">Refunds Given</div>
-                    <div class="fs-3 fw-bold text-warning">₱{{ total_refunds|floatformat:2|intcomma }}</div>
-                    <small class="text-muted d-block mt-1">Deducted from Gross</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Damages/Loss -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm border-start border-4 border-danger h-100">
-                <div class="card-body">
-                    <div class="text-muted small fw-bold text-uppercase">Loss / Damage</div>
-                    <div class="fs-3 fw-bold text-danger">₱{{ total_loss|floatformat:2|intcomma }}</div>
-                    <small class="text-muted d-block mt-1">Total value lost</small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Charts Section -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-4">
-            <div class="card h-100 border-0 shadow-sm">
+            <!-- Trend Chart -->
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white py-3">
-                    <h6 class="m-0 fw-bold text-dark">Sales by Category</h6>
+                    <h6 class="m-0 fw-bold text-dark">Financial Overview (Income vs Expenses)</h6>
                 </div>
-                <div class="card-body d-flex align-items-center justify-content-center" style="height: 300px;">
-                    <canvas id="categoryChart"></canvas>
+                <div class="card-body">
+                    <div style="height: 350px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secondary Financial Charts -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white py-3">
+                            <h6 class="m-0 fw-bold text-dark">Sales vs Charges</h6>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 250px; position: relative;">
+                                <canvas id="paymentMethodChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white py-3">
+                            <h6 class="m-0 fw-bold text-dark">Expenses by Category</h6>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 250px; position: relative;">
+                                <canvas id="expenseCategoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-8">
-            <div class="card h-100 border-0 shadow-sm">
+        <!-- TAB 2: INVENTORY -->
+        <div class="tab-pane fade" id="inventory-pane" role="tabpanel">
+            <!-- Operational KPIs -->
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="rounded-3 bg-warning-subtle text-warning p-3 me-3">
+                                <i class="fas fa-box-open fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted text-uppercase fw-bold small mb-1">Units Sold</h6>
+                                <h3 class="fw-bold text-dark mb-0">{{ total_units|intcomma }}</h3>
+                                <small class="text-danger fw-bold" style="font-size: 0.75rem;">
+                                    <i class="fas fa-arrow-down"></i> Loss: ₱{{ total_loss|floatformat:2|intcomma }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="rounded-3 bg-primary-subtle text-primary p-3 me-3">
+                                <i class="fas fa-credit-card fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted small text-uppercase fw-bold mb-1">Credit Charges</h6>
+                                <h4 class="fw-bold text-dark mb-0">{{ charges_count|intcomma }}</h4>
+                                <div class="text-primary fw-bold small">₱{{ total_charges_val|floatformat:2|intcomma }}</div>
+                                <small class="text-muted" style="font-size: 0.75rem;">Unpaid/Credit Transactions</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="rounded-3 bg-warning-subtle text-warning p-3 me-3">
+                                <i class="fas fa-undo fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted small text-uppercase fw-bold mb-1">Refunds Processed</h6>
+                                <h4 class="fw-bold text-dark mb-0">{{ refunds_count|intcomma }}</h4>
+                                <div class="text-warning fw-bold small">₱{{ total_refunds|floatformat:2|intcomma }}</div>
+                                <small class="text-muted" style="font-size: 0.75rem;">Items Returned</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="rounded-3 bg-danger-subtle text-danger p-3 me-3">
+                                <i class="fas fa-dumpster-fire fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="text-muted small text-uppercase fw-bold mb-1">Damaged Items</h6>
+                                <h4 class="fw-bold text-dark mb-0">{{ damages_count|intcomma }}</h4>
+                                <div class="text-danger fw-bold small">₱{{ total_loss|floatformat:2|intcomma }}</div>
+                                <small class="text-muted" style="font-size: 0.75rem;">Recorded Losses</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Charts -->
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-header bg-white py-3">
+                            <h6 class="m-0 fw-bold text-dark">Top 5 Best Selling Products</h6>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 100%; min-height: 300px;">
+                                <canvas id="productChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white py-3">
+                            <h6 class="m-0 fw-bold text-dark">Sales by Category</h6>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 250px; position: relative;">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: REFERENCE -->
+        <div class="tab-pane fade" id="reference-pane" role="tabpanel">
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white py-3">
-                    <h6 class="m-0 fw-bold text-dark">Top 5 Best Selling Products</h6>
+                    <h6 class="m-0 fw-bold text-dark"><i class="fas fa-calculator me-2 text-secondary"></i>How it works</h6>
                 </div>
-                <div class="card-body" style="height: 300px;">
-                    <canvas id="productChart"></canvas>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary mb-3">Financial Metrics</h6>
+                            <ul class="list-group list-group-flush small">
+                                <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold text-dark">Gross Sales</div>
+                                        Total value of all items sold (Cash + Credit) before any deductions.
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold text-dark">Net Revenue</div>
+                                        <code>Gross Sales - Refunds</code>
+                                        <div class="text-muted mt-1">Actual revenue generated from sales after accounting for returns.</div>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold text-dark">Net Income</div>
+                                        <code>Net Revenue - Total Expenses</code>
+                                        <div class="text-muted mt-1">The final profit after paying for operational expenses.</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-danger mb-3">Operational Metrics</h6>
+                            <ul class="list-group list-group-flush small">
+                                <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold text-dark">Loss / Damage Value</div>
+                                        Calculated as <code>Quantity × Cost Price</code> at the time the item was marked as damaged.
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold text-dark">Credit Charges</div>
+                                        The number of sales transactions where payment method was set to "Charge/Credit".
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold text-dark">Refunds</div>
+                                        Value of items returned by customers. This amount is deducted from Gross Sales to get Net Revenue.
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Trend Chart -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3">
-            <h6 class="m-0 fw-bold text-dark">Daily Sales Trend</h6>
-        </div>
-        <div class="card-body" style="height: 350px;">
-            <canvas id="trendChart"></canvas>
         </div>
     </div>
 </div>
@@ -144,6 +341,23 @@
             });
         }
 
+        // 1.B Expense Category
+        const expCatLabels = JSON.parse('{{ exp_cat_labels|safe }}');
+        const expCatValues = JSON.parse('{{ exp_cat_values|safe }}');
+        
+        if (expCatLabels.length > 0) {
+            new Chart(document.getElementById("expenseCategoryChart"), {
+                type: 'doughnut',
+                data: {
+                    labels: expCatLabels,
+                    datasets: [{ data: expCatValues, backgroundColor: ['#e74a3b', '#f6c23e', '#4e73df', '#36b9cc', '#858796'], borderWidth: 0 }]
+                },
+                options: {
+                    maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, cutout: '70%'
+                }
+            });
+        }
+
         // 2. Top Products
         const prodLabels = JSON.parse('{{ prod_labels|safe }}');
         const prodValues = JSON.parse('{{ prod_values|safe }}');
@@ -174,18 +388,26 @@
         }
 
         // 3. Trend
-        const dateLabels = JSON.parse('{{ date_labels|safe }}');
-        const dateValues = JSON.parse('{{ date_values|safe }}');
+        const trendLabels = JSON.parse('{{ trend_labels|safe }}');
+        const trendSales = JSON.parse('{{ trend_sales_values|safe }}');
+        const trendExpenses = JSON.parse('{{ trend_expense_values|safe }}');
 
-        if (dateLabels.length > 0) {
+        if (trendLabels.length > 0) {
             new Chart(document.getElementById("trendChart"), {
                 type: 'bar',
                 data: {
-                    labels: dateLabels,
+                    labels: trendLabels,
                     datasets: [{
-                        label: 'Daily Revenue',
-                        data: dateValues,
-                        backgroundColor: '#2c3e50',
+                        label: 'Income',
+                        data: trendSales,
+                        backgroundColor: '#1cc88a',
+                        borderRadius: 4,
+                        barThickness: 'flex',
+                        maxBarThickness: 40
+                    }, {
+                        label: 'Expenses',
+                        data: trendExpenses,
+                        backgroundColor: '#e74a3b',
                         borderRadius: 4,
                         barThickness: 'flex',
                         maxBarThickness: 40
@@ -201,6 +423,23 @@
                         },
                         x: { grid: { display: false } }
                     }
+                }
+            });
+        }
+
+        // 4. Payment Method (Sales vs Charges)
+        const payLabels = JSON.parse('{{ pay_labels|safe }}');
+        const payValues = JSON.parse('{{ pay_values|safe }}');
+
+        if (payLabels.length > 0) {
+            new Chart(document.getElementById("paymentMethodChart"), {
+                type: 'pie',
+                data: {
+                    labels: payLabels,
+                    datasets: [{ data: payValues, backgroundColor: ['#1cc88a', '#e74a3b', '#36b9cc'], borderWidth: 0 }]
+                },
+                options: {
+                    maintainAspectRatio: false, plugins: { legend: { position: 'right' } }
                 }
             });
         }
