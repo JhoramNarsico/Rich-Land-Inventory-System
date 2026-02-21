@@ -16,7 +16,6 @@ Render Deployment Link: https://rich-land-inventory-system.onrender.com/
 | Jhoram Narsico           | [github.com/jhoramnarsico](https://github.com/jhoramnarsico) |
 | Joseph Ernest Alberto    | [github.com/Jepoyskies](https://github.com/Jepoyskies) |
 | Jillian Athea Boc        | [github.com/Jillian-Athea](https://github.com/Jillian-Athea) |
-| Ram Jay Po               | [github.com/FunkyAtoms](https://github.com/FunkyAtoms) |
 
 
 
