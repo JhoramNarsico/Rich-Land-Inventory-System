@@ -1,14 +1,23 @@
 import random
+import uuid
 from datetime import timedelta
+from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.contrib.auth.models import User
-from inventory.models import Category, Supplier, Product, PurchaseOrder, PurchaseOrderItem, StockTransaction
+from django.db import transaction
+from inventory.models import (
+    Category, Supplier, Product, PurchaseOrder, PurchaseOrderItem, 
+    StockTransaction, Customer, CustomerPayment, POSSale, 
+    ExpenseCategory, Expense, HydraulicSow
+)
 
 class Command(BaseCommand):
-    help = 'Populates the database with sample data for testing.'
+    help = 'Populates the database with sample data for testing all features.'
 
     def handle(self, *args, **kwargs):
+        # Clear existing data to prevent duplicates on re-seed
+        self.clear_data()
         self.stdout.write("Seeding data...")
 
         # 1. Get or Create Admin User for logs
@@ -17,7 +26,7 @@ class Command(BaseCommand):
             user = User.objects.create_superuser('admin', 'admin@example.com', 'password123')
             self.stdout.write("Created superuser: admin / password123")
 
-        # 2. Create Categories
+        # 2. Create Product Categories
         categories = [
             'Engine Parts', 'Tires & Wheels', 'Braking System', 
             'Fluids & Chemicals', 'Accessories', 'Batteries'
@@ -43,7 +52,21 @@ class Command(BaseCommand):
             })
             sup_objs.append(sup)
         self.stdout.write(f"Created {len(sup_objs)} suppliers.")
-
+        
+        # 4. Create Customers
+        self.stdout.write("Creating customers...")
+        customers_data = [
+            {'name': 'John Doe Garage', 'email': 'johndoe@example.com', 'phone': '0917-111-2222', 'address': '123 Main St, QC', 'credit_limit': 50000},
+            {'name': 'Maria\'s Auto Repair', 'email': 'maria@repair.com', 'phone': '0918-333-4444', 'address': '456 Service Rd, Pasig', 'credit_limit': 25000},
+            {'name': 'Walk-in Customer', 'address': 'Store Counter', 'credit_limit': 0},
+        ]
+        customer_objs = []
+        for data in customers_data:
+            cust, created = Customer.objects.get_or_create(name=data['name'], defaults=data)
+            customer_objs.append(cust)
+        self.stdout.write(f"Created {len(customer_objs)} customers.")
+        walk_in_customer = Customer.objects.get(name="Walk-in Customer")
+        
         # 4. Create Products
         products_data = [
             {'name': 'Motolite Gold Battery', 'sku': 'BAT-001', 'cat': 'Batteries', 'price': 4500.00, 'qty': 20},
@@ -84,8 +107,38 @@ class Command(BaseCommand):
                 )
         self.stdout.write(f"Created {len(prod_objs)} products.")
 
-        # 5. Create Purchase Orders (Testing Workflow)
+        # 5. Create Expense Categories and Expenses
+        self.stdout.write("Creating expense categories and expenses...")
+        exp_cats_data = ['Rent', 'Utilities', 'Salaries', 'Supplies', 'Marketing']
+        exp_cat_objs = []
+        for name in exp_cats_data:
+            cat, _ = ExpenseCategory.objects.get_or_create(name=name)
+            exp_cat_objs.append(cat)
         
+        for _ in range(25): # Create 25 random expenses
+            random_days = random.randint(0, 30)
+            exp_date = timezone.now().date() - timedelta(days=random_days)
+            Expense.objects.create(
+                category=random.choice(exp_cat_objs),
+                description=f"Sample {random.choice(exp_cat_objs).name} expense",
+                amount=Decimal(random.uniform(500, 15000)).quantize(Decimal('0.01')),
+                expense_date=exp_date,
+                recorded_by=user
+            )
+        self.stdout.write("Created 25 random expenses.")
+
+        # 6. Create Hydraulic SOWs
+        self.stdout.write("Creating Hydraulic SOWs...")
+        for i in range(5):
+            cust = random.choice(customer_objs)
+            sow = HydraulicSow.objects.create(
+                customer=cust, created_by=user, hose_type=f"Type {random.choice(['A', 'B', 'C'])}",
+                diameter=f"1/{random.randint(2,8)}", application=f"Excavator Arm {i+1}",
+                cost=Decimal(random.uniform(1500, 8000)).quantize(Decimal('0.01'))
+            )
+            POSSale.objects.create(receipt_id=sow.sow_id, customer=cust, cashier=user, payment_method='CREDIT', total_amount=sow.cost, notes=f"Hydraulic Job #{sow.id}")
+        self.stdout.write("Created 5 Hydraulic SOWs with charges.")
+
         # PO #1: PENDING (In Transit)
         po1 = PurchaseOrder.objects.create(supplier=sup_objs[0], status='PENDING')
         PurchaseOrderItem.objects.create(purchase_order=po1, product=prod_objs[0], quantity=10, price=4000.00)
@@ -111,68 +164,110 @@ class Command(BaseCommand):
         
         self.stdout.write("Created 3 Purchase Orders (Pending, Arrived, Received).")
 
-        # 6. Generate History (Sales, Damage, Returns)
-        # Spread over last 30 days for Analytics
-        self.stdout.write("Generating transaction history...")
-        
+        # 7. Generate POS History
+        self.stdout.write("Generating POS transaction history...")
         end_date = timezone.now()
-        start_date = end_date - timedelta(days=30)
-        
-        # Create 50 random transactions
         for _ in range(50):
             random_days = random.randint(0, 30)
             txn_date = end_date - timedelta(days=random_days)
-            product = random.choice(prod_objs)
             
-            # Determine type
-            dice = random.randint(1, 100)
-            
-            if dice <= 80: # 80% Sales
-                qty = random.randint(1, 5)
-                # Ensure we don't go negative
-                if product.quantity >= qty:
-                    StockTransaction.objects.create(
-                        product=product,
-                        transaction_type='OUT',
-                        transaction_reason='SALE',
-                        quantity=qty,
-                        selling_price=product.price, # Revenue
-                        user=user,
-                        timestamp=txn_date,
-                        notes=f"Walk-in customer sales"
-                    )
-                    product.quantity -= qty
-                    product.save()
-            
-            elif dice <= 90: # 10% Returns
-                qty = random.randint(1, 2)
-                StockTransaction.objects.create(
-                    product=product,
-                    transaction_type='IN',
-                    transaction_reason='RETURN',
-                    quantity=qty,
-                    selling_price=product.price, # Negative Revenue calculation
-                    user=user,
-                    timestamp=txn_date,
-                    notes="Customer bought wrong item"
-                )
-                product.quantity += qty
-                product.save()
-                
-            else: # 10% Damage
-                qty = 1
-                if product.quantity >= qty:
-                    StockTransaction.objects.create(
-                        product=product,
-                        transaction_type='OUT',
-                        transaction_reason='DAMAGE',
-                        quantity=qty,
-                        selling_price=product.price, # Loss Value
-                        user=user,
-                        timestamp=txn_date,
-                        notes="Damaged during handling"
-                    )
-                    product.quantity -= qty
-                    product.save()
+            is_walk_in = random.random() < 0.4
+            customer = walk_in_customer if is_walk_in else random.choice(customer_objs[:-1])
+            payment_method = 'CASH' if is_walk_in else random.choice(['CASH', 'CREDIT', 'CARD'])
 
+            sale_record = POSSale.objects.create(
+                receipt_id=f"REC-{uuid.uuid4().hex[:8].upper()}",
+                cashier=user, 
+                customer=customer, 
+                payment_method=payment_method, 
+                timestamp=txn_date
+            )
+            
+            total_cost = Decimal('0')
+            num_items = random.randint(1, 4)
+            
+            with transaction.atomic():
+                for _ in range(num_items):
+                    product = random.choice(prod_objs)
+                    if product.quantity > 0:
+                        qty = random.randint(1, min(3, product.quantity))
+                        StockTransaction.objects.create(
+                            product=product, pos_sale=sale_record, transaction_type='OUT',
+                            transaction_reason='SALE', quantity=qty, selling_price=product.price,
+                            user=user, timestamp=txn_date, notes=f"POS Sale: {sale_record.receipt_id}"
+                        )
+                        product.quantity -= qty
+                        product.save()
+                        total_cost += (Decimal(str(product.price)) * qty)
+
+                if total_cost > 0:
+                    sale_record.total_amount = total_cost
+                    if payment_method == 'CASH':
+                        sale_record.amount_paid = total_cost
+                    sale_record.save()
+                else:
+                    sale_record.delete()
+        self.stdout.write("Generated 50 POS sales.")
+
+        # 8. Generate some payments for credit sales
+        self.stdout.write("Generating customer payments for credit sales...")
+        credit_sales = POSSale.objects.filter(payment_method='CREDIT')
+        for sale in credit_sales:
+            if random.random() < 0.5:
+                payment_date = sale.timestamp + timedelta(days=random.randint(1, 15))
+                payment_amount = sale.total_amount if random.random() < 0.7 else sale.total_amount / 2
+                CustomerPayment.objects.create(
+                    customer=sale.customer, sale_paid=sale, amount=payment_amount.quantize(Decimal('0.01')),
+                    payment_date=payment_date, recorded_by=user, notes="Seed data payment"
+                )
+        self.stdout.write("Generated random payments.")
+
+        # 9. Generate Returns and Damages
+        self.stdout.write("Generating returns and damages...")
+        for _ in range(10):
+            sale_to_return = POSSale.objects.filter(items__isnull=False).order_by('?').first()
+            if sale_to_return:
+                item_to_return = sale_to_return.items.order_by('?').first()
+                if item_to_return:
+                    StockTransaction.objects.create(
+                        product=item_to_return.product, transaction_type='IN', transaction_reason='RETURN',
+                        quantity=1, selling_price=item_to_return.selling_price,
+                        user=user,
+                        timestamp=sale_to_return.timestamp + timedelta(days=random.randint(1,3)),
+                        notes=f"Return for {sale_to_return.receipt_id}"
+                    )
+                    item_to_return.product.quantity += 1
+                    item_to_return.product.save()
+
+        for _ in range(10):
+            product = random.choice(prod_objs)
+            if product.quantity > 0:
+                with transaction.atomic():
+                    product_to_damage = Product.objects.select_for_update().get(pk=product.pk)
+                    if product_to_damage.quantity > 0:
+                        product_to_damage.quantity -= 1
+                        product_to_damage.save()
+                        StockTransaction.objects.create(
+                            product=product_to_damage, transaction_type='OUT', transaction_reason='DAMAGE',
+                            quantity=1, user=user, timestamp=timezone.now() - timedelta(days=random.randint(1,30)),
+                            notes="Damaged during handling (seed)"
+                        )
+        self.stdout.write("Generated returns and damages.")
         self.stdout.write(self.style.SUCCESS('Successfully seeded database with sample data!'))
+
+    def clear_data(self):
+        """Deletes data from models to prepare for fresh seeding."""
+        self.stdout.write("Clearing old data...")
+        # Order is important to respect foreign key constraints
+        models_to_clear = [
+            StockTransaction, PurchaseOrderItem, PurchaseOrder, 
+            POSSale, CustomerPayment, HydraulicSow, Customer, 
+            Expense, ExpenseCategory, Product, Category, Supplier
+        ]
+        for model in models_to_clear:
+            try:
+                if model.objects.exists():
+                    model.objects.all().delete()
+                    self.stdout.write(f"  - Cleared {model.__name__}")
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error clearing {model.__name__}: {e}"))

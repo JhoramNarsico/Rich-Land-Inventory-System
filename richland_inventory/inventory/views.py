@@ -1937,20 +1937,47 @@ def sales_chart_data(request):
     trunc_func = TruncDate('timestamp')
     date_format = '%b %d'
 
-    # Aggregate sales data
-    sales_data = StockTransaction.objects.filter(
-        transaction_type='OUT',
-        transaction_reason=StockTransaction.TransactionReason.SALE,
-        timestamp__gte=start_time,
-        selling_price__isnull=False
-    ).annotate(period_group=trunc_func).values('period_group').annotate(
-        total_sales=Sum(F('selling_price') * F('quantity'))
+    # Fetch POS Sales grouped by Date and Payment Method
+    sales_qs = POSSale.objects.filter(timestamp__gte=start_time).annotate(
+        period_group=trunc_func
+    ).values('period_group', 'payment_method').annotate(
+        total=Sum('total_amount')
     ).order_by('period_group')
     
-    labels = [entry['period_group'].strftime(date_format) for entry in sales_data]
-    data = [float(entry['total_sales']) for entry in sales_data]
+    # Organize data into dictionaries
+    sales_by_date = {}
+    charges_by_date = {}
+
+    for entry in sales_qs:
+        d = entry['period_group']
+        if isinstance(d, datetime): d = d.date()
+        
+        amount = float(entry['total'])
+        if entry['payment_method'] == 'CREDIT':
+            charges_by_date[d] = charges_by_date.get(d, 0) + amount
+        else:
+            # Group CASH and CARD as "Sales" (Revenue realized immediately)
+            sales_by_date[d] = sales_by_date.get(d, 0) + amount
+
+    # Generate continuous date range
+    labels = []
+    sales_data = []
+    charges_data = []
     
-    return JsonResponse({'labels': labels, 'data': data})
+    current_date = start_time.date()
+    end_date = now.date()
+    
+    while current_date <= end_date:
+        labels.append(current_date.strftime(date_format))
+        sales_data.append(sales_by_date.get(current_date, 0))
+        charges_data.append(charges_by_date.get(current_date, 0))
+        current_date += timedelta(days=1)
+    
+    return JsonResponse({
+        'labels': labels, 
+        'sales_data': sales_data,
+        'charges_data': charges_data
+    })
 
 # --- MISSING UTILITY VIEWS ---
 

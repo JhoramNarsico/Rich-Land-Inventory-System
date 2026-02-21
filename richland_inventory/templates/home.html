@@ -244,45 +244,61 @@ function updateChart(period, btnElement) {
                 type: 'line',
                 data: {
                     labels: data.labels,
-                    datasets: [{
-                        label: 'Revenue',
-                        data: data.data,
-                        backgroundColor: 'rgba(39, 153, 165, 0.1)',
-                        borderColor: colorDefault,
-                        borderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: '#2c3e50',
-                        pointBorderColor: '#fff',
-                        fill: true,
-                        tension: 0.3,
-
-                        // DYNAMIC LINE COLOR
-                        segment: {
-                            borderColor: ctx => {
-                                if (!ctx.p0 || !ctx.p1) return colorDefault;
-                                const start = ctx.p0.parsed.y;
-                                const end = ctx.p1.parsed.y;
-                                if (end > start) return colorUp;
-                                if (end < start) return colorDown;
-                                return colorDefault;
-                            }
+                    datasets: [
+                        {
+                            label: 'Cash Sales',
+                            data: data.sales_data,
+                            backgroundColor: 'rgba(39, 153, 165, 0.1)',
+                            borderColor: '#2799a5', // Teal
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Charges (Credit)',
+                            data: data.charges_data,
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            borderColor: '#dc3545', // Danger Red
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            fill: true,
+                            tension: 0.3
                         }
-                    }]
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false },
+                        legend: { 
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8
+                            }
+                        },
                         tooltip: {
+                            mode: 'index',
+                            intersect: false,
                             backgroundColor: '#2c3e50',
                             padding: 10,
                             titleFont: { family: 'Inter', size: 13 },
                             bodyFont: { family: 'Inter', size: 13 },
                             callbacks: {
                                 label: function(context) {
-                                    return '₱' + context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += '₱' + context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                                    }
+                                    return label;
                                 }
                             }
                         }
@@ -301,6 +317,11 @@ function updateChart(period, btnElement) {
                                 callback: function(value) { return '₱' + value.toLocaleString(); }
                             }
                         }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
                     }
                 }
             });
