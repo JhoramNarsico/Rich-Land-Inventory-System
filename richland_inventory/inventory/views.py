@@ -90,28 +90,17 @@ def hydraulic_sow_create(request, pk):
             notes=request.POST.get('notes', '')
         )
 
-        if cost_decimal > 0:
-            payment_method = request.POST.get('payment_method', 'CREDIT')
-            amount_paid = Decimal('0')
-            
-            if payment_method == 'CASH':
-                amount_paid_input = request.POST.get('amount_paid')
-                if amount_paid_input:
-                    try:
-                        amount_paid = Decimal(amount_paid_input)
-                    except:
-                        pass
-
+        if cost_decimal > 0 and request.POST.get('charge_account'):
             # Create Ledger Entry (POSSale)
             receipt_id = sow.sow_id
             POSSale.objects.create(
                 receipt_id=receipt_id,
                 customer=customer,
                 cashier=request.user,
-                payment_method=payment_method,
+                payment_method='CREDIT',
                 total_amount=cost_decimal,
-                amount_paid=amount_paid,
-                change_given=(amount_paid - cost_decimal) if payment_method == 'CASH' else 0,
+                amount_paid=0,
+                change_given=0,
                 notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
             )
             messages.success(request, f"Hydraulic SOW saved. Receipt generated.")
@@ -708,7 +697,10 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
             balance += (entry['debit'] - entry['credit'])
             entry['balance'] = balance
 
-        context['ledger'] = ledger
+        # Pagination for Ledger
+        ledger_paginator = Paginator(ledger, 20)
+        ledger_page = self.request.GET.get('ledger_page')
+        context['ledger'] = ledger_paginator.get_page(ledger_page)
         
         # Add payment form and financial summary to context
         context['payment_form'] = CustomerPaymentForm(customer=customer)
@@ -732,13 +724,29 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
                 q_sow |= Q(id=sow_q)
             sows_qs = sows_qs.filter(q_sow)
 
-        context['sows'] = sows_qs
+        # Pagination for SOW
+        sows_paginator = Paginator(sows_qs, 10)
+        sow_page = self.request.GET.get('sow_page')
+        context['sows'] = sows_paginator.get_page(sow_page)
+        
         context['sow_q'] = sow_q
         
         context['ledger_q'] = ledger_q
+        
+        # URL Params for Pagination Links (Preserve other filters)
+        params = self.request.GET.copy()
+        if 'ledger_page' in params: del params['ledger_page']
+        context['ledger_query_params'] = params.urlencode()
+        
+        params = self.request.GET.copy()
+        if 'sow_page' in params: del params['sow_page']
+        context['sow_query_params'] = params.urlencode()
+
+        # URL Params for Exports (Clean all pagination)
         query_params = self.request.GET.copy()
-        if 'page' in query_params:
-            query_params.pop('page')
+        if 'page' in query_params: query_params.pop('page')
+        if 'ledger_page' in query_params: query_params.pop('ledger_page')
+        if 'sow_page' in query_params: query_params.pop('sow_page')
         context['query_params'] = query_params.urlencode()
 
         return context
@@ -1396,6 +1404,13 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     
     def get_queryset(self):
         qs = POSSale.objects.select_related('cashier', 'customer').order_by('-timestamp')
+        
+        txn_type = self.request.GET.get('type')
+        if txn_type == 'REC':
+            qs = qs.filter(receipt_id__startswith='REC')
+        elif txn_type == 'JOB':
+            qs = qs.filter(Q(receipt_id__startswith='JOB') | Q(receipt_id__startswith='SOW'))
+            
         q = self.request.GET.get('q')
         if q:
             query = Q(receipt_id__icontains=q) | \
@@ -1412,6 +1427,7 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['q'] = self.request.GET.get('q', '')
+        context['type'] = self.request.GET.get('type', '')
         
         query_params = self.request.GET.copy()
         if 'page' in query_params:
@@ -1623,20 +1639,38 @@ def analytics_dashboard(request):
 
     # 4. Chart Data Preparation
     # A. Sales by Category
+    # Optimized: Group by ID to avoid joins during aggregation
     cat_qs = stock_txns.filter(
         transaction_type='OUT', transaction_reason=StockTransaction.TransactionReason.SALE
-    ).values('product__category__name').annotate(sales=Sum(F('quantity') * F('selling_price'))).order_by('-sales')
+    ).values('product__category').annotate(sales=Sum(F('quantity') * F('selling_price'))).order_by('-sales')
     
-    cat_labels = [item['product__category__name'] or 'Uncategorized' for item in cat_qs]
-    cat_values = [float(item['sales']) for item in cat_qs]
+    cat_ids = [item['product__category'] for item in cat_qs if item['product__category']]
+    categories = Category.objects.filter(id__in=cat_ids).in_bulk()
+    
+    cat_labels = []
+    cat_values = []
+    for item in cat_qs:
+        cat_id = item['product__category']
+        name = categories[cat_id].name if cat_id in categories else 'Uncategorized'
+        cat_labels.append(name)
+        cat_values.append(float(item['sales']))
     
     # B. Top 5 Best Selling Products
+    # Optimized: Group by ID to avoid joins during aggregation
     prod_qs = stock_txns.filter(
         transaction_type='OUT', transaction_reason=StockTransaction.TransactionReason.SALE
-    ).values('product__name').annotate(sales=Sum(F('quantity') * F('selling_price'))).order_by('-sales')[:5]
+    ).values('product').annotate(sales=Sum(F('quantity') * F('selling_price'))).order_by('-sales')[:5]
     
-    prod_labels = [item['product__name'] for item in prod_qs]
-    prod_values = [float(item['sales']) for item in prod_qs]
+    prod_ids = [item['product'] for item in prod_qs]
+    products = Product.objects.filter(id__in=prod_ids).in_bulk()
+    
+    prod_labels = []
+    prod_values = []
+    for item in prod_qs:
+        prod_id = item['product']
+        if prod_id in products:
+            prod_labels.append(products[prod_id].name)
+            prod_values.append(float(item['sales']))
     
     # C. Expenses by Category
     exp_cat_qs = expenses_qs.values('category__name').annotate(total=Sum('amount')).order_by('-total')

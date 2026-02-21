@@ -227,6 +227,31 @@
                         </tbody>
                     </table>
                 </div>
+                {% if ledger.has_other_pages %}
+                <div class="card-footer bg-white border-top-0">
+                    <nav aria-label="Ledger pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if ledger.has_previous %}
+                                <li class="page-item"><a class="page-link" href="?ledger_page={{ ledger.previous_page_number }}&{{ ledger_query_params }}">Previous</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                            {% endif %}
+                            {% for i in ledger.paginator.page_range %}
+                                {% if ledger.number == i %}
+                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                {% elif i > ledger.number|add:'-3' and i < ledger.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?ledger_page={{ i }}&{{ ledger_query_params }}">{{ i }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if ledger.has_next %}
+                                <li class="page-item"><a class="page-link" href="?ledger_page={{ ledger.next_page_number }}&{{ ledger_query_params }}">Next</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
                     </div>
                 </div>
 
@@ -321,6 +346,31 @@
                         </tbody>
                     </table>
                 </div>
+                {% if sows.has_other_pages %}
+                <div class="card-footer bg-white border-top-0">
+                    <nav aria-label="SOW pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if sows.has_previous %}
+                                <li class="page-item"><a class="page-link" href="?sow_page={{ sows.previous_page_number }}&{{ sow_query_params }}">Previous</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                            {% endif %}
+                            {% for i in sows.paginator.page_range %}
+                                {% if sows.number == i %}
+                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                {% elif i > sows.number|add:'-3' and i < sows.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?sow_page={{ i }}&{{ sow_query_params }}">{{ i }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if sows.has_next %}
+                                <li class="page-item"><a class="page-link" href="?sow_page={{ sows.next_page_number }}&{{ sow_query_params }}">Next</a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
             </div>
                 </div>
             </div>

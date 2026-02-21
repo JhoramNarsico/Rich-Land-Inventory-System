@@ -115,8 +115,8 @@ class Command(BaseCommand):
             cat, _ = ExpenseCategory.objects.get_or_create(name=name)
             exp_cat_objs.append(cat)
         
-        for _ in range(25): # Create 25 random expenses
-            random_days = random.randint(0, 30)
+        for _ in range(200): # Create 200 random expenses over 2 years
+            random_days = random.randint(0, 730)
             exp_date = timezone.now().date() - timedelta(days=random_days)
             Expense.objects.create(
                 category=random.choice(exp_cat_objs),
@@ -125,19 +125,24 @@ class Command(BaseCommand):
                 expense_date=exp_date,
                 recorded_by=user
             )
-        self.stdout.write("Created 25 random expenses.")
+        self.stdout.write("Created 200 random expenses over 2 years.")
 
         # 6. Create Hydraulic SOWs
         self.stdout.write("Creating Hydraulic SOWs...")
-        for i in range(5):
+        for i in range(30):
+            random_days = random.randint(0, 730)
+            sow_date = timezone.now() - timedelta(days=random_days)
+            
             cust = random.choice(customer_objs)
             sow = HydraulicSow.objects.create(
                 customer=cust, created_by=user, hose_type=f"Type {random.choice(['A', 'B', 'C'])}",
                 diameter=f"1/{random.randint(2,8)}", application=f"Excavator Arm {i+1}",
                 cost=Decimal(random.uniform(1500, 8000)).quantize(Decimal('0.01'))
             )
-            POSSale.objects.create(receipt_id=sow.sow_id, customer=cust, cashier=user, payment_method='CREDIT', total_amount=sow.cost, notes=f"Hydraulic Job #{sow.id}")
-        self.stdout.write("Created 5 Hydraulic SOWs with charges.")
+            sow.date_created = sow_date
+            sow.save()
+            POSSale.objects.create(receipt_id=sow.sow_id, customer=cust, cashier=user, payment_method='CREDIT', total_amount=sow.cost, notes=f"Hydraulic Job #{sow.id}", timestamp=sow_date)
+        self.stdout.write("Created 30 Hydraulic SOWs with charges over 2 years.")
 
         # PO #1: PENDING (In Transit)
         po1 = PurchaseOrder.objects.create(supplier=sup_objs[0], status='PENDING')
@@ -167,8 +172,8 @@ class Command(BaseCommand):
         # 7. Generate POS History
         self.stdout.write("Generating POS transaction history...")
         end_date = timezone.now()
-        for _ in range(50):
-            random_days = random.randint(0, 30)
+        for _ in range(500):
+            random_days = random.randint(0, 730)
             txn_date = end_date - timedelta(days=random_days)
             
             is_walk_in = random.random() < 0.4
@@ -191,11 +196,13 @@ class Command(BaseCommand):
                     product = random.choice(prod_objs)
                     if product.quantity > 0:
                         qty = random.randint(1, min(3, product.quantity))
-                        StockTransaction.objects.create(
+                        st = StockTransaction.objects.create(
                             product=product, pos_sale=sale_record, transaction_type='OUT',
                             transaction_reason='SALE', quantity=qty, selling_price=product.price,
-                            user=user, timestamp=txn_date, notes=f"POS Sale: {sale_record.receipt_id}"
+                            user=user, notes=f"POS Sale: {sale_record.receipt_id}"
                         )
+                        st.timestamp = txn_date
+                        st.save()
                         product.quantity -= qty
                         product.save()
                         total_cost += (Decimal(str(product.price)) * qty)
@@ -207,7 +214,7 @@ class Command(BaseCommand):
                     sale_record.save()
                 else:
                     sale_record.delete()
-        self.stdout.write("Generated 50 POS sales.")
+        self.stdout.write("Generated 500 POS sales over 2 years.")
 
         # 8. Generate some payments for credit sales
         self.stdout.write("Generating customer payments for credit sales...")
@@ -229,14 +236,16 @@ class Command(BaseCommand):
             if sale_to_return:
                 item_to_return = sale_to_return.items.order_by('?').first()
                 if item_to_return:
-                    StockTransaction.objects.create(
+                    return_date = sale_to_return.timestamp + timedelta(days=random.randint(1,3))
+                    st = StockTransaction.objects.create(
                         product=item_to_return.product, transaction_type='IN', transaction_reason='RETURN',
                         quantity=1, selling_price=item_to_return.selling_price,
                         pos_sale=sale_to_return, # Link return to original sale
                         user=user,
-                        timestamp=sale_to_return.timestamp + timedelta(days=random.randint(1,3)),
                         notes=f"Return for {sale_to_return.receipt_id}"
                     )
+                    st.timestamp = return_date
+                    st.save()
                     item_to_return.product.quantity += 1
                     item_to_return.product.save()
 
@@ -248,11 +257,14 @@ class Command(BaseCommand):
                     if product_to_damage.quantity > 0:
                         product_to_damage.quantity -= 1
                         product_to_damage.save()
-                        StockTransaction.objects.create(
+                        damage_date = timezone.now() - timedelta(days=random.randint(1,730))
+                        st = StockTransaction.objects.create(
                             product=product_to_damage, transaction_type='OUT', transaction_reason='DAMAGE',
-                            quantity=1, user=user, timestamp=timezone.now() - timedelta(days=random.randint(1,30)),
+                            quantity=1, user=user,
                             notes="Damaged during handling (seed)"
                         )
+                        st.timestamp = damage_date
+                        st.save()
         self.stdout.write("Generated returns and damages.")
         self.stdout.write(self.style.SUCCESS('Successfully seeded database with sample data!'))
 
