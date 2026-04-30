@@ -2,7 +2,16 @@
 
 A comprehensive integrations operations system built with Django and MySQL, designed for robust tracking, audit logging, and POS functionality.
 
-## Core Features
+## Staging Environment
+
+This project utilizes a dedicated staging branch for internal and beta acceptance testing.
+
+*   **Branch:** `staging`
+*   **Version:** `v1.0.0-alpha.1`
+*   **Deployment:** Managed via Render pipeline.
+
+See the [Deployment and Testing Document](Group#_DeployStage.pdf) for detailed test plans, merge history, and feedback results.
+
 
 *   **Product & Stock Management:** Detailed tracking of products, categories, and real-time stock levels.
 *   **Audit Logging:** Automatic tracking of all product edits and stock movements via `django-simple-history`.
