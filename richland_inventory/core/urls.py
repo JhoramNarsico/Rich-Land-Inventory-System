@@ -38,7 +38,7 @@ urlpatterns =[
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     # --- 5. Core Application Routing ---
-    path('inventory/', include('inventory.urls')),
+    path('inventory/', include(('inventory.urls', 'inventory'), namespace='inventory')),
 ]
 
 # Serve Static and Media files automatically during local development

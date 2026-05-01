@@ -258,6 +258,11 @@
                             </ul>
                         </li>
                         {% endif %}
+                        <li class="nav-item" role="none">
+                            <a class="nav-link text-info" href="{% url 'inventory:feedback' %}" role="menuitem" title="Provide Feedback">
+                                <i class="fas fa-comments" aria-hidden="true"></i>
+                            </a>
+                        </li>
                     </ul>
                     <ul class="navbar-nav" role="menubar">
                         {% if user.is_authenticated %}

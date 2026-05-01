@@ -68,6 +68,12 @@ from django.db.models import Sum, Q
 from .models import POSSale, Product, StockTransaction, Category
 from decimal import Decimal
 
+# --- MISC ---
+
+@login_required
+def feedback_view(request):
+    return render(request, 'inventory/feedback.html', {'page_title': 'User Feedback'})
+
 # --- REFUND PORTAL ---
 
 @login_required

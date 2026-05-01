@@ -100,4 +100,7 @@ urlpatterns =[
     # Expense Imports
     path('expenses/import/', views.import_expenses, name='expense_import'),
     path('expenses/templates/download/', views.download_expense_template, name='download_expense_template'),
+
+    # Feedback Page
+    path('feedback/', views.feedback_view, name='feedback'),
 ]
