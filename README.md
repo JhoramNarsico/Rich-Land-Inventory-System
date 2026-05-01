@@ -2,13 +2,19 @@
 
 A comprehensive integrations operations system built with Django and MySQL, designed for robust tracking, audit logging, and POS functionality.
 
-## Staging Environment
+## Deployment Environments
 
-This project utilizes a dedicated staging branch for internal and beta acceptance testing.
+This project utilizes dedicated branches and Render hosting tiers for testing and production.
 
+### Alpha Environment (Internal Testing)
+*   **Purpose:** Development and internal alpha testing.
 *   **Branch:** `staging`
-*   **Version:** `v1.0.0-alpha.1`
-*   **Deployment:** Managed via Render pipeline.
+*   **Hosting:** [Render (Free Tier)](https://rl-ios-alpha-web.onrender.com/)
+
+### Beta Environment (External/Client Testing)
+*   **Purpose:** External acceptance testing and production preview.
+*   **Branch:** `main`
+*   **Hosting:** [Render (Paid Tier)](https://rl-ios-beta.onrender.com/)
 
 See the [Deployment and Testing Document](Group#_DeployStage.pdf) for detailed test plans, merge history, and feedback results.
 
