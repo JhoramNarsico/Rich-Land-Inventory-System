@@ -57,6 +57,7 @@ from .serializers import (
     HydraulicSowSerializer, POSSaleSerializer, ExpenseSerializer, ExpenseCategorySerializer
 )
 from .utils import render_to_pdf
+from .utils_service import get_service_product
 
 
 
@@ -2438,7 +2439,7 @@ def receive_purchase_order(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
     if request.method == 'POST' and po.status == 'COMPLETED':
         po.complete_order(request.user)
-        messages.success(request, f"Stock from PO #{po.id} added.")
+        messages.success(request, f"Stock from {po.order_id} added.")
     return redirect('inventory:purchaseorder_list')
 
 class SupplierListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):

@@ -15,7 +15,9 @@ from pathlib import Path
 import dj_database_url
 from decouple import Csv, config
 
-# --- 1. BASE CONFIGURATION ---
+# ==============================================================================
+# 1. BASE CONFIGURATION
+# ==============================================================================
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -30,10 +32,12 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,web', cast=
 
 # Fix for Render's Health Check and Custom Domains (Only applies if DEBUG is False)
 if not DEBUG:
-    CSRF_TRUSTED_ORIGINS =['https://*.onrender.com']
+    CSRF_TRUSTED_ORIGINS = ['https://*.onrender.com']
 
 
-# --- 2. APPLICATION DEFINITION ---
+# ==============================================================================
+# 2. APPLICATION DEFINITION
+# ==============================================================================
 INSTALLED_APPS =[
     # Core Django Apps
     'django.contrib.admin',
@@ -74,7 +78,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES =[
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS':[os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors':[
@@ -89,7 +93,9 @@ TEMPLATES =[
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# --- 3. DATABASE CONFIGURATION ---
+# ==============================================================================
+# 3. DATABASE CONFIGURATION
+# ==============================================================================
 # Logic: 
 # - Uses Render PostgreSQL if DATABASE_URL is set in environment.
 # - Falls back to local SQLite for local development.
@@ -101,7 +107,9 @@ DATABASES = {
 }
 
 
-# --- 4. PASSWORD VALIDATION ---
+# ==============================================================================
+# 4. PASSWORD VALIDATION
+# ==============================================================================
 AUTH_PASSWORD_VALIDATORS =[
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -110,14 +118,18 @@ AUTH_PASSWORD_VALIDATORS =[
 ]
 
 
-# --- 5. INTERNATIONALIZATION ---
+# ==============================================================================
+# 5. INTERNATIONALIZATION
+# ==============================================================================
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Manila'
 USE_I18N = True
 USE_TZ = True
 
 
-# --- 6. STATIC & MEDIA FILES ---
+# ==============================================================================
+# 6. STATIC & MEDIA FILES
+# ==============================================================================
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -126,7 +138,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Add this to ensure WhiteNoise handles files even when DEBUG is True (fixes Windows/Docker sync issues)
+# Ensures WhiteNoise handles files even when DEBUG is True (fixes Windows/Docker issues)
 WHITENOISE_USE_FINDERS = True
 
 MEDIA_URL = '/media/'
@@ -135,7 +147,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# --- 7. SESSION MANAGEMENT & SECURITY ---
+# ==============================================================================
+# 7. SESSION MANAGEMENT & SECURITY
+# ==============================================================================
 # Default expiry is 2 weeks (1,209,600 seconds)
 SESSION_COOKIE_AGE = 1209600 
 
@@ -152,13 +166,17 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
 
 
-# --- 8. AUTHENTICATION ROUTING ---
+# ==============================================================================
+# 8. AUTHENTICATION ROUTING
+# ==============================================================================
 LOGIN_REDIRECT_URL = '/'
 LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 
-# --- 9. THIRD-PARTY APP CONFIGURATIONS ---
+# ==============================================================================
+# 9. THIRD-PARTY APP CONFIGURATIONS
+# ==============================================================================
 
 # Django REST Framework & Swagger (drf-spectacular)
 REST_FRAMEWORK = {

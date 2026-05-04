@@ -38,6 +38,7 @@ def create_default_groups(apps, schema_editor):
             'view_customerpayment', 'add_customerpayment',
             # Stock Inquiry (Read-only)
             'view_product', 'view_category',
+            'can_adjust_stock',
         ],
     }
 
