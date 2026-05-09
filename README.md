@@ -74,6 +74,10 @@ docker-compose up --build
 ### 2. Initial Setup
 Run these once the containers are healthy:
 ```bash
+# Apply database migrations
+docker-compose exec web python richland_inventory/manage.py makemigrations
+docker-compose exec web python richland_inventory/manage.py migrate
+
 # Create an admin account
 docker-compose exec web python richland_inventory/manage.py createsuperuser
 

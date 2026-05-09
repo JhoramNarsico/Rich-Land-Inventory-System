@@ -19,9 +19,16 @@ from core.cache_utils import clear_dashboard_cache
 
 from .models import (
     Category, Customer, CustomerPayment, Expense, ExpenseCategory,
-    HydraulicSow, POSSale, PriceOverrideLog, Product, PurchaseOrder,
+    HydraulicSow, POSSale, PriceOverrideLog, CancellationReason, Product, PurchaseOrder,
     PurchaseOrderItem, StockTransaction, Supplier
 )
+
+@admin.register(CancellationReason)
+class CancellationReasonAdmin(admin.ModelAdmin):
+    list_display = ('pos_sale', 'reason', 'cancelled_by', 'timestamp')
+    search_fields = ('pos_sale__receipt_id', 'reason', 'cancelled_by__username')
+    list_filter = ('timestamp', 'cancelled_by')
+    readonly_fields = ('timestamp',)
 
 admin.site.site_header = "Rich Land Admin"
 admin.site.site_title = "Rich Land Admin Portal"
@@ -193,6 +200,7 @@ class CustomerAdmin(admin.ModelAdmin):
     """
     list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance_display')
     search_fields = ('name', 'customer_id', 'email', 'phone', 'tax_id')
+    exclude = ('credit_limit',)
     inlines =[CustomerPaymentInline, HydraulicSowInline]
     readonly_fields = ('created_at', 'updated_at')
     list_per_page = 25
@@ -267,7 +275,7 @@ class POSSaleAdmin(admin.ModelAdmin):
     Includes stock transaction inlines and restores stock on sale deletion.
     Prevents direct addition or modification of sales via admin.
     """
-    list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'has_price_override')
+    list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'notes', 'has_price_override')
     list_filter = ('payment_method', 'has_price_override', 'timestamp', 'cashier')
     search_fields = ('receipt_id', 'customer__name', 'notes')
     inlines = [StockTransactionInline]

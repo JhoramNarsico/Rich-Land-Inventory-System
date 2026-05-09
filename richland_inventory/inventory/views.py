@@ -49,7 +49,7 @@ from .forms import (
 )
 from .models import (
     Category, Customer, CustomerPayment, Expense, ExpenseCategory, HydraulicSow,
-    POSSale, PriceOverrideLog, Product, PurchaseOrder, PurchaseOrderItem,
+    POSSale, PriceOverrideLog, CancellationReason, Product, PurchaseOrder, PurchaseOrderItem,
     StockTransaction, Supplier
 )
 from .serializers import (
@@ -86,9 +86,17 @@ def refund_portal(request):
 @permission_required('inventory.can_adjust_stock', raise_exception=True)
 def refund_search(request):
     rid = request.GET.get('rid')
+    # Filter for CASH sales: payment_method != CREDIT (already covers PAID/PARTIAL) 
+    # and status is not cancelled (assuming we track status or existence implies not cancelled)
     sale = POSSale.objects.filter(receipt_id=rid).first()
+    
     if not sale:
         return JsonResponse({'status': 'error', 'message': 'Receipt not found'})
+    
+    # Eligibility Check
+    # Rule: ONLY 'CASH' (Non-CREDIT) status is allowed.
+    if sale.payment_method == 'CREDIT':
+        return JsonResponse({'status': 'error', 'message': 'Only CASH sales are eligible for refund. This appears to be a credit transaction.'})
     
     items = []
     # Fetch sold items and calculate remaining returnable quantity
@@ -270,6 +278,7 @@ def hydraulic_sow_create(request, pk):
                         total_amount=cost_decimal,
                         amount_paid=amount_paid,
                         change_given=0,
+                        status='COMPLETED',
                         notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
                     )
 
@@ -430,6 +439,7 @@ def hydraulic_sow_update(request, pk, sow_pk):
                     payment_method=payment_method, 
                     total_amount=cost_decimal, 
                     amount_paid=amount_paid,
+                    status='COMPLETED',
                     notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
                 )
 
@@ -1079,6 +1089,75 @@ def customer_payment(request, pk):
     return redirect('inventory:customer_detail', pk=pk)
 
 @login_required
+@require_POST
+@permission_required('inventory.delete_possale', raise_exception=True)
+def cancel_debt(request, pk, sale_pk):
+    """
+    Cancels a debt (POSSale) for a customer.
+    Only allowed if no payments have been applied.
+    Restores stock of all items in the sale.
+    """
+    reason = request.POST.get('cancellation_reason', '').strip()
+    if not reason:
+        messages.error(request, "A reason for cancellation is required.")
+        return redirect('inventory:customer_detail', pk=pk)
+
+    sale = get_object_or_404(POSSale, pk=sale_pk, customer_id=pk)
+    
+    # 1. Validation: Allowed cancellation types
+    # Allowed: CASH/CARD sales, and CREDIT debts that have NOT been fully paid.
+    # Blocked: PAID status transactions (fully settled debts).
+    
+    # Check if this is a 'PAID' debt
+    paid_amount = sale.payments_received.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    outstanding = sale.total_amount - paid_amount
+    
+    if sale.payment_method == 'CREDIT' and outstanding <= Decimal('0.001'):
+        messages.error(request, "Cancellation is NOT allowed for transactions with 'Paid' status. This debt has been fully settled.")
+        return redirect('inventory:customer_detail', pk=pk)
+
+    # 2. Validation: For CREDIT(DEBT), no partial payments allowed
+    if sale.payment_method == 'CREDIT':
+        if paid_amount > 0:
+            messages.error(request, f"Cancellation blocked. This debt has ₱{paid_amount:,.2f} in partial payments. Delete the payments first if you must cancel.")
+            return redirect('inventory:customer_detail', pk=pk)
+
+    try:
+        with transaction.atomic():
+            # 3. Restore Stock and log the restoration
+            for item in sale.items.all():
+                if item.transaction_type == 'OUT':
+                    product = item.product
+                    product.quantity += item.quantity
+                    product.save()
+                    
+                    # Create an audit log for the stock return
+                    StockTransaction.objects.create(
+                        product=product,
+                        pos_sale=sale,
+                        transaction_type='IN',
+                        transaction_reason=StockTransaction.TransactionReason.RETURN,
+                        quantity=item.quantity,
+                        selling_price=item.selling_price,
+                        user=request.user,
+                        notes=f"Restored stock from cancelled transaction: {sale.receipt_id}"
+                    )
+            
+            # Log reason and Update the Sale status instead of deleting
+            CancellationReason.objects.create(pos_sale=sale, reason=reason, cancelled_by=request.user)
+            
+            sale_id = sale.receipt_id
+            sale.status = 'CANCELLED' 
+            sale.save()
+            
+            clear_dashboard_cache()
+            messages.success(request, f"Transaction {sale_id} has been cancelled and stock has been restored.")
+    except Exception as e:
+        messages.error(request, f"An error occurred while cancelling the transaction: {e}")
+
+    return redirect('inventory:customer_detail', pk=pk)
+
+@login_required
 @permission_required('inventory.add_customerpayment', raise_exception=True)
 def import_ledger_entries(request, pk):
     """Import Ledger Entries (Charges/Payments) from CSV/Excel"""
@@ -1265,8 +1344,8 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
         
         ledger_q = self.request.GET.get('ledger_q', '')
 
-        # 1. Fetch Sales (Credit) with payment status
-        sales_qs = customer.purchases.all().select_related('cashier').annotate(
+        # 1. Fetch Sales (Credit) with payment status, excluding CANCELLED
+        sales_qs = customer.purchases.exclude(status='CANCELLED').select_related('cashier').annotate(
             paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
         ).annotate(
             outstanding=F('total_amount') - F('paid_amount')
@@ -1291,6 +1370,22 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             # Keyword Search (Type/Description)
             if 'debt' in query_lower:
                 q_sales = Q(payment_method='CREDIT', outstanding__gt=0)
+                q_payments = Q(pk__in=[])
+            elif 'cash' in query_lower:
+                q_sales = Q(payment_method__in=['CASH', 'CARD', 'GCASH', 'BANK'])
+                q_payments = Q(pk__in=[])
+            elif 'unpaid' in query_lower:
+                # Filter for credit sales that are still fully or partially unpaid
+                q_sales = Q(payment_method='CREDIT', outstanding__gt=0.001)
+                q_payments = Q(pk__in=[])
+            elif 'partially' in query_lower:
+                # Filter for credit sales that are partially paid (paid > 0 and outstanding > 0)
+                q_sales = Q(payment_method='CREDIT', paid_amount__gt=0.001, outstanding__gt=0.001)
+                q_payments = Q(pk__in=[])
+            elif 'paid' in query_lower:
+                # Filter for sales that are fully paid
+                # Exclude credit sales that still have an outstanding balance
+                q_sales = Q(payment_method='CASH') | (Q(payment_method='CREDIT') & Q(outstanding__lte=0.001))
                 q_payments = Q(pk__in=[])
             elif 'sale' in query_lower:
                 q_sales = Q(payment_method='CASH') | Q(payment_method='CREDIT', outstanding__lte=0)
@@ -1319,7 +1414,7 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             if s.payment_method == 'CREDIT':
                 if s.outstanding <= Decimal('0.001'):
                     status = "PAID"
-                    txn_type = 'SALE' # Paid off debt becomes Sale
+                    txn_type = 'SALE'
                 elif s.paid_amount > 0:
                     status = "PARTIALLY PAID"
                     txn_type = 'DEBT'
@@ -1327,18 +1422,25 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
                     status = "UNPAID"
                     txn_type = 'DEBT'
             else:
-                # Cash/Card Sales are effectively paid immediately and are Sales
-                status = "PAID"
+                # Initial full payment
+                status = "CASH"
                 txn_type = 'SALE'
-                credit_val = s.total_amount # Offset debit so balance doesn't increase
+                credit_val = s.total_amount
 
+            desc = f'{s.get_payment_method_display()} ({status})'
+            if s.notes:
+                desc += f" - {s.notes}"
+            
             ledger.append({
+                'id': s.pk,
                 'date': s.timestamp,
                 'ref': s.receipt_id,
-                'description': f'{s.get_payment_method_display()} ({status})',
-                'debit': s.total_amount,
+                'description': desc,
+                'debit': s.total_amount if txn_type == 'DEBT' else Decimal('0'),
+                'display_debit': s.outstanding if txn_type == 'DEBT' else Decimal('0'),
                 'credit': credit_val,
                 'type': txn_type,
+                'can_cancel': txn_type == 'DEBT' and s.paid_amount <= 0 and s.status != 'CANCELLED',
                 'view_url': reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': s.receipt_id}),
                 'user': s.cashier.username if s.cashier else 'N/A'
             })
@@ -1350,28 +1452,51 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
                 view_url = reverse('inventory:pos_receipt_detail', kwargs={'receipt_id': p['sale_paid__receipt_id']})
             if p['notes']:
                 desc += f" - {p['notes']}"
+            
+            # Explicitly cast to Decimal
+            payment_amount = Decimal(str(p['amount']))
+            
             ledger.append({
                 'date': p['payment_date'],
                 'ref': p['reference_number'],
                 'description': desc,
-                'debit': 0,
-                'credit': p['amount'],
+                'debit': Decimal('0'),
+                'credit': payment_amount,
                 'type': 'PAYMENT',
                 'view_url': view_url,
                 'user': p.get('recorded_by__username') or 'N/A'
             })
             
-        # 4. Sort by date
+        # 4. Sort by date ASCENDING to calculate balance chronologically
         ledger.sort(key=lambda x: x['date'])
 
         # 5. Calculate Running Balance
-        balance = 0
+        # The balance needs to align with the Financial Status (Outstanding Balance)
+        # Outstanding Balance = (Sum of all Credit Sales) - (Sum of all Payments)
+        balance = Decimal('0.00')
+        
+        # We need the chronological running balance to populate the ledger 'balance' field.
+        # Ensure the final balance matches customer.get_balance().
+        
         for entry in ledger:
-            balance += (entry['debit'] - entry['credit'])
+            # If it's a CASH sale (credit > 0 and debit == credit), it's neutral
+            debit = Decimal(str(entry['debit']))
+            credit = Decimal(str(entry['credit']))
+            
+            if entry['type'] == 'SALE' and debit > 0 and debit == credit:
+                debit = Decimal('0')
+                credit = Decimal('0')
+            
+            # The running balance accumulation:
+            balance += (debit - credit)
             entry['balance'] = balance
+            
+        # Ensure final ledger balance is consistent with customer.get_balance()
+        # If the ledger logic is correct, balance should already match self.object.get_balance().
+        # No extra step needed if calculation is correct.
 
-        # 6. Sort by date descending (Latest first)
-        ledger.sort(key=lambda x: x['date'], reverse=True)
+        # 6. Sort by date DESCENDING for the user (latest first)
+        ledger.reverse()
 
         # Pagination for Ledger
         ledger_paginator = Paginator(ledger, 20)
@@ -1799,6 +1924,11 @@ def pos_checkout(request):
         # New: Customer and Payment Method Logic
         customer_id = data.get('customer_id') 
         payment_method = data.get('payment_method', 'CASH') # CASH, CREDIT, CARD
+        payment_description = data.get('payment_description', '').strip()
+
+        # Validation: Mandatory description for GCASH and BANK
+        if payment_method in ['GCASH', 'BANK'] and not payment_description:
+            return JsonResponse({'status': 'error', 'message': f'A description (e.g., reference number) is mandatory for {payment_method} payments.'}, status=400)
         
         raw_amount = data.get('amount_paid')
         amount_paid = Decimal(str(raw_amount)) if raw_amount else Decimal('0')
@@ -1876,6 +2006,11 @@ def pos_checkout(request):
             for item in items
         )
         
+        # Prepare payment notes
+        txn_notes = f"POS Sale: {receipt_id} ({payment_method})"
+        if payment_description:
+            txn_notes += f" | Ref: {payment_description}"
+
         with transaction.atomic():
             # 1. Create Sale Header
             sale_record = POSSale.objects.create(
@@ -1886,7 +2021,8 @@ def pos_checkout(request):
                 total_amount=total_calculated_cost, 
                 amount_paid=amount_paid,
                 change_given=(amount_paid - total_calculated_cost) if payment_method != 'CREDIT' else 0,
-                has_price_override=sale_has_override
+                has_price_override=sale_has_override,
+                notes=txn_notes
             )
 
             receipt_items_response =[]
@@ -1898,10 +2034,11 @@ def pos_checkout(request):
                 sell_price = item_obj['price']
                 original_price = item_obj['original_price']
                 override_reason = item_obj.get('override_reason')
+                line_total = sell_qty * sell_price
                 
                 # Lock row
                 product = Product.objects.select_for_update().get(pk=product.id)
-
+                
                 # Log price override if price was lowered
                 if sell_price < original_price:
                     PriceOverrideLog.objects.create(
@@ -1915,14 +2052,12 @@ def pos_checkout(request):
 
                 product.quantity -= sell_qty
                 product.save()
-                
-                line_total = sell_qty * sell_price
-                
-                txn_notes = f"POS Sale: {receipt_id} ({payment_method})"
+
+                item_txn_notes = txn_notes
                 if sell_price < original_price:
-                    txn_notes += f" | Price Override: {original_price:,.2f} -> {sell_price:,.2f}"
+                    item_txn_notes += f" | Price Override: {original_price:,.2f} -> {sell_price:,.2f}"
                     if override_reason:
-                        txn_notes += f"[Reason: {override_reason}]"
+                        item_txn_notes += f"[Reason: {override_reason}]"
 
                 StockTransaction.objects.create(
                     product=product,
@@ -1932,7 +2067,7 @@ def pos_checkout(request):
                     selling_price=sell_price,
                     user=request.user,
                     pos_sale=sale_record,
-                    notes=txn_notes
+                    notes=item_txn_notes
                 )
                 
                 receipt_items_response.append({

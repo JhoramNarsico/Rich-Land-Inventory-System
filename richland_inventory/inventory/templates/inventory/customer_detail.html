@@ -75,7 +75,7 @@
                     <h6 class="text-uppercase text-muted fw-bold small mb-3">Financial Status</h6>
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <div class="display-6 fw-bold {% if current_balance > 0 %}text-danger{% elif current_balance < 0 %}text-success{% else %}text-dark{% endif %}">
+                            <div class="display-6 fw-bold {% if current_balance > 0.01 %}text-danger{% elif current_balance < -0.01 %}text-success{% else %}text-dark{% endif %}">
                                 ₱{{ current_balance|floatformat:2|intcomma }}
                             </div>
                             <div class="small text-muted mt-1">Outstanding Balance</div>
@@ -185,7 +185,6 @@
                                 <th class="text-secondary small text-uppercase">Description</th>
                                 <th class="text-end text-secondary small text-uppercase">Debit (₱)</th>
                                 <th class="text-end text-secondary small text-uppercase">Credit (₱)</th>
-                                <th class="text-end text-secondary small text-uppercase">Balance (₱)</th>
                                 <th class="text-secondary small text-uppercase pe-4">Processed By</th>
                             </tr>
                         </thead>
@@ -212,19 +211,33 @@
                                         <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle rounded-pill">Payment</span>
                                     {% endif %}
                                     <div class="small text-muted mt-1">{{ entry.description }}</div>
+                                    {% if entry.type == 'DEBT' %}
+                                        {% if entry.can_cancel %}
+                                            <form method="POST" action="{% url 'inventory:cancel_debt' customer.pk entry.id %}" class="mt-1" onsubmit="return confirm('Are you sure you want to cancel this debt? This will restore stock and delete the receipt. Please provide a reason.')">
+                                                {% csrf_token %}
+                                                <input type="text" name="cancellation_reason" class="form-control form-control-sm mb-1" placeholder="Reason for cancellation" required>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.7rem;">
+                                                    <i class="fas fa-times me-1"></i>Cancel
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 mt-1 disabled" style="font-size: 0.7rem;" title="Cancellation blocked: This debt has partial payments or is already paid.">
+                                                <i class="fas fa-ban me-1"></i>Cancel Blocked
+                                            </button>
+                                        {% endif %}
+                                    {% endif %}
                                 </td>
-                                <td class="text-end text-danger font-monospace">
-                                    {% if entry.debit > 0 %}₱{{ entry.debit|floatformat:2|intcomma }}{% else %}-{% endif %}
+                                <td class="text-danger fw-bold text-end">
+                                    {% if entry.debit > 0 %}₱{{ entry.display_debit|floatformat:2|intcomma }}{% else %}-{% endif %}
                                 </td>
-                                <td class="text-end text-success font-monospace">
+                                <td class="text-success fw-bold text-end">
                                     {% if entry.credit > 0 %}₱{{ entry.credit|floatformat:2|intcomma }}{% else %}-{% endif %}
                                 </td>
-                                <td class="text-end fw-bold font-monospace">₱{{ entry.balance|floatformat:2|intcomma }}</td>
                                 <td class="small text-muted pe-4">{{ entry.user }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
+                                <td colspan="6" class="text-center py-5 text-muted">
                                     <i class="fas fa-book-open fa-2x mb-3 opacity-25"></i>
                                     <p class="mb-0">No transactions recorded.</p>
                                 </td>
