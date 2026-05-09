@@ -234,6 +234,13 @@
                         <input type="number" id="amountPaidInput" class="form-control fw-bold" placeholder="0.00" step="0.01">
                     </div>
                 </div>
+                
+                <!-- Mandatory Description for GCASH/BANK -->
+                <div class="mb-4" id="paymentDescriptionGroup" style="display: none;">
+                    <label class="form-label fw-bold">Reference / Description <span class="text-danger">*</span></label>
+                    <input type="text" id="paymentDescriptionInput" class="form-control" placeholder="Enter reference number or details...">
+                </div>
+
                 <div class="alert alert-light border d-flex justify-content-between" id="changeGroup">
                     <span class="fw-bold text-muted">Change:</span>
                     <span class="fw-bold text-success fs-5" id="changeDisplay">₱0.00</span>
@@ -285,6 +292,7 @@
         renderCategories();
         document.getElementById('productSearch').addEventListener('input', (e) => handleSearch(e.target.value));
         if (paidInput) paidInput.addEventListener('input', calculateChange);
+        document.getElementById('paymentDescriptionInput').addEventListener('input', calculateChange);
     });
 
     // --- RENDER FUNCTIONS ---
@@ -534,25 +542,32 @@
     }
 
     function togglePaymentMethod() {
-        const isCredit = document.getElementById('pmCredit').checked;
-        const isCash = document.getElementById('pmCash').checked;
+        const method = document.querySelector('input[name="paymentMethod"]:checked').value;
         const cashInputGroup = document.getElementById('cashInputGroup');
         const changeGroup = document.getElementById('changeGroup');
+        const descGroup = document.getElementById('paymentDescriptionGroup');
         const label = document.getElementById('paymentAmountLabel');
         
-        if (isCredit) {
+        // Show description for GCASH or BANK
+        if (method === 'GCASH' || method === 'BANK') {
+            descGroup.style.display = 'block';
+        } else {
+            descGroup.style.display = 'none';
+        }
+
+        if (method === 'CREDIT') {
             cashInputGroup.style.display = 'none';
             changeGroup.style.display = 'none';
-            confirmBtn.disabled = false; // Credit doesn't need cash validation
+            confirmBtn.disabled = false;
         } else {
             cashInputGroup.style.display = 'block';
             changeGroup.style.display = 'flex';
-            if (isCash) {
+            if (method === 'CASH') {
                 label.innerText = "Cash Tendered";
             } else {
                 label.innerText = "Amount Paid";
             }
-            calculateChange(); // Re-validate cash
+            calculateChange();
         }
     }
 
@@ -561,15 +576,23 @@
         const change = paid - currentTotal;
         changeDisplay.innerText = '₱' + change.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
+        const method = document.querySelector('input[name="paymentMethod"]:checked').value;
+        const description = document.getElementById('paymentDescriptionInput').value;
+
+        let isValid = (change >= 0);
+        // If mandatory, check description
+        if ((method === 'GCASH' || method === 'BANK') && description.trim() === '') {
+            isValid = false;
+        }
+
         if (change >= 0) {
             changeDisplay.classList.remove('text-danger');
             changeDisplay.classList.add('text-success');
-            confirmBtn.disabled = false;
         } else {
             changeDisplay.classList.add('text-danger');
             changeDisplay.classList.remove('text-success');
-            confirmBtn.disabled = true;
         }
+        confirmBtn.disabled = !isValid;
     }
 
     function processCheckout() {
@@ -577,6 +600,7 @@
         confirmBtn.disabled = true;
         const amountPaid = parseFloat(paidInput.value);
         const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+        const paymentDescription = document.getElementById('paymentDescriptionInput').value;
         const customerId = customerSelect.value;
 
         if (paymentMethod === 'CREDIT' && !customerId) {
@@ -593,6 +617,7 @@
                 items: cart, 
                 amount_paid: amountPaid,
                 payment_method: paymentMethod,
+                payment_description: paymentDescription,
                 customer_id: customerId
             })
         })
@@ -600,7 +625,6 @@
         .then(data => {
             if (data.status === 'success') {
                 paymentModal.hide();
-                // Automatically redirect to the receipt detail page
                 const receiptUrl = "{% url 'inventory:pos_receipt_detail' 'PLACEHOLDER' %}".replace('PLACEHOLDER', data.receipt_id);
                 window.location.href = receiptUrl;
             } else {

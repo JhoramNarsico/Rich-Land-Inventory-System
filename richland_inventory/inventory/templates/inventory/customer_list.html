@@ -148,10 +148,16 @@
     });
 
     // Sorting Functionality
-    function sortTable(colIndex) {
+    function sortTable(colIndex, save = true) {
         const table = document.getElementById("customerTable");
         let rows = Array.from(table.tBodies[0].rows);
-        const ascending = table.getAttribute('data-sort-asc') !== 'true';
+        
+        // Determine sorting direction: if switching columns, default to ascending. 
+        // If clicking same column, toggle.
+        const currentSort = localStorage.getItem('customerTableSort') || '0_asc';
+        const [lastCol, lastDir] = currentSort.split('_');
+        
+        let ascending = (colIndex == lastCol) ? (lastDir === 'desc') : true;
         
         rows.sort((a, b) => {
             let valA, valB;
@@ -165,9 +171,25 @@
             return ascending ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
         });
         
-        table.setAttribute('data-sort-asc', ascending);
+        if (save) {
+            localStorage.setItem('customerTableSort', `${colIndex}_${ascending ? 'asc' : 'desc'}`);
+        }
+        
         rows.forEach(row => table.tBodies[0].appendChild(row));
     }
+
+    // Apply stored sort on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedSort = localStorage.getItem('customerTableSort');
+        if (savedSort) {
+            const [colIndex, dir] = savedSort.split('_');
+            // Force the sort state by calling sortTable with 'false' (no save)
+            // Note: This simple implementation toggles, so we just run it once
+            sortTable(parseInt(colIndex), false);
+            // Re-apply correct direction if needed (The sort logic toggles, so if it's currently asc, it sorts desc)
+            if (dir === 'desc') sortTable(parseInt(colIndex), false);
+        }
+    });
 </script>
 
     <!-- 4. PAGINATION -->

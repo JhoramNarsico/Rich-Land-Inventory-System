@@ -61,17 +61,17 @@ class Customer(models.Model):
     def get_balance(self):
         """Calculates current outstanding balance by subtracting total payments from credit sales."""
         # Sum of credit sales (Total Amount of sales marked as CREDIT)
-        credit_sales = self.purchases.filter(payment_method='CREDIT').aggregate(
+        # Exclude CANCELLED transactions
+        credit_sales = self.purchases.filter(payment_method='CREDIT').exclude(status='CANCELLED').aggregate(
             total=Sum('total_amount')
         )['total'] or Decimal('0.00')
-        
+
         # Sum of payments made
         payments = self.payments.aggregate(
             total=Sum('amount')
         )['total'] or Decimal('0.00')
-        
-        return credit_sales - payments
 
+        return credit_sales - payments
     def get_absolute_url(self):
         return reverse('inventory:customer_detail', kwargs={'pk': self.pk})
 
@@ -189,9 +189,14 @@ class POSSale(models.Model):
         GCASH = 'GCASH', 'GCash'
         BANK = 'BANK', 'Bank Transfer'
 
+    class Status(models.TextChoices):
+        COMPLETED = 'COMPLETED', 'Completed'
+        CANCELLED = 'CANCELLED', 'Cancelled'
+
     receipt_id = models.CharField(max_length=50, unique=True, editable=False)
     cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.COMPLETED)
     
     # Customer Linking
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchases')
@@ -364,6 +369,21 @@ class PriceOverrideLog(models.Model):
     @property
     def price_difference(self):
         return self.original_price - self.override_price
+
+
+class CancellationReason(models.Model):
+    pos_sale = models.OneToOneField(POSSale, on_delete=models.CASCADE, related_name='cancellation_reason')
+    reason = models.TextField(help_text='Reason for cancelling the debt.')
+    cancelled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "Cancellation Reason"
+        verbose_name_plural = "Cancellation Reasons"
+
+    def __str__(self):
+        return f"Reason for {self.pos_sale.receipt_id}: {self.reason[:50]}"
 
 
 class Supplier(models.Model):
