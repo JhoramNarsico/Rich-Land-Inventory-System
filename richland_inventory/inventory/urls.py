@@ -75,6 +75,7 @@ urlpatterns =[
     path('customers/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),
     path('customers/<int:pk>/update/', views.CustomerUpdateView.as_view(), name='customer_update'),
     path('customers/<int:pk>/payment/', views.customer_payment, name='customer_payment'),
+    path('customers/<int:pk>/cancel-debt/<int:sale_pk>/', views.cancel_debt, name='cancel_debt'),
     path('customers/<int:pk>/export/', views.export_statement, name='customer_statement_export'),
     
     # Customer Ledger Imports
