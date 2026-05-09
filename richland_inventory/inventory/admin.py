@@ -355,6 +355,23 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     inlines = [PurchaseOrderItemInline]
     date_hierarchy = 'order_date'
     autocomplete_fields = ('supplier',)
+    actions = ['receive_purchase_order']
+
+    def receive_purchase_order(self, request, queryset):
+        """Admin action to receive selected purchase orders."""
+        received_count = 0
+        for po in queryset:
+            if po.status != 'RECEIVED':
+                po.complete_order(request.user)
+                received_count += 1
+        
+        if received_count:
+            self.message_user(request, f"{received_count} purchase order(s) successfully received.")
+            clear_dashboard_cache()
+        else:
+            self.message_user(request, "Selected purchase order(s) already received or could not be processed.", level='warning')
+    
+    receive_purchase_order.short_description = "Receive Selected Purchase Orders"
 
     class Media:
         js = (
