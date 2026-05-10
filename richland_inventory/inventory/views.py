@@ -53,7 +53,7 @@ from .models import (
     StockTransaction, Supplier
 )
 from .serializers import (
-    ProductSerializer, CategorySerializer, CustomerSerializer, CustomerPaymentSerializer,
+    ProductSerializer, ProductInventorySerializer, CategorySerializer, CustomerSerializer, CustomerPaymentSerializer,
     HydraulicSowSerializer, POSSaleSerializer, ExpenseSerializer, ExpenseCategorySerializer
 )
 from .utils import render_to_pdf
@@ -2754,7 +2754,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Product.objects.all()
-    serializer_class = ProductSerializer
+    serializer_class = ProductInventorySerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'sku']
