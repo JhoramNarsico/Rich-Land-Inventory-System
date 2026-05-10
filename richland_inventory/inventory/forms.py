@@ -63,11 +63,11 @@ class CustomerPaymentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         if customer:
-            # Get all credit sales for the customer that are not fully paid
+            # Get all credit sales for the customer that are not fully paid and not cancelled
             unpaid_sales = POSSale.objects.filter(
                 customer=customer,
                 payment_method='CREDIT'
-            ).annotate(
+            ).exclude(status='CANCELLED').annotate(
                 paid_amount=Coalesce(Sum('payments_received__amount'), Value(0, output_field=DecimalField()))
             ).annotate(
                 outstanding=F('total_amount') - F('paid_amount')

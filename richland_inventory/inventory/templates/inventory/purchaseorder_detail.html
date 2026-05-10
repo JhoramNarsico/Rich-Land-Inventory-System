@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}PO #{{ po.id|stringformat:"05d" }}{% endblock %}
+{% block title %}PO {{ po.order_id|slice:"3:" }}{% endblock %}
 
 {% block breadcrumb %}
     <li class="breadcrumb-item"><a href="{% url 'inventory:purchaseorder_list' %}" class="text-decoration-none text-primary">Procurement</a></li>
@@ -15,7 +15,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <div class="d-flex align-items-center gap-3">
-                <h2 class="fw-bold text-dark mb-0">Purchase Order {{ po.order_id }}</h2>
+                <h2 class="fw-bold text-dark mb-0">Purchase Order {{ po.order_id|slice:"3:" }}</h2>
                 {% if po.status == 'RECEIVED' %}
                     <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3">Received</span>
                 {% elif po.status == 'COMPLETED' %}
@@ -146,6 +146,18 @@
                                 <td class="text-muted small text-uppercase fw-bold pt-3">Total Items:</td>
                                 <td class="pt-3 text-end fw-bold fs-5">{{ po.items.count }}</td>
                             </tr>
+                            {% if po.status == 'RECEIVED' and po.receipt_logs.exists %}
+                            {% with last_log=po.receipt_logs.first %}
+                            <tr class="border-top mt-3 pt-3">
+                                <td class="text-muted small text-uppercase fw-bold pt-3">Received By:</td>
+                                <td class="pt-3 text-end fw-bold text-success">{{ last_log.received_by.username|default:"System" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted small text-uppercase fw-bold">Received Date:</td>
+                                <td class="text-end fw-bold">{{ last_log.timestamp|date:"F d, Y g:i A" }}</td>
+                            </tr>
+                            {% endwith %}
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>

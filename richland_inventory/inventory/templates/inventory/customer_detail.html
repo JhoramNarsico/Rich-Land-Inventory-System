@@ -206,7 +206,13 @@
                                     {% if entry.type == 'DEBT' %}
                                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Debt</span>
                                     {% elif entry.type == 'SALE' %}
-                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">Sale</span>
+                                        {% if "refunded" in entry.description|lower %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">Refunded</span>
+                                        {% elif "cancelled" in entry.description|lower %}
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">Cancelled</span>
+                                        {% else %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">Sale</span>
+                                        {% endif %}
                                     {% else %}
                                         <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle rounded-pill">Payment</span>
                                     {% endif %}
