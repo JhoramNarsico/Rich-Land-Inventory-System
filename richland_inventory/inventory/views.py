@@ -2939,14 +2939,20 @@ def product_toggle_status(request, slug):
     product.save()
     return redirect(product.get_absolute_url())
 
-from datetime import datetime, timedelta
+from django.utils import timezone
 
 def format_audit_datetime(dt_str):
     """Helper to convert ISO format timestamps to 12-hour local format."""
     try:
         # Simple extraction for ISO strings like '2026-05-10 09:30:58.994018+00:00'
-        dt = datetime.fromisoformat(dt_str.split('+')[0])
-        return dt.strftime("%m/%d/%Y, %I:%M %p")
+        # Parse the string and ensure it is timezone-aware
+        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.utc)
+        
+        # Convert to local time
+        local_dt = timezone.localtime(dt)
+        return local_dt.strftime("%m/%d/%Y, %I:%M %p")
     except:
         return dt_str
 
