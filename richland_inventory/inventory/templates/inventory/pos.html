@@ -4,7 +4,8 @@
 {% block title %}Point of Sale{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item active" aria-current="page">POS Terminal</li>
+    <li class="breadcrumb-item"><a href="{% url 'inventory:pos_dashboard' %}" class="text-decoration-none text-primary">POS</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Terminal</li>
 {% endblock %}
 
 {% block content %}

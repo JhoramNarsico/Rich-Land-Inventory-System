@@ -192,6 +192,7 @@ class POSSale(models.Model):
     class Status(models.TextChoices):
         COMPLETED = 'COMPLETED', 'Completed'
         CANCELLED = 'CANCELLED', 'Cancelled'
+        REFUNDED = 'REFUNDED', 'Refunded'
 
     receipt_id = models.CharField(max_length=50, unique=True, editable=False)
     cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
@@ -451,6 +452,12 @@ class PurchaseOrder(models.Model):
             self.status = 'RECEIVED'
             self.save()
 
+            PurchaseOrderReceiptLog.objects.create(
+                purchase_order=self,
+                received_by=user,
+                notes=f"Automatically received via system action."
+            )
+
             for item in self.items.all():
                 product = item.product
                 
@@ -489,3 +496,21 @@ class PurchaseOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} of {self.product.name}"
+
+
+class PurchaseOrderReceiptLog(models.Model):
+    """
+    Tracks the audit history of when a Purchase Order was received.
+    """
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='receipt_logs')
+    received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, help_text="Any additional notes about the receipt.")
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "Purchase Order Receipt Log"
+        verbose_name_plural = "Purchase Order Receipt Logs"
+
+    def __str__(self):
+        return f"PO {self.purchase_order.order_id} received by {self.received_by} on {self.timestamp}"
