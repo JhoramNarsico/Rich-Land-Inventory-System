@@ -55,11 +55,30 @@ class HydraulicSowSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ProductInventorySerializer(serializers.ModelSerializer):
+    """Includes low-stock indicators for frontend health dashboards."""
+    is_low_stock = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'sku', 'price', 'quantity', 'is_low_stock']
+        
+    def get_is_low_stock(self, obj):
+        return obj.quantity <= 10
+
+
 class POSSaleSerializer(serializers.ModelSerializer):
-    """Serializer for Point of Sale transactions and receipts."""
+    """Enhanced POSSale serializer exposing new status fields and audit-relevant info."""
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    cashier_name = serializers.CharField(source='cashier.username', read_only=True)
+    
     class Meta:
         model = POSSale
-        fields = '__all__'
+        fields = [
+            'id', 'receipt_id', 'timestamp', 'customer_name', 'cashier_name',
+            'payment_method', 'total_amount', 'amount_paid', 'status', 'notes'
+        ]
+        read_only_fields = fields
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
