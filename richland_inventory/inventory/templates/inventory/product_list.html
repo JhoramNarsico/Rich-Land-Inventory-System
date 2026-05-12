@@ -11,12 +11,12 @@
 <div class="container-fluid pb-5">
     
     <!-- 1. HEADER & ACTIONS -->
-    <div class="d-flex justify-content-between align-items-end mb-4">
-        <div>
+    <div class="row align-items-end mb-4 g-3">
+        <div class="col-12 col-md-auto me-auto">
             <h1 class="fw-bold text-dark mb-1 h2">Product Inventory</h1>
             <p class="text-muted small mb-0">Manage catalog, track stock levels, and pricing.</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="col-12 col-md-auto d-flex flex-wrap gap-2">
             <!-- Quick Actions -->
             <button class="btn btn-outline-secondary shadow-sm" type="button" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
                 <i class="fas fa-folder-plus text-warning me-2"></i>Manage/Create Category
@@ -38,12 +38,10 @@
     <div class="collapse show" id="filterPanel" style="position: relative; z-index: 100;">
         <div class="card border-0 shadow-sm mb-4" style="overflow: visible;">
             <div class="card-body p-3 bg-white rounded-3">
-                <!-- FIX: Removed hx-get, hx-target, hx-trigger to force full page reload -->
-                <!-- This ensures both Grid and Table views receive filtered data -->
                 <form method="get" action="" class="row g-2 align-items-center">
                     
                     <!-- Search -->
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-4">
                         <label for="{{ filter_form.q.id_for_label }}" class="visually-hidden">Search products</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted" aria-hidden="true"></i></span>
@@ -52,31 +50,29 @@
                     </div>
 
                     <!-- Filters -->
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label for="{{ filter_form.category.id_for_label }}" class="visually-hidden">Filter by Category</label>
                         {{ filter_form.category }}
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label for="{{ filter_form.stock_status.id_for_label }}" class="visually-hidden">Filter by Stock Status</label>
                         {{ filter_form.stock_status }}
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label for="{{ filter_form.product_status.id_for_label }}" class="visually-hidden">Filter by Product Status</label>
                         {{ filter_form.product_status }}
                     </div>
                     
                     <!-- Sort & Actions -->
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <div class="d-flex gap-1">
                             <label for="{{ filter_form.sort_by.id_for_label }}" class="visually-hidden">Sort results</label>
                             {{ filter_form.sort_by }}
                             
-                            <!-- Added Explicit Submit Button -->
                             <button type="submit" class="btn btn-primary" aria-label="Apply Filters" title="Apply Filters">
                                 <i class="fas fa-arrow-right" aria-hidden="true"></i>
                             </button>
                             
-                            <!-- Reset Button -->
                             <a href="{% url 'inventory:product_list' %}" class="btn btn-light border" aria-label="Reset Filters" title="Reset Filters">
                                 <i class="fas fa-redo-alt text-muted" aria-hidden="true"></i>
                             </a>

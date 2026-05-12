@@ -162,6 +162,9 @@ class RefundHistoryAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
         return False
 
 
@@ -191,17 +194,31 @@ class HydraulicSowInline(admin.TabularInline):
         return False
 
 
+class CustomerSaleInline(admin.TabularInline):
+    """Inline view for viewing POS Sales within the Customer admin."""
+    model = POSSale
+    extra = 0
+    fields = ('receipt_id', 'timestamp', 'total_amount', 'payment_method', 'status')
+    readonly_fields = fields
+    can_delete = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     """
     Admin configuration for the Customer model.
     Displays customer information, allows searching, and shows current balance.
-    Includes inlines for Customer Payments and Hydraulic Sows.
+    Includes inlines for Customer Payments, Hydraulic Sows, and POS Sales.
     """
     list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance_display')
     search_fields = ('name', 'customer_id', 'email', 'phone', 'tax_id')
     exclude = ('credit_limit',)
-    inlines =[CustomerPaymentInline, HydraulicSowInline]
+    inlines =[CustomerPaymentInline, CustomerSaleInline, HydraulicSowInline]
     readonly_fields = ('created_at', 'updated_at')
     list_per_page = 25
 
@@ -298,6 +315,9 @@ class POSSaleAdmin(admin.ModelAdmin):
     
     def has_change_permission(self, request, obj=None):
         return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 @admin.register(PriceOverrideLog)

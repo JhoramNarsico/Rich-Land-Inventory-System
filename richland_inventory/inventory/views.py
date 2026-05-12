@@ -53,7 +53,7 @@ from .models import (
     StockTransaction, Supplier
 )
 from .serializers import (
-    ProductSerializer, CategorySerializer, CustomerSerializer, CustomerPaymentSerializer,
+    ProductSerializer, ProductInventorySerializer, CategorySerializer, CustomerSerializer, CustomerPaymentSerializer,
     HydraulicSowSerializer, POSSaleSerializer, ExpenseSerializer, ExpenseCategorySerializer
 )
 from .utils import render_to_pdf
@@ -117,6 +117,11 @@ def refund_search(request):
             
     return JsonResponse({'status': 'success', 'items': items})
 
+from django_ratelimit.decorators import ratelimit
+
+# ...
+
+@ratelimit(key='user', rate='10/m', block=True)
 @login_required
 @permission_required('inventory.can_adjust_stock', raise_exception=True)
 @transaction.atomic
@@ -129,7 +134,12 @@ def refund_process(request):
             messages.error(request, "A reason for the refund is required.")
             return redirect('inventory:refund_portal')
 
-        sale = POSSale.objects.get(receipt_id=rid)
+        sale = POSSale.objects.select_for_update().get(receipt_id=rid)
+        
+        # --- NEW GUARD: Check if already refunded ---
+        if sale.status == 'REFUNDED':
+            messages.error(request, "This receipt has already been refunded.")
+            return redirect('inventory:refund_portal')
         
         # Check if the receipt belongs to a Hydraulic SOW job
         if sale.notes and "Hydraulic Job" in sale.notes:
@@ -160,7 +170,10 @@ def refund_process(request):
         if refund_count == 0:
             messages.warning(request, "No items were selected for refund.")
         else:
-            messages.success(request, f"Refunds processed for receipt {rid}.")
+            # --- UPDATE STATUS ---
+            sale.status = 'REFUNDED'
+            sale.save()
+            messages.success(request, f"Refunds processed and transaction {rid} marked as Refunded.")
         
         return redirect('inventory:refund_portal')
     return redirect('inventory:refund_portal')
@@ -1002,13 +1015,20 @@ class CustomerListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             balance=F('total_credit_sales') - F('total_payments_made')
         ).order_by('name')
 
-        status = self.request.GET.get('status')
+        # Persist filters in session
+        params = self.request.GET.copy()
+        if params:
+            self.request.session['customer_filters'] = params
+        else:
+            params = self.request.session.get('customer_filters', {})
+
+        status = params.get('status')
         if status == 'outstanding':
             qs = qs.filter(balance__gt=0)
         elif status == 'cleared':
             qs = qs.filter(balance__lte=0)
 
-        self.filter_form = CustomerFilterForm(self.request.GET)
+        self.filter_form = CustomerFilterForm(params)
         if self.filter_form.is_valid():
             q = self.filter_form.cleaned_data.get('q')
             if q:
@@ -1344,8 +1364,8 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
         
         ledger_q = self.request.GET.get('ledger_q', '')
 
-        # 1. Fetch Sales (Credit) with payment status, excluding CANCELLED
-        sales_qs = customer.purchases.exclude(status='CANCELLED').select_related('cashier').annotate(
+        # 1. Fetch Sales (Credit) with payment status, including CANCELLED
+        sales_qs = customer.purchases.select_related('cashier').annotate(
             paid_amount=Coalesce(Sum('payments_received__amount'), Decimal('0.00'))
         ).annotate(
             outstanding=F('total_amount') - F('paid_amount')
@@ -1411,7 +1431,13 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             txn_type = 'SALE'
             credit_val = Decimal('0')
 
-            if s.payment_method == 'CREDIT':
+            if s.status == 'REFUNDED':
+                status = "REFUNDED"
+                txn_type = 'SALE'
+            elif s.status == 'CANCELLED':
+                status = "CANCELLED"
+                txn_type = 'SALE'
+            elif s.payment_method == 'CREDIT':
                 if s.outstanding <= Decimal('0.001'):
                     status = "PAID"
                     txn_type = 'SALE'
@@ -2728,7 +2754,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Product.objects.all()
-    serializer_class = ProductSerializer
+    serializer_class = ProductInventorySerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'sku']
@@ -2913,6 +2939,23 @@ def product_toggle_status(request, slug):
     product.save()
     return redirect(product.get_absolute_url())
 
+from django.utils import timezone
+
+def format_audit_datetime(dt_str):
+    """Helper to convert ISO format timestamps to 12-hour local format."""
+    try:
+        # Simple extraction for ISO strings like '2026-05-10 09:30:58.994018+00:00'
+        # Parse the string and ensure it is timezone-aware
+        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.utc)
+        
+        # Convert to local time
+        local_dt = timezone.localtime(dt)
+        return local_dt.strftime("%m/%d/%Y, %I:%M %p")
+    except:
+        return dt_str
+
 def process_history_records(history_records):
     """Helper to calculate deltas and action labels for history records."""
     # Eagerly load the records to work with a list
@@ -2982,6 +3025,11 @@ def process_history_records(history_records):
                     old_val = change.old
                     new_val = change.new
                     
+                    # Custom formatting for specific field types
+                    if field == 'last_purchase_date':
+                        old_val = format_audit_datetime(str(old_val)) if old_val else "None"
+                        new_val = format_audit_datetime(str(new_val)) if new_val else "None"
+
                     if field == 'category':
                         old_cat = categories_map.get(old_val)
                         new_cat = categories_map.get(new_val)

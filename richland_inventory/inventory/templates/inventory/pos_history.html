@@ -46,7 +46,9 @@
                         <td>{{ sale.customer.name|default:"Walk-in Customer" }}</td>
                         <td>{{ sale.cashier.username }}</td>
                         <td class="text-center">
-                            {% if sale.payment_method == 'CASH' %}
+                            {% if sale.status == 'REFUNDED' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2">Refunded</span>
+                            {% elif sale.payment_method == 'CASH' %}
                                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">Cash</span>
                             {% elif sale.payment_method == 'CREDIT' %}
                                 <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2">Credit</span>

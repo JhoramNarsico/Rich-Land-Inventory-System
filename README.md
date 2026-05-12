@@ -31,6 +31,7 @@ See the [Deployment and Testing Document](Group#_DeployStage.pdf) for detailed t
 *   **Database:** MySQL 8.0 (Local/Docker) / PostgreSQL (Production)
 *   **Frontend:** Bootstrap 5, Vanilla JavaScript
 *   **DevOps:** Docker, WhiteNoise (Static Files), Render (Deployment)
+*   **Security:** `django-ratelimit` (Rate Limiting)
 
 ---
 
