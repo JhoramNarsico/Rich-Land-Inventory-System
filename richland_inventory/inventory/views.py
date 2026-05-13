@@ -3036,7 +3036,12 @@ def process_history_records(history_records):
                         old_val = old_cat.name if old_cat else "None"
                         new_val = new_cat.name if new_cat else "None"
 
-                    changes.append(f"<strong>{str(field).replace('_', ' ').title()}:</strong> {old_val} &rarr; {new_val}")
+                    # Ensure all values are converted to strings to prevent TypeError
+                    formatted_old = str(old_val) if old_val is not None else "None"
+                    formatted_new = str(new_val) if new_val is not None else "None"
+                    field_name = str(field).replace('_', ' ').title()
+
+                    changes.append(f"<strong>{field_name}:</strong> {formatted_old} &rarr; {formatted_new}")
                     
                     if field == 'price': affected_fields.append("Price")
                     elif field == 'quantity': affected_fields.append("Stock")
