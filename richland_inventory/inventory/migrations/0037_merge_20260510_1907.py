@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventory', '0035_update_group_permissions'),
+        ('inventory', '0035_purchaseorderreceiptlog'),
         ('inventory', '0036_alter_possale_status'),
     ]
 
