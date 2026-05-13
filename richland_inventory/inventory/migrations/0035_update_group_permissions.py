@@ -26,9 +26,9 @@ def update_group_permissions(apps, schema_editor):
 
     # Salesman: Focus on operational transaction processing
     salesman_perms = [
-        'view_possale', 'add_possale', 'view_priceoverridelog',
+        'view_possale', 'add_possale', 'delete_possale', 'view_priceoverridelog',
         'view_hydraulicsow', 'add_hydraulicsow', 'change_hydraulicsow',
-        'view_customer', 'add_customer', 'change_customer',
+        'view_customer', 'change_customer',
         'view_customerpayment', 'add_customerpayment',
         'view_product', 'view_category', 'can_adjust_stock', 'view_cancellationreason'
     ]
