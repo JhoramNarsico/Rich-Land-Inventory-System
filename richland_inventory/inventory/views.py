@@ -3025,20 +3025,99 @@ def process_history_records(history_records):
                     old_val = change.old
                     new_val = change.new
                     
+def safe_format(val):
+    if val is None:
+        return "None"
+    try:
+        s = str(val)
+        return s if s is not None else str(repr(val))
+    except Exception:
+        return str(repr(val))
+
+def process_history_records(history_records):
+    """Helper to calculate deltas and action labels for history records."""
+    # Eagerly load the records to work with a list
+    records_on_page = list(history_records)
+    if not records_on_page:
+        return
+
+    # --- OPTIMIZATION: Pre-fetch all previous records in bulk ---
+    # 1. Get all unique product IDs from the current page of history
+    product_ids = {r.id for r in records_on_page}
+    
+    # 2. Fetch all historical records for these products
+    HistoryModel = records_on_page[0].__class__
+    all_history_for_products = HistoryModel.objects.filter(
+        id__in=product_ids
+    ).order_by('id', 'history_date') # Order is crucial
+
+    # 3. Create a map of {history_id: previous_record_object}
+    prev_record_map = {}
+    last_record_for_product = {}
+    for record in all_history_for_products:
+        product_id = record.id
+        if product_id in last_record_for_product:
+            # The current record's predecessor is the last one we saw for this product
+            prev_record_map[record.history_id] = last_record_for_product[product_id]
+        # Store the current record as the "last seen" for the next iteration
+        last_record_for_product[product_id] = record
+
+    # 4. Fetch Category names in bulk to resolve IDs in the change summary
+    category_ids = set()
+    for record in records_on_page:
+        if record.category_id:
+            category_ids.add(record.category_id)
+        prev = prev_record_map.get(record.history_id)
+        if prev and prev.category_id:
+            category_ids.add(prev.category_id)
+    categories_map = Category.objects.filter(id__in=category_ids).in_bulk()
+    # --- END OPTIMIZATION ---
+
+    for record in records_on_page:
+        record.change_summary_html = "No details available."
+        record.action_label = "Update"
+        record.badge_class = "bg-secondary-subtle text-secondary border border-secondary"
+
+        if record.history_type == '+':
+            record.action_label = "Created"
+            record.badge_class = "bg-success-subtle text-success border border-success"
+            record.change_summary_html = "Initial product creation."
+        elif record.history_type == '-':
+            record.action_label = "Deleted"
+            record.badge_class = "bg-danger-subtle text-danger border border-danger"
+            record.change_summary_html = "Product deleted."
+        elif record.history_type == '~':
+            # Use the pre-fetched previous record instead of hitting the DB again
+            prev_record = prev_record_map.get(record.history_id)
+            
+            if prev_record:
+                delta = record.diff_against(prev_record)
+                changes =[]
+                affected_fields =[]
+                
+                for change in delta.changes:
+                    field = change.field
+                    if field in ['slug', 'date_updated']:
+                        continue
+                    
+                    old_val = change.old
+                    new_val = change.new
+                    
                     # Custom formatting for specific field types
                     if field == 'last_purchase_date':
                         old_val = format_audit_datetime(str(old_val)) if old_val else "None"
                         new_val = format_audit_datetime(str(new_val)) if new_val else "None"
 
-                    if field == 'category':
+                    elif field == 'category':
                         old_cat = categories_map.get(old_val)
                         new_cat = categories_map.get(new_val)
-                        old_val = old_cat.name if old_cat else "None"
-                        new_val = new_cat.name if new_cat else "None"
+                        old_val = old_cat.name if old_cat and hasattr(old_cat, 'name') else "None"
+                        new_val = new_cat.name if new_cat and hasattr(new_cat, 'name') else "None"
 
-                    # Ensure all values are converted to strings to prevent TypeError
-                    formatted_old = str(old_val) if old_val is not None else "None"
-                    formatted_new = str(new_val) if new_val is not None else "None"
+                    # Use safe_format to prevent TypeError
+                    formatted_old = safe_format(old_val)
+                    formatted_new = safe_format(new_val)
+                    
                     field_name = str(field).replace('_', ' ').title()
 
                     changes.append(f"<strong>{field_name}:</strong> {formatted_old} &rarr; {formatted_new}")
