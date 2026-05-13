@@ -3036,7 +3036,7 @@ def process_history_records(history_records):
                         old_val = old_cat.name if old_cat else "None"
                         new_val = new_cat.name if new_cat else "None"
 
-                    changes.append(f"<strong>{field.replace('_', ' ').title()}:</strong> {old_val} &rarr; {new_val}")
+                    changes.append(f"<strong>{str(field).replace('_', ' ').title()}:</strong> {old_val} &rarr; {new_val}")
                     
                     if field == 'price': affected_fields.append("Price")
                     elif field == 'quantity': affected_fields.append("Stock")
