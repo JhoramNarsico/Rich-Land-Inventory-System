@@ -51,7 +51,7 @@ def update_group_permissions(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventory', '0034_possale_status_cancellationreason'),
+        ('inventory', '0037_merge_20260510_1907'),
     ]
 
     operations = [
