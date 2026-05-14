@@ -1895,19 +1895,21 @@ def get_walkin_customer():
 @permission_required('inventory.add_possale', raise_exception=True)
 def pos_dashboard(request):
     # Products
-    active_products_qs = Product.objects.filter(status=Product.Status.ACTIVE, quantity__gt=0).values(
-        'id', 'name', 'sku', 'price', 'quantity', 'category__name', 'image'
-    )
+    active_products_qs = Product.objects.filter(status=Product.Status.ACTIVE, quantity__gt=0)
 
     # Manually process to add the full image URL
     products_list =[]
     for p in active_products_qs:
-        image_url = None
-        if p.get('image'):
-            # Construct the full URL path for the template
-            image_url = f"{settings.MEDIA_URL}{p['image']}"
-        p['image_url'] = image_url
-        products_list.append(p)
+        p_dict = {
+            'id': p.id,
+            'name': p.name,
+            'sku': p.sku,
+            'price': float(p.price),
+            'quantity': p.quantity,
+            'category__name': p.category.name if p.category else None,
+            'image_url': p.image.url if p.image else None,
+        }
+        products_list.append(p_dict)
 
     products_json = json.dumps(products_list, cls=DjangoJSONEncoder)
     
