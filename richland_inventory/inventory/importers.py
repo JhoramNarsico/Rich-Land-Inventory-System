@@ -7,6 +7,7 @@ from io import StringIO
 from openpyxl import load_workbook
 
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from .models import HydraulicSow, POSSale, CustomerPayment
@@ -117,6 +118,14 @@ def import_ledger_entries_from_file(file_obj, customer, user):
                                 # The reference was provided but it's invalid. This is an error.
                                 errors.append(f"Row {i}: Reference '{ref}' does not match any existing invoice for this customer.")
                                 continue # Skip to the next row
+
+                        # --- Validate overpayment ---
+                        if sale_to_pay:
+                            paid_amount = sale_to_pay.payments_received.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                            outstanding = sale_to_pay.total_amount - paid_amount
+                            if payment_val > outstanding:
+                                errors.append(f"Row {i}: Payment amount ₱{payment_val:,.2f} exceeds outstanding balance of ₱{outstanding:,.2f} for Ref '{ref}'.")
+                                continue
 
                         CustomerPayment.objects.create(
                             customer=customer, amount=payment_val, payment_date=txn_date,
