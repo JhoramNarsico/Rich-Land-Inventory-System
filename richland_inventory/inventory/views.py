@@ -1033,6 +1033,7 @@ class CustomerListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             q = self.filter_form.cleaned_data.get('q')
             if q:
                 query = Q(name__icontains=q) | \
+                        Q(customer_id__icontains=q) | \
                         Q(email__icontains=q) | \
                         Q(phone__icontains=q) | \
                         Q(address__icontains=q)
