@@ -1914,7 +1914,7 @@ def pos_dashboard(request):
     products_json = json.dumps(products_list, cls=DjangoJSONEncoder)
     
     # Customers
-    customers = Customer.objects.values('id', 'name')
+    customers = Customer.objects.values('id', 'name', 'customer_id')
     customers_json = json.dumps(list(customers), cls=DjangoJSONEncoder)
     
     # Get pre-selected customer from URL
