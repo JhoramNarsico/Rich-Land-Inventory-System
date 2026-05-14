@@ -167,9 +167,14 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Disable cost input if already charged
+        const costInput = document.getElementById('id_cost');
+        if (costInput && costInput.hasAttribute('disabled')) {
+            costInput.disabled = true;
+        }
+
         const chargeBox = document.getElementById('id_charge_account');
         const cashBox = document.getElementById('id_mark_paid');
-        const costInput = document.getElementById('id_cost');
         const form = document.querySelector('form');
 
         // 1. Handle Mutual Exclusivity (Only for Named Customers)
