@@ -136,7 +136,12 @@ python manage.py migrate
 python manage.py seed_data
 ```
 
-*Note: Running `flush` is irreversible and will permanently delete all records, including POS history, user accounts, and ledger entries.*
+### 3. Create Superuser
+If you need to create an administrator account:
+```bash
+python manage.py createsuperuser
+```
+
 
 
 ### Prerequisites
