@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RL-IOS Master Test Plan</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+ 
+ 
+        :root {
+            /* RICH LAND AUTO SUPPLY COLOR SCHEME */
+            --primary-color: #113233; /* Deep Dark Teal from logo outlines */
+            --accent-color: #43B5B7;  /* Vibrant Banner Teal */
+            --secondary-color: #F4F8F8; /* Light metallic/teal-grey tint */
+           
+            --text-main: #1A2222; /* Deep grey-teal for high readability */
+            --text-muted: #4E6060; /* Muted metallic grey */
+            --border-color: #CDE0E0; /* Soft teal-grey border */
+            --bg-color: #E8EFEF; /* Outer desktop background */
+           
+            --code-bg: #EDF4F4;
+            --code-text: #0E5E60; /* Bold teal for code */
+            --pass-color: #16a34a;
+        }
+ 
+ 
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 40px 20px;
+            color: var(--text-main);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+ 
+ 
+        /* Document Container */
+        .document-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 50px 60px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(17, 50, 51, 0.1), 0 2px 4px -1px rgba(17, 50, 51, 0.06);
+            border-top: 8px solid var(--accent-color);
+        }
+ 
+ 
+        /* Main Header */
+        .doc-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 15px;
+        }
+ 
+ 
+        /* Document Control Information */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 40px;
+            margin-top: 25px;
+        }
+ 
+ 
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+ 
+ 
+        .meta-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+ 
+ 
+        .meta-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+ 
+ 
+        /* Sections */
+        .section-header {
+            font-size: 18px;
+            color: var(--primary-color);
+            margin-top: 35px;
+            margin-bottom: 15px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+ 
+ 
+        .section-content {
+            margin-bottom: 25px;
+            color: var(--text-muted);
+        }
+ 
+ 
+        .section-content ul {
+            margin-top: 8px;
+            padding-left: 20px;
+        }
+ 
+ 
+        .section-content li {
+            margin-bottom: 6px;
+        }
+ 
+ 
+        .section-content strong {
+            color: var(--primary-color);
+        }
+ 
+ 
+        /* Test Plan Modules */
+        .test-module {
+            margin-top: 40px;
+            page-break-inside: avoid;
+        }
+ 
+ 
+        .req-header {
+            background-color: #EBF3F3;
+            border-left: 5px solid var(--accent-color);
+            padding: 12px 16px;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--primary-color);
+            border-radius: 0 4px 4px 0;
+            margin-bottom: 10px;
+        }
+ 
+ 
+        .objective {
+            margin-bottom: 15px;
+            font-style: italic;
+            color: var(--text-muted);
+            font-size: 12px;
+            padding-left: 4px;
+        }
+ 
+ 
+        /* Modern Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            table-layout: fixed;
+            font-size: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+ 
+ 
+        th, td {
+            padding: 12px 14px;
+            text-align: left;
+            vertical-align: top;
+            word-wrap: break-word;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+        }
+ 
+ 
+        th:last-child, td:last-child {
+            border-right: none;
+        }
+ 
+ 
+        th {
+            background-color: var(--secondary-color);
+            font-weight: 700;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--accent-color);
+        }
+ 
+ 
+        tr:nth-child(even) {
+            background-color: #FAFCFC;
+        }
+ 
+ 
+        tr:hover {
+            background-color: #EDF4F4;
+        }
+ 
+ 
+        /* Column Widths */
+        th:nth-child(1) { width: 13%; } /* Test Area */
+        th:nth-child(2) { width: 23%; } /* Description */
+        th:nth-child(3) { width: 13%; } /* Input Field */
+        th:nth-child(4) { width: 15%; } /* Input Value */
+        th:nth-child(5) { width: 15%; } /* Expected Output */
+        th:nth-child(6) { width: 14%; } /* Actual Output */
+        th:nth-child(7) { width: 7%; text-align: center; } /* Pass/Fail */
+ 
+ 
+        td:first-child strong {
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+ 
+ 
+        /* Code Tags */
+        code {
+            color: var(--code-text);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background-color: var(--code-bg);
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            border: 1px solid var(--border-color);
+            word-break: break-word;
+            font-weight: 500;
+        }
+ 
+ 
+        /* Print Button */
+        .print-btn {
+            position: fixed;
+            top: 25px;
+            right: 40px;
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(17, 50, 51, 0.25);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+        }
+ 
+ 
+        .print-btn:hover {
+            background-color: #0A1C1D;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(17, 50, 51, 0.35);
+        }
+ 
+ 
+        /* Print Styles */
+        @media print {
+            @page { margin: 1cm; size: A4 portrait; }
+            body {
+                background-color: transparent;
+                padding: 0;
+                font-size: 11px;
+            }
+            .document-container {
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+                max-width: 100%;
+                border-top: none;
+            }
+            .print-btn { display: none; }
+            .meta-grid {
+                border: 1px solid #000;
+                background-color: transparent !important;
+                gap: 10px;
+                padding: 15px;
+            }
+            table {
+                border: 1px solid #000;
+                font-size: 10px;
+            }
+            th, td {
+                border-bottom: 1px solid #000;
+                border-right: 1px solid #000;
+                padding: 8px;
+            }
+            th {
+                background-color: #f2f2f2 !important;
+                -webkit-print-color-adjust: exact;
+                color: #000;
+                border-bottom: 2px solid #000;
+            }
+            .req-header {
+                border-left: 3px solid #000;
+                background-color: transparent !important;
+                color: #000;
+                padding: 8px 12px;
+                margin-top: 20px;
+            }
+            .section-header { color: #000; border-bottom: 1px solid #000; }
+            .test-module { page-break-inside: avoid; }
+            code {
+                border: 1px solid #999;
+                background-color: transparent !important;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+<body>
+ 
+ 
+    <button class="print-btn" onclick="window.print()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        Save as PDF
+    </button>
+ 
+ 
+    <div class="document-container">
+       
+        <h1 class="doc-title">Master Test Plan</h1>
+ 
+ 
+        <div class="meta-grid">
+            <div class="meta-item">
+                <span class="meta-label">System / Project</span>
+                <span class="meta-value">Rich Land Integrated Operations System (RL-IOS)</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Assigned Testers</span>
+                <span class="meta-value">Jhoram Narsico & Joseph Alberto</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Date Designed</span>
+                <span class="meta-value">April 27, 2026</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Date Conducted</span>
+                <span class="meta-value">May 14, 2026</span>
+            </div>
+        </div>
+ 
+ 
+        <h3 class="section-header">1. Objective</h3>
+        <div class="section-content">
+            To verify that the RL-IOS seamlessly integrates core inventory tracking, point-of-sale checkouts, financial ledger calculations, and custom hydraulic Statement of Work (SOW) generation while enforcing strict role-based access control and accurate data caching.
+        </div>
+ 
+ 
+        <h3 class="section-header">2. Test Scope</h3>
+        <div class="section-content">
+            <ul>
+                <li><strong>Included:</strong> Core Catalog CRUD operations, Real-time virtual Point of Sale (POS) cart calculations, Customer balance and ledger updates, Hydraulic SOW data capturing, Purchase Order receiving, Expense categorization, and API Endpoint security.</li>
+                <li><strong>Excluded:</strong> Multi-branch and multi-warehouse tracking, Integrated Payment Gateway (Stripe/PayPal handshakes), Public e-commerce storefronts, Complex double-entry accounting tax rules, and Employee timeclocks/payroll calculations.</li>
+            </ul>
+        </div>
+ 
+ 
+        <h3 class="section-header">3. Test Environment</h3>
+        <div class="section-content">
+            <ul>
+                <li><strong>Operating System:</strong> Windows (Client/Testing) / Linux (Production Deployment)</li>
+                <li><strong>Tools Used:</strong> Web Browser (Chrome/Edge), Terminal, Swagger UI</li>
+                <li><strong>Network Setup:</strong> Cloud deployment accessed via internet (HTTPS), routed through Render Edge Load Balancer & CDN.</li>
+            </ul>
+        </div>
+ 
+ 
+        <h3 class="section-header">4. Test Execution Matrix</h3>
+ 
+ 
+        <!-- Test Module 001 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 001 - Inventory & Product Management</div>
+            <div class="objective">Objective: Validate the accuracy of the product registry, real-time local stock tracking, and the reliability of historical audit logs.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>1.1 Category Management</strong></td><td>Verify new product categories can be created with automatic slug generation.</td><td><code>name</code></td><td>"Hydraulic Parts"</td><td>A new category is saved; <code>slug</code> is automatically set to <code>hydraulic-parts</code>.</td><td>Category added successfully; "hydraulic-parts" is visible in the Admin Category interface.</td><td>Pass</td></tr>
+                    <tr><td><strong>1.2 Product Creation</strong></td><td>Verify a new product can be added with required details and unique SKU.</td><td><code>name, sku, price</code></td><td>"Oil Filter", "OF-001", 450.00</td><td>Product "Oil Filter" is created with matching SKU; initial quantity is 0, to be handled via procurement.</td><td>Product created successfully; initial quantity handled via procurement; quantity input is optional/disabled at creation.</td><td>Pass</td></tr>
+                    <tr><td><strong>1.3 Stock Validation</strong></td><td>Ensure manual stock adjustments block negative values using Django forms.</td><td><code>quantity</code></td><td>-5</td><td>System prevents saving and requires value to be >= 0.</td><td>Manual stock adjustment is not applicable as quantity is managed via procurement; validation rules confirmed.</td><td>Pass</td></tr>
+                    <tr><td><strong>1.4 Stock Adjustment (In)</strong></td><td>Verify manual stock increase creates a <code>StockTransaction</code> record.</td><td><code>reason, quantity</code></td><td>"Restock", 10</td><td>Quantity increases by 10; "Stock In" transaction record is created.</td><td>Manual stock increase is not supported; all restocking must be processed through the procurement workflow.</td><td>Fail</td></tr>
+                    <tr><td><strong>1.5 Purchase Order Receiving</strong></td><td>Verify that receiving a Purchase Order updates stock and sets the last purchase date.</td><td><code>status</code></td><td>Change from "COMPLETED" to "RECEIVED"</td><td><code>Product.quantity</code> increases by item amount; <code>last_purchase_date</code> is updated.</td><td>Purchase Order receipt correctly updates stock quantities and records the last purchase date in the audit history.</td><td>Pass</td></tr>
+                    <tr><td><strong>1.6 Status Toggle</strong></td><td>Verify product can be activated/deactivated to control visibility in POS.</td><td><code>Action: Toggle</code></td><td>"Deactivate"</td><td>Product status changes; item is hidden from POS active product selection.</td><td>Product status updated successfully; the deactivated item is now visible in the product list with an 'inactive' status.</td><td>Pass</td></tr>
+                    <tr><td><strong>1.7 Low Stock Alert</strong></td><td>Verify system identifies and filters items running low on stock.</td><td><code>stock_status</code></td><td>Select "Low Stock"</td><td>Product list strictly filters to display products with quantities between 1 and 10.</td><td>The product list successfully filters and displays only items with low stock.</td><td>Pass</td></tr>
+                    <tr><td><strong>1.8 Audit Logging</strong></td><td>Verify that editing a product captures a historical record for auditing.</td><td><code>price</code> (Edit)</td><td>Modify product price</td><td>New entry in <code>Product.history</code> showing the exact delta.</td><td>Price update is successfully captured in the audit history, showing the transition between the old and new values.</td><td>Pass</td></tr>
+                    <tr><td><strong>1.9 SKU Uniqueness</strong></td><td>Verify duplicate SKUs are prevented across different products.</td><td><code>sku</code></td><td>"OF-001" (existing)</td><td>System throws a ValidationError stating SKU already exists.</td><td>System correctly identifies duplicate SKU and displays error message: "Product with this Sku already exists."</td><td>Pass</td></tr>
+                    <tr><td><strong>1.10 Manual Stock Out</strong></td><td>Prevent manual stock reduction that exceeds available physical quantity.</td><td><code>quantity</code></td><td>Quantity exceeding stock (e.g., 100 available: 5)</td><td>System blocks transaction; displays error: "Cannot stock out more than available".</td><td>Manual stock reduction is restricted to specific workflows like damages; the system correctly enforces validation and displays the expected error message when stock limits are exceeded.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 002 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 002 - Point of Sale (POS) & Sales Management</div>
+            <div class="objective">Objective: Validate the reliability of transaction processing, accuracy of multi-method payment handling, and credit linkages.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>2.1 Transaction Processing</strong></td><td>Verify multi-item checkout and Receipt ID generation.</td><td><code>Cart Items</code></td><td>Add 2x Floor Matting, 1x Oil</td><td>Calculates total; generates unique Receipt ID; prints digitized receipt.</td><td>Transaction processed successfully; the system automatically calculated the total and generated a unique receipt identifier for the digitized receipt.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.2 Digital Payments</strong></td><td>Ensure mandatory reference number for GCash and Bank transfers.</td><td><code>Payment Method, Ref</code></td><td>"GCash", [Empty]</td><td>System blocks checkout; requires reference number for audit trail.</td><td>The system successfully prevents checkout by greying out the "Complete Sale" button until a reference number is provided for GCash or bank transfers.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.3 Price Control</strong></td><td>Validate the manual price override and reason logging via the inline edit tool.</td><td><code>Unit Price</code></td><td>Change price; Reason: "Bulk Buy"</td><td>System flags deviation; <code>PriceOverrideLog</code> records change and reason for audit.</td><td>Price override is successfully logged with the correct price delta and reason; the adjustment is visible in the Admin Price Override logs.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.4 Walk-In Logic</strong></td><td>Ensure Walk-in Customers default to "CASH" and cannot access credit.</td><td><code>POS Terminal</code></td><td>Redirect to POS</td><td>Payment method defaults to CASH; CREDIT option is disabled/hidden.</td><td>The system allows cash, Gcash, and bank transfers for walk-in customers, but correctly restricts access by disabling the credit option.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.5 Inventory Integration</strong></td><td>Ensure real-time stock reduction upon sale finalization.</td><td><code>Action: Complete Sale</code></td><td>N/A</td><td><code>Product.quantity</code> decreases immediately; <code>StockTransaction</code> (OUT) is created.</td><td>Stock reduction is processed in real-time, and the transaction is correctly tracked in the audit logs.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.6 Receipt Integrity</strong></td><td>Confirm digitized receipt contains all required business metadata.</td><td><code>Action: View Receipt</code></td><td>N/A</td><td>Receipt displays Date, Items, Line Totals, Receipt ID, and Business Header.</td><td>The digitized receipt correctly displays all business header information, including business name, address, proprietor details, contact information, TIN, and digital channels.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.7 Safety Validation</strong></td><td>Prevent sales that exceed currently available physical stock.</td><td><code>Quantity</code></td><td>Exceeding Stock</td><td>System prevents finalization and displays "Insufficient Stock" alert.</td><td>The system prevents sales exceeding stock by disabling the increment button, effectively preventing over-sales.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.8 Refund Eligibility</strong></td><td>Verify that only CASH sales can be processed through the Refund Portal.</td><td><code>Receipt ID</code></td><td>[Credit Transaction ID]</td><td>System blocks refund; message: "Only CASH sales are eligible for refund".</td><td>The system successfully blocks credit transactions from the refund portal with the message: "Only CASH sales are eligible for refund. This appears to be a credit transaction."</td><td>Pass</td></tr>
+                    <tr><td><strong>2.9 Refund Processing</strong></td><td>Verify that processing a refund restores stock and marks transaction as REFUNDED.</td><td><code>Action: Process Refund</code></td><td>"Damaged Item"</td><td>Stock increments; <code>POSSale.status</code> changes to REFUNDED; blocks re-refund.</td><td>Refund processed successfully; stock is restored, and the transaction is marked as REFUNDED, strictly restricted to cash sales.</td><td>Pass</td></tr>
+                    <tr><td><strong>2.10 Service Refund</strong></td><td>Ensure Hydraulic Service Jobs are blocked from the refund portal.</td><td><code>Receipt ID</code></td><td>[Hydraulic Job ID]</td><td>System blocks refund; message: "Refunds for Hydraulic Service Jobs are not permitted".</td><td>The system successfully prevents the refund of Hydraulic Service Jobs and displays the error message: "Refunds for Hydraulic Service Jobs are not permitted."</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 003 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 003 - Procurement & Supplier Management</div>
+            <div class="objective">Objective: Validate automated Purchase Order generation, stock receiving workflows, and supplier management.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>3.1 Supplier Setup</strong></td><td>Verify that new suppliers are assigned a unique digitized ID.</td><td><code>Supplier Name</code></td><td>"Cebu Heavy Parts"</td><td>Supplier saved; <code>supplier_id</code> auto-generated in <code>SUP-XXXXXXXX</code> format.</td><td>Supplier saved successfully; the system correctly generated a unique Vendor ID (e.g., SUP-235E7163).</td><td>Pass</td></tr>
+                    <tr><td><strong>3.2 PO Generation</strong></td><td>Validate that creating a Purchase Order auto-generates a unique tracking number.</td><td><code>Supplier, Items</code></td><td>Select Supplier; Add 10x "Filters"</td><td>New <code>PurchaseOrder</code> is created with unique tracking ID (PO-XXXX).</td><td>The system successfully generates a unique Purchase Order tracking ID (e.g., PO-4F9E96C7) upon creation.</td><td>Pass</td></tr>
+                    <tr><td><strong>3.3 Workflow Control</strong></td><td>Ensure POs can only be "Received" if they are in "COMPLETED" status.</td><td><code>PO Status</code></td><td>"In Transit"</td><td>"Receive Stock" button is disabled until order is marked as arrived (COMPLETED).</td><td>The "Receive Stock" button is correctly disabled when the PO status is set to "In Transit", ensuring stock can only be received when the order is marked as Arrived.</td><td>Pass</td></tr>
+                    <tr><td><strong>3.4 Order Receiving</strong></td><td>Verify the receive order logic and atomic stock update.</td><td><code>Action: Receive</code></td><td>Click "Receive stock"</td><td>Stock increments safely; <code>status</code> &rarr; RECEIVED; <code>last_purchase_date</code> updates.</td><td>Stock increments successfully upon receipt, and a transaction record is created with the reason "Purchase Order (Restock)" and details linking back to the PO.</td><td>Pass</td></tr>
+                    <tr><td><strong>3.5 Financial Integrity</strong></td><td>Confirm <code>line_total</code> accuracy for multi-item procurement.</td><td><code>Quantity, Unit Price</code></td><td>5 units @ 1,200.00 each</td><td>System correctly calculates <code>line_total</code> as 6,000.00 and updates PO total.</td><td>The system correctly calculates the line total (e.g., 5 units at ₱1,200.00 results in ₱6,000.00) and updates the total procurement amount.</td><td>Pass</td></tr>
+                    <tr><td><strong>3.6 Validation</strong></td><td>Ensure negative quantities or prices are blocked in procurement.</td><td><code>Price</code></td><td>-50.00</td><td>System triggers <code>MinValueValidator</code> and prevents saving the record.</td><td>The system successfully prevents negative values in procurement, displaying the error: "Ensure this value is greater than or equal to 0.00."</td><td>Pass</td></tr>
+                    <tr><td><strong>3.7 Duplicate PO ID</strong></td><td>Prevent duplicate PO IDs across different suppliers during import.</td><td><code>Import File</code></td><td>Duplicate PO-XXXX</td><td>System blocks import; throws error: "PO ID already exists for another supplier".</td><td>The bulk import functionality for Purchase Orders is currently unavailable.</td><td>Fail</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 004 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 004 - Customer Relationship & Financial Billing</div>
+            <div class="objective">Objective: Verify the accuracy of customer profiles, reliability of accounts receivable calculations, and debt settlement workflows.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>4.1 Profile Integrity</strong></td><td>Verify unique Customer ID generation and credit limit enforcement.</td><td><code>Name, Credit Limit</code></td><td>Create new Customer</td><td>Customer saved with <code>CUST-XXXXXXXX</code> ID; credit limit stored.</td><td>Customer profile created successfully with a unique ID (e.g., CUST-B70ED020), but the credit limit field is not visible or stored.</td><td>Fail</td></tr>
+                    <tr><td><strong>4.2 Ledger Balance</strong></td><td>Verify ledger balance reflects current outstanding debt accurately.</td><td><code>Account Ledger</code></td><td>Check Ledger</td><td>Ledger balance dynamically updates with every charge and payment.</td><td>The ledger balance updates dynamically, correctly reflecting charges and payments (e.g., recording partial payments against credit sales).</td><td>Pass</td></tr>
+                    <tr><td><strong>4.3 Settlement</strong></td><td>Verify partial and full settlement of credit accounts.</td><td><code>Apply to Invoice</code></td><td>Process payment</td><td>Account balance decreases correctly upon settlement.</td><td>Payment processed successfully; the outstanding balance (e.g., REC-D38729EA) dynamically decreases upon settlement.</td><td>Pass</td></tr>
+                    <tr><td><strong>4.4 Refund Restriction</strong></td><td>Ensure credit-based sales cannot be refunded.</td><td><code>Refund Portal</code></td><td>Attempt credit refund</td><td>System blocks refund; message: "Refunds for credit sales are not permitted".</td><td>System successfully blocks refund attempts on credit transactions, enforcing cash-only refunds.</td><td>Pass</td></tr>
+                    <tr><td><strong>4.5 Statement Generation</strong></td><td>Verify account statements correctly export and detail transaction history.</td><td><code>Generate Statement</code></td><td>Export PDF</td><td>Export provides a clean, chronological history of all charges and payments.</td><td>The system successfully generates and exports a clean, chronological PDF statement detailing all account charges and payments.</td><td>Pass</td></tr>
+                    <tr><td><strong>4.6 Payment Method Selection</strong></td><td>Ensure that credit-eligible customers are presented with the Credit payment option.</td><td><code>POS Checkout</code></td><td>Select Customer</td><td>Credit option is enabled and selectable for eligible customers.</td><td>The system correctly identifies credit-eligible customers and displays the Credit payment option during POS checkout.</td><td>Pass</td></tr>
+                    <tr><td><strong>4.7 Credit Limit Enforcement</strong></td><td>Verify that system blocks credit transactions exceeding the assigned customer credit limit.</td><td><code>POS Sale</code></td><td>Credit Sale > Limit</td><td>System blocks sale; error message displays limit exceeded.</td><td>The system successfully validates credit limits, preventing sales that exceed the customer's assigned limit.</td><td>Pass</td></tr>
+                    <tr><td><strong>4.8 Payment Description Accuracy</strong></td><td>Ensure that the payment description appears for all applied invoice payments.</td><td><code>Ledger</code></td><td>View Payments</td><td>Payment history displays valid receipts with descriptions for every transaction.</td><td>Payment descriptions are correctly displayed for all applied invoice payments in the ledger.</td><td>Pass</td></tr>
+                    <tr><td><strong>4.9 Customer Search Efficiency</strong></td><td>Verify rapid searching of customers by name or ID in the billing interface.</td><td><code>Search Box</code></td><td>Type query</td><td>Results filter instantaneously as the user types.</td><td>Customer search functionality is efficient, providing instantaneous results as the user types the name or ID.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 005 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 005 - Hydraulic Customization (Specialized Service)</div>
+            <div class="objective">Objective: Validate the precision of technical data entry, ensure job-specific ID generation, and verify billing integration.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>5.1 Mandatory Data</strong></td><td>Verify required technical fields are validated on save.</td><td><code>Hose Type, Fittings</code></td><td>[Empty]</td><td>System prevents saving; requires Hose Type, Diameter, Length, and Fittings.</td><td>The system successfully enforces validation, preventing saving when mandatory technical fields are empty.</td><td>Pass</td></tr>
+                    <tr><td><strong>5.2 Walk-in Billing</strong></td><td>Verify that Walk-in jobs only permit sales (Cash/GCash/Bank) and block credit.</td><td><code>Service Cost</code></td><td>0.00, Walk-in</td><td>System prevents saving; error: "A service cost is required for Walk-in Customers".</td><td>The system incorrectly processes the Scope of Work (SOW) as a Sale immediately upon saving, which is unexpected behavior.</td><td>Fail</td></tr>
+                    <tr><td><strong>5.3 Customer Billing</strong></td><td>Verify named customers require selecting a payment method (Charge/Pay).</td><td><code>Payment Mode</code></td><td>[None selected]</td><td>System prevents saving; error: "You must select a payment method".</td><td>The system successfully enforces payment selection, displaying the notification: "You must select a payment method (Charge to Account or Pay Cash)."</td><td>Pass</td></tr>
+                    <tr><td><strong>5.4 Billing Adjustment</strong></td><td>Verify that updating an SOW cost adjusts the linked POS transaction.</td><td><code>Cost</code> (Edit)</td><td>1,500 &rarr; 1,800</td><td>Linked <code>POSSale.total_amount</code> updates; StockTransaction selling price updates.</td><td>The system currently does not allow updates to service cost prices, preventing linked POS transaction adjustments.</td><td>Fail</td></tr>
+                    <tr><td><strong>5.5 ID Continuity</strong></td><td>Ensure SOW Job ID matches the Receipt ID for financial traceability.</td><td><code>Action: View Receipt</code></td><td>JOB-XXXXXXXX</td><td>POS Receipt displays the same JOB ID and technical specs in the notes.</td><td>The SOW Job ID correctly maps and matches the POS Receipt ID, ensuring full financial traceability.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 006 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 006 - Expense Tracking</div>
+            <div class="objective">Objective: Validate the accurate categorization of operational overhead and verify that digital receipts are stored.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>6.1 Category Setup</strong></td><td>Verify that expense categories can be defined dynamically.</td><td><code>name</code></td><td>"Building Rent"</td><td>Category is saved and appears as a selectable option in the dropdown.</td><td>Category creation is currently coupled with expense entry; dynamic, independent creation is not supported.</td><td>Fail</td></tr>
+                    <tr><td><strong>6.2 Expense Recording</strong></td><td>Verify digitized recording of a standard operational cost.</td><td><code>amount, category</code></td><td>15,000.00, "Rent"</td><td>Expense is recorded; the business total overhead for the month is updated.</td><td>Expense recorded successfully; the dashboard KPI widget updates the total overhead accurately.</td><td>Pass</td></tr>
+                    <tr><td><strong>6.3 Digital Receipt Upload</strong></td><td>Confirm physical receipts can be attached to a digital record.</td><td><code>receipt</code></td><td>[receipt_001.jpg]</td><td>Image is successfully uploaded and linked to the specific expense entry.</td><td>Receipt image uploaded successfully; file is retrievable via the expense detail view.</td><td>Pass</td></tr>
+                    <tr><td><strong>6.4 PDF Support</strong></td><td>Ensure the system accepts PDF documents for utility bills.</td><td><code>receipt</code></td><td>[electric_bill.pdf]</td><td>System accepts the <code>.pdf</code> format and allows for local viewing and retrieval.</td><td>PDF upload supported and functioning; system successfully stores and serves PDF documents.</td><td>Pass</td></tr>
+                    <tr><td><strong>6.5 Date Filtering</strong></td><td>Validate that expenses can be filtered accurately by month/year.</td><td><code>month, year</code></td><td>"May", "2026"</td><td>Table accurately filters to list only expenses incurred within May 2026.</td><td>Expense table filters accurately by selected period; correct entries displayed.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 007 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 007 - Reporting & Analytics Engine</div>
+            <div class="objective">Objective: Validate the mathematical accuracy of aggregated financial reports and visual analytics.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>7.1 Profitability Logic</strong></td><td>Verify Net Income calculation: (Gross - Refunds) - Expenses.</td><td><code>KPI Widgets</code></td><td>N/A</td><td>Net Income correctly reflects Realized Revenue minus Operational Costs.</td><td>Calculations verified; Net Income reflects revenue minus refunds and documented expenses.</td><td>Pass</td></tr>
+                    <tr><td><strong>7.2 Sales Breakdown</strong></td><td>Verify breakdown of Cash vs Charges vs Hydraulic Jobs.</td><td><code>Payment Chart</code></td><td>N/A</td><td>Analytics pie chart correctly segregates revenue by payment origin.</td><td>Chart accurately segments revenue across Cash, Charges, and Hydraulic Service Jobs.</td><td>Pass</td></tr>
+                    <tr><td><strong>7.3 Trend Accuracy</strong></td><td>Verify Sales vs Expenses line chart displays chronological data.</td><td><code>Date Filter</code></td><td>Last 30 Days</td><td>Chart points match daily totals in the Ledger and Expense tables.</td><td>Chart data aligns precisely with transaction and ledger historical totals.</td><td>Pass</td></tr>
+                    <tr><td><strong>7.4 Inventory Snapshot</strong></td><td>Validate that PDF exports match the current real-time stock levels.</td><td><code>Action: Export PDF</code></td><td>N/A</td><td>Downloaded PDF reflects exact <code>Product.quantity</code> and Asset Value.</td><td>Snapshot PDF matches current inventory database state and valuation.</td><td>Pass</td></tr>
+                    <tr><td><strong>7.5 Top Sellers</strong></td><td>Verify Top 5 products chart reflects units sold correctly.</td><td><code>Performance Chart</code></td><td>N/A</td><td>Chart accurately ranks products by total quantity sold in the selected period.</td><td>Ranking logic is correct; top-selling items correlate with transaction volume.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 008 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 008 - Bulk Data Management (Import/Export)</div>
+            <div class="objective">Objective: Validate the integrity of bulk data operations and transactional atomicity during imports.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>8.1 Payment Template</strong></td><td>Verify the bulk import template includes clear instructions for importing customer invoice payments.</td><td><code>Action: Download</code></td><td>Payment Template</td><td>Template contains a dedicated sheet/section with clear instructions for payment data formatting.</td><td>Template correctly includes formatted instructions and required columns for importing payments.</td><td>Pass</td></tr>
+                    <tr><td><strong>8.2 Bulk Product Import</strong></td><td>Verify that bulk imports are processed atomically (All or Nothing).</td><td><code>Import File</code></td><td>File with 1 invalid row</td><td>Import fails entirely; no partial data saved; error identifies row number.</td><td>Atomic transaction rollbacks functioning; import stops on error and reports specific invalid row.</td><td>Pass</td></tr>
+                    <tr><td><strong>8.3 Ledger Import</strong></td><td>Verify bulk payment recording via Excel/CSV for existing customers.</td><td><code>Import File</code></td><td>10x Payments</td><td>Payments recorded; customer balance updates; reference numbers preserved.</td><td>Bulk ledger import processed successfully; balances updated correctly per customer.</td><td>Pass</td></tr>
+                    <tr><td><strong>8.4 Format Validation</strong></td><td>Ensure system blocks non-supported file formats (e.g., .txt, .doc).</td><td><code>File Upload</code></td><td>data.txt</td><td>System blocks upload; error: "Please upload a CSV or Excel file".</td><td>System correctly identifies invalid extensions and blocks upload attempt.</td><td>Pass</td></tr>
+                    <tr><td><strong>8.5 Export Diversity</strong></td><td>Verify data can be exported in multiple formats (PDF, Excel, Word).</td><td><code>Format Toggle</code></td><td>"Excel"</td><td>System generates valid .xlsx file with identical data to the UI view.</td><td>Multi-format exports work as expected, maintaining data integrity from UI state.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 009 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 009 - Role-Based Access Control (Manager vs. Salesman)</div>
+            <div class="objective">Objective: Verify that system features and sensitive data are strictly restricted based on the Manager and Salesman permission sets.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>9.1 Manager: Full Oversight</strong></td><td>Verify Managers can access financial reports, analytics, and full audit history.</td><td><code>Role: Manager</code></td><td>Access /analytics/</td><td>Full dashboard charts and P&L metrics are visible and interactive.</td><td>Manager role has complete access to financial reporting and audit tools.</td><td>Pass</td></tr>
+                    <tr><td><strong>9.2 Salesman: POS Focus</strong></td><td>Verify Salesmen can process sales but are blocked from financial reports.</td><td><code>Role: Salesman</code></td><td>Try /analytics/</td><td>System redirects to Home or displays 403; access to revenue metrics is blocked.</td><td>Access forbidden; Salesman roles restricted from viewing financial metrics.</td><td>Pass</td></tr>
+                    <tr><td><strong>9.3 Audit Logs</strong></td><td>Ensure only Managers can view detailed Product History deltas.</td><td><code>Action: View History</code></td><td>Standard User</td><td>"View History" button is hidden or requires Manager-level credentials.</td><td>History access correctly restricted; button hidden from non-Manager staff.</td><td>Pass</td></tr>
+                    <tr><td><strong>9.4 Critical Deletion</strong></td><td>Verify that only the Owner/Admin can delete Products, Categories, or Expenses.</td><td><code>Action: Delete</code></td><td>Manager/Salesman Login</td><td>Delete buttons are hidden for non-Admins; system blocks request with "Permission Denied".</td><td>Deletion restricted to Owner/Admin; other roles see no delete options or receive permission errors.</td><td>Pass</td></tr>
+                    <tr><td><strong>9.5 Price Overrides</strong></td><td>Ensure Salesmen can lower prices only if the reason field is populated.</td><td><code>Override Price</code></td><td>Lower than Original</td><td>System requires "Override Reason" to be filled before checkout is permitted.</td><td>Validation enforced; override fails without required reason string.</td><td>Pass</td></tr>
+                    <tr><td><strong>9.6 Admin Interface</strong></td><td>Verify standard staff (Salesman) are blocked from the Django Admin backend.</td><td><code>URL</code></td><td>/admin/</td><td>Access denied (403); redirection to the standard application login.</td><td>Staff properly blocked; unauthorized admin access prevented.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 010 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 010 - System-Wide Integration & Data Flow</div>
+            <div class="objective">Objective: Validate the seamless exchange of data between the Inventory, POS, Customer Billing, and Procurement modules.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>10.1 POS &rarr; Inventory</strong></td><td>Verify that completing a sale triggers a digitized "Stock Out" audit trail.</td><td><code>Action: Complete Sale</code></td><td>5x "Crimp Fitting"</td><td><code>Product.quantity</code> decreases; a <code>StockTransaction</code> is created.</td><td>Stock reduction confirmed; transaction audit trail created successfully.</td><td>Pass</td></tr>
+                    <tr><td><strong>10.2 Procurement &rarr; Inventory</strong></td><td>Confirm that receiving a PO updates both stock levels and the last purchase date.</td><td><code>PO Status</code></td><td>"RECEIVED"</td><td><code>Product.quantity</code> increases; <code>Product.last_purchase_date</code> updates.</td><td>Inventory levels and purchase date updated immediately upon receipt.</td><td>Pass</td></tr>
+                    <tr><td><strong>10.3 POS &rarr; Billing</strong></td><td>Verify that a "CREDIT" sale in the POS updates the specific customer’s ledger.</td><td><code>Payment Type</code></td><td>"CREDIT"</td><td>Customer balance updates; debt appears in Customer Detail Ledger immediately.</td><td>Credit transactions accurately reflect in the customer's ledger.</td><td>Pass</td></tr>
+                    <tr><td><strong>10.4 SOW &rarr; Billing</strong></td><td>Ensure that a completed custom job generates a billable entry for the customer.</td><td><code>Action: Charge Job</code></td><td>SOW Finalized</td><td>The total cost appears on the Customer's transaction ledger.</td><td>Completed service jobs are correctly integrated into billing and statements.</td><td>Pass</td></tr>
+                    <tr><td><strong>10.5 Inventory &rarr; Reporting</strong></td><td>Validate that stock movements are reflected in the Financial Profit/Loss report.</td><td><code>Stock Adjustment</code></td><td>Add 10 units (Correction)</td><td>"Total asset value" in the Dashboard updates to reflect the new asset total.</td><td>Financial reports dynamically update reflecting current asset valuation.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 011 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 011 - Web Performance & UX Optimization</div>
+            <div class="objective">Objective: Verify that the application remains responsive, optimized for low-bandwidth scenarios, and provides a smooth user experience.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>11.1 Page Load Speed</strong></td><td>Verify the main Dashboard loads in under 2 seconds.</td><td><code>Action: Load Home</code></td><td>N/A</td><td>Dashboard renders fully with KPI widgets within the target time limit.</td><td>Load time consistently under 1.5s in testing environment.</td><td>Pass</td></tr>
+                    <tr><td><strong>11.2 Search Latency</strong></td><td>Ensure the POS product search returns results in under 500ms.</td><td><code>Search Input</code></td><td>"Filter"</td><td>Results appear nearly instantly as the user types, using optimized AJAX queries.</td><td>Search latency verified under 300ms.</td><td>Pass</td></tr>
+                    <tr><td><strong>11.3 Caching Efficiency</strong></td><td>Verify that frequently accessed static data is served from the local cache.</td><td><code>Action: Reload Page</code></td><td>N/A</td><td>Chrome DevTools shows "from disk cache" or "from memory cache" for assets.</td><td>Cache headers working; assets loading from local cache as expected.</td><td>Pass</td></tr>
+                    <tr><td><strong>11.4 PDF Generation</strong></td><td>Ensure complex PDF statements are generated in under 5 seconds.</td><td><code>Action: Export PDF</code></td><td>Customer Statement</td><td>PDF is generated and ready for download without timing out the server.</td><td>Statements generate well within time constraints.</td><td>Pass</td></tr>
+                    <tr><td><strong>11.5 Responsive Design</strong></td><td>Verify the POS interface remains usable on tablet-sized screens.</td><td><code>Screen Width</code></td><td>768px (Tablet)</td><td>Navigation collapses; tables remain scrollable; buttons are touch-friendly.</td><td>Responsive layout scales correctly; POS interface functional on mobile devices.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+        <!-- Test Module 012 -->
+        <div class="test-module">
+            <div class="req-header">Test ID: 012 - System Security & Data Integrity</div>
+            <div class="objective">Objective: Validate that the application enforces modern security standards and protects sensitive business data from common vulnerabilities.</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Area</th>
+                        <th>Description</th>
+                        <th>Input Field</th>
+                        <th>Input Value</th>
+                        <th>Expected Output</th>
+                        <th>Actual Output</th>
+                        <th>Pass/Fail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>12.1 CSRF Protection</strong></td><td>Verify that all form submissions require a valid CSRF token.</td><td><code>Form Submit</code></td><td>N/A</td><td>Submission fails with 403 Forbidden if the CSRF token is missing or invalid.</td><td>Django CSRF middleware properly blocks invalid requests.</td><td>Pass</td></tr>
+                    <tr><td><strong>12.2 Authentication Wall</strong></td><td>Ensure all internal routes are protected by a login requirement.</td><td><code>URL Access</code></td><td>/inventory/ (Unauth)</td><td>System redirects unauthorized visitors to the login page immediately.</td><td>Security redirection functioning correctly for all protected routes.</td><td>Pass</td></tr>
+                    <tr><td><strong>12.3 SQL Injection</strong></td><td>Verify that the system is resilient against basic SQL injection attempts in search fields.</td><td><code>Search Input</code></td><td>' OR 1=1 --</td><td>System treats input as a literal string; no unauthorized data is returned.</td><td>ORM parameters safely handle input; no injection vulnerabilities found.</td><td>Pass</td></tr>
+                    <tr><td><strong>12.4 Session Security</strong></td><td>Ensure sessions are terminated upon logout.</td><td><code>Action: Logout</code></td><td>N/A</td><td>User is redirected to login; hitting the 'Back' button does not reveal secure data.</td><td>Session correctly destroyed; protected data inaccessible after logout.</td><td>Pass</td></tr>
+                    <tr><td><strong>12.5 Media Security</strong></td><td>Ensure product image uploads are restricted to valid image types.</td><td><code>File Upload</code></td><td>test.exe</td><td>System blocks upload; only .jpg, .png, and .pdf (for bills) are permitted.</td><td>Upload type validation active; invalid files successfully rejected.</td><td>Pass</td></tr>
+                    <tr><td><strong>12.6 Auto-Logout</strong></td><td>Verify that sessions expire after 15 minutes of inactivity.</td><td><code>Inactivity</code></td><td>Wait 15 mins</td><td>User is automatically logged out and redirected to login page.</td><td>Session expires accurately; user redirected to login after inactivity.</td><td>Pass</td></tr>
+                    <tr><td><strong>12.7 API Auth (Valid)</strong></td><td>Verify API access with a valid token.</td><td><code>Header</code></td><td>Authorization: Token &lt;key&gt;</td><td>Access granted; returns 200 OK.</td><td>API request successfully authorized with token.</td><td>Pass</td></tr>
+                    <tr><td><strong>12.8 API Auth (Invalid)</strong></td><td>Verify API access without a token.</td><td><code>Header</code></td><td>None</td><td>Access denied; returns 401 Unauthorized.</td><td>Unauthorized requests correctly rejected by the system.</td><td>Pass</td></tr>
+                </tbody>
+            </table>
+        </div>
+ 
+ 
+    </div>
+ 
+ 
+</body>
+</html>
+ 
+ 
+ 
+

@@ -242,7 +242,9 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
 
-class Product(models.Model): 
+from cloudinary.models import CloudinaryField
+
+class Product(models.Model):
     """
     The core inventory item. Tracks current stock quantity, pricing, and active status.
     Includes a SimpleHistory tracker to monitor all modifications for auditing purposes.
@@ -251,7 +253,7 @@ class Product(models.Model):
         ACTIVE = 'ACTIVE', 'Active'
         DEACTIVATED = 'DEACTIVATED', 'Deactivated'
 
-    image = models.ImageField(upload_to='products/', blank=True, null=True)
+    image = CloudinaryField('image', blank=True, null=True)
     name = models.CharField(max_length=200, unique=True, help_text='Enter the product name', db_index=True)
     sku = models.CharField(max_length=100, unique=True, help_text='Enter the Stock Keeping Unit (SKU)', db_index=True)
     
@@ -283,7 +285,13 @@ class Product(models.Model):
         
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            slug_base = slugify(self.name)
+            slug = slug_base
+            counter = 1
+            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{slug_base}-{counter}"
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
         
     def __str__(self):

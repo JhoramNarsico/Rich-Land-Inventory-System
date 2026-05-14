@@ -109,7 +109,40 @@ docker-compose run --rm tests pytest -v
 
 ---
 
-## Local Development (Manual Setup)
+## Database Maintenance
+
+If you need to reset the system data, use these commands within the Render Shell or Docker container:
+
+### 1. Reset Data (Flush & Seed)
+This removes all current data and re-populates it using the `seed_data` script.
+```bash
+# Safely clear all data from the database
+python manage.py flush --no-input
+
+# Re-populate with seed data
+python manage.py seed_data
+```
+
+### 2. Full Database Reset
+If you need a complete clean slate, including re-applying migrations:
+```bash
+# 1. Remove all database tables
+python manage.py flush --no-input
+
+# 2. Re-apply migrations
+python manage.py migrate
+
+# 3. Re-populate with seed data
+python manage.py seed_data
+```
+
+### 3. Create Superuser
+If you need to create an administrator account:
+```bash
+python manage.py createsuperuser
+```
+
+
 
 ### Prerequisites
 *   Python 3.11+
