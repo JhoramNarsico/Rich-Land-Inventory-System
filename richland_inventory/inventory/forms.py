@@ -196,7 +196,7 @@ class CustomerFilterForm(forms.Form):
     """Search functionality for the customer database."""
     q = forms.CharField(
         required=False, 
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search Name, Email, Phone...'})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search Name, ID, Email, Phone...'})
     )
 
 
