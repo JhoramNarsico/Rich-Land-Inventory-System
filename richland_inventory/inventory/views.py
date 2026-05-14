@@ -292,7 +292,7 @@ def hydraulic_sow_create(request, pk):
                         amount_paid=amount_paid,
                         change_given=0,
                         status='COMPLETED',
-                        notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
+                        notes=f"Hydraulic Job {sow.sow_id}: {sow.hose_type} ({sow.application})"
                     )
 
                     # LOG INDIVIDUAL ITEM IN TRANSACTION LOG
