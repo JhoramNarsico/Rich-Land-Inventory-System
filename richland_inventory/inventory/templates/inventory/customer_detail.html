@@ -361,10 +361,9 @@
                                 <td class="small text-muted">{{ sow.notes|truncatechars:30 }}</td>
                                 <td class="small text-muted">{{ sow.created_by.username|default:"N/A" }}</td>
                                 <td class="text-end pe-4">
-                                    <a href="{% url 'inventory:hydraulic_sow_update' pk=customer.pk sow_pk=sow.pk %}" class="btn btn-sm btn-light border" title="Edit">
+                                    <a href="{% url 'inventory:hydraulic_sow_update' pk=customer.pk sow_pk=sow.pk %}" class="btn btn-sm btn-light border {% if sow.is_charged %}disabled{% endif %}" title="Edit" {% if sow.is_charged %}onclick="return false;"{% endif %}>
                                         <i class="fas fa-edit"></i>
-                                    </a>
-                                </td>
+                                    </a>                                </td>
                             </tr>
                             {% empty %}
                             <tr>
