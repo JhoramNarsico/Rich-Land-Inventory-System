@@ -285,7 +285,13 @@ class Product(models.Model):
         
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            slug_base = slugify(self.name)
+            slug = slug_base
+            counter = 1
+            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{slug_base}-{counter}"
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
         
     def __str__(self):
